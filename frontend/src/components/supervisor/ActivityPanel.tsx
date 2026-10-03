@@ -1,5 +1,5 @@
 import { Box, CheckSquare, FileText } from 'lucide-react'
-import { activities } from '../../data/supervisorMockData'
+import { activities } from '../../data/supervisor/supervisorMockData'
 
 const statusIcon = {
   report: FileText,

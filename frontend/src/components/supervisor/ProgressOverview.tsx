@@ -1,5 +1,5 @@
 import { ChevronDown, TrendingUp } from 'lucide-react'
-import { progressItems } from '../../data/supervisorMockData'
+import { progressItems } from '../../data/supervisor/supervisorMockData'
 
 export function ProgressOverview() {
   return (

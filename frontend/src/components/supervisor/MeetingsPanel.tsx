@@ -1,5 +1,5 @@
 import { ArrowRight, CalendarDays } from 'lucide-react'
-import { meetings } from '../../data/supervisorMockData'
+import { meetings } from '../../data/supervisor/supervisorMockData'
 
 export function MeetingsPanel() {
   return (

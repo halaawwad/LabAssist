@@ -1,5 +1,5 @@
 import { ArrowRight, TrendingUp } from 'lucide-react'
-import type { StatCard as StatCardType } from '../../data/supervisorMockData'
+import type { StatCard as StatCardType } from '../../data/supervisor/supervisorMockData'
 
 type StatCardProps = {
   stat: StatCardType

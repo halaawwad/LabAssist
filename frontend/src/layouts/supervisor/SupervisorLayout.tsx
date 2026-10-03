@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Box } from 'lucide-react'
-import { sidebarItems } from '../data/supervisorMockData'
+import { sidebarItems } from '../../data/supervisor/supervisorMockData'
 
 type SupervisorLayoutProps = {
   children: ReactNode

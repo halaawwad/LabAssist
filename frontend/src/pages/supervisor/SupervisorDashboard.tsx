@@ -4,8 +4,8 @@ import { HardwareSupportCard } from '../../components/supervisor/HardwareSupport
 import { MeetingsPanel } from '../../components/supervisor/MeetingsPanel'
 import { ProgressOverview } from '../../components/supervisor/ProgressOverview'
 import { StatCard } from '../../components/supervisor/StatCard'
-import { stats } from '../../data/supervisorMockData'
-import { SupervisorLayout } from '../../layouts/SupervisorLayout'
+import { stats } from '../../data/supervisor/supervisorMockData'
+import { SupervisorLayout } from '../../layouts/supervisor/SupervisorLayout'
 
 export function SupervisorDashboard() {
   return (
