@@ -5,11 +5,10 @@ import { MeetingsPanel } from '../../components/supervisor/MeetingsPanel'
 import { ProgressOverview } from '../../components/supervisor/ProgressOverview'
 import { StatCard } from '../../components/supervisor/StatCard'
 import { stats } from '../../data/supervisor/supervisorMockData'
-import { SupervisorLayout } from '../../layouts/supervisor/SupervisorLayout'
 
 export function SupervisorDashboard() {
   return (
-    <SupervisorLayout>
+    <>
       <DashboardHeader />
 
       <section className="stats-grid" aria-label="Project summary">
@@ -26,6 +25,6 @@ export function SupervisorDashboard() {
         <HardwareSupportCard />
         <MeetingsPanel />
       </section>
-    </SupervisorLayout>
+    </>
   )
 }
