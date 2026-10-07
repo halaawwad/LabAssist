@@ -1,0 +1,18 @@
+{
+    "name":  "hardwaremate",
+    "private":  true,
+    "type":  "module",
+    "workspaces":  [
+                       "frontend"
+                   ],
+    "scripts":  {
+                    "dev":  "cd frontend \u0026\u0026 vite dev",
+                    "build":  "cd frontend \u0026\u0026 vite build",
+                    "preview":  "cd frontend \u0026\u0026 vite preview",
+                    "test":  "cd frontend \u0026\u0026 vitest run",
+                    "lint":  "cd frontend \u0026\u0026 eslint .",
+                    "format":  "cd frontend \u0026\u0026 prettier --write .",
+                    "dev:supervisor":  "npm --prefix frontend/supervisor run dev",
+                    "build:supervisor":  "npm --prefix frontend/supervisor run build"
+                }
+}
