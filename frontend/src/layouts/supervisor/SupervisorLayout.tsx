@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Box } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { sidebarItems } from '../../data/supervisor/supervisorMockData'
 
 type SupervisorLayoutProps = {
@@ -10,11 +10,15 @@ type SupervisorLayoutProps = {
 const supervisorRoutes: Record<string, string> = {
   Dashboard: '/supervisor/dashboard',
   'My Projects': '/supervisor/projects',
+  Students: '/supervisor/students',
 }
 
 export function SupervisorLayout({ children }: SupervisorLayoutProps) {
+  const location = useLocation()
+  const isStudentsPage = location.pathname === '/supervisor/students'
+
   return (
-    <div className="supervisor-shell">
+    <div className={`supervisor-shell ${isStudentsPage ? 'is-students-route' : ''}`}>
       <aside className="supervisor-sidebar" aria-label="Supervisor navigation">
         <div className="brand-mark">
           <div className="brand-icon" aria-hidden="true">
