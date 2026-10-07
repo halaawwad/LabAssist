@@ -4,6 +4,9 @@ export interface PlacedPart {
   x: number;
   z: number;
   rot: number; // quarter turns 0..3
+  voltage?: number;
+  resistance?: number;
+  enabled?: boolean;
 }
 export interface PinRef {
   partId: string;

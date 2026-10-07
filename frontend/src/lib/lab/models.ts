@@ -1159,6 +1159,26 @@ function display(b: B, def: PartDef) {
 
 function passive(b: B, def: PartDef) {
   const { id } = def;
+  if (["power-source", "power-switch", "xl4015", "s-60-12"].includes(id)) {
+    if (id === "power-source") {
+      b.box(1.1,.6,.72,plastic("#344e65")); b.box(1.12,.06,.74,plastic("#202930"),0,.6);
+      marking(b,def.name,.95,.38,0,.665,0,"#e8eee8",105);
+    } else if (id === "power-switch") {
+      b.box(.7,.3,.55,plastic("#171b1e")); b.box(.48,.1,.4,plastic("#3d4447"),0,.3);
+      marking(b,"I / O",.35,.22,0,.405,0,"#f0f1e9",145);
+    } else if (id === "xl4015") {
+      pcb(b,def.w,def.d,"#267eb0"); b.cyl(.22,.28,plastic("#323b39"),-.17,PCB_T,0,32);
+      b.cyl(.14,.29,plastic("#242a2d"),-.55,PCB_T,0,24); b.cyl(.13,.012,metal(),-.55,.35,0,24);
+      b.box(.3,.17,.25,plastic("#1c64bd"),.45,PCB_T,-.12); b.cyl(.06,.012,metal(),.45,.23,-.12,16);
+      chip(b,.3,.23,.24,.16,true); marking(b,"XL4015",.55,.12,0,.068,-.33);
+    } else {
+      b.box(2.65,.64,1.45,metal("#bbc2c5"));
+      for(let row=0;row<7;row++) for(let col=0;col<13;col++) b.cyl(.04,.005,plastic("#303c42"),-1.1+col*.17,.645,-.6+row*.16,12);
+      b.box(1.55,.007,.22,plastic("#e4e4d8"),0,.65,-.34); marking(b,"S-60-12 · 12V 5A",1.5,.18,0,.659,-.34,"#30373b",120);
+    }
+    def.pins.forEach((pin,i)=>{const [x,y,z]=pinLocal(def,i); b.box(.16,.12,.14,plastic("#243d45"),x,y-.12,z);b.cyl(.045,.012,metal(),x,y,z,16);});
+    return;
+  }
   if (id === "breadboard" || id === "breadboard-400") {
     b.box(def.w, .16, def.d, plastic("#eeede5"));
     for (const z of [-1.1, 1.1]) b.box(def.w-.08,.025,.46,plastic("#f8f7f0"),0,.16,z);
@@ -1187,10 +1207,13 @@ function passive(b: B, def: PartDef) {
     },[1024,512]);
     return;
   }
-  if (id === "resistor-220" || id === "resistor-10k") {
+  if (id === "resistor-220" || id === "resistor-10k" || id === "resistor-variable") {
     const profile = [[0.055, -0.3], [0.09, -0.26], [0.105, -0.2], [0.08, -0.14], [0.08, 0.14], [0.105, 0.2], [0.09, 0.26], [0.055, 0.3]].map(([r, x]) => new THREE.Vector2(r, x));
     b.add(new THREE.LatheGeometry(profile, 32), std("#d4b583", { roughness: 0.6 }), [0, 0.15, -0.03], [0, 0, Math.PI / 2]);
-    const bands = id === "resistor-220" ? ["#e5484d", "#e5484d", "#7a4a1f", "#d4af37"] : ["#7a4a1f", "#171717", "#ea8b20", "#d4af37"];
+    const resistance = Number(/· ([\d.]+) Ω/.exec(def.name)?.[1] ?? (id === "resistor-10k" ? 10000 : 220));
+    const palette = ["#171717", "#7a4a1f", "#e5484d", "#ea8b20", "#edcf35", "#37874c", "#327bc1", "#8955ab", "#888888", "#eeeeec"];
+    const exponent = Math.floor(Math.log10(resistance)) - 1, digits = Math.min(99, Math.round(resistance / 10 ** exponent));
+    const bands = [palette[Math.floor(digits / 10)]!, palette[digits % 10]!, exponent === -2 ? "#c4c7c9" : exponent < 0 ? "#d4af37" : palette[Math.min(9, exponent)]!, "#d4af37"];
     for (const [i, x] of [-0.17, -0.08, 0.01, 0.15].entries()) {
       const c = bands[i] ?? "#d4af37";
       b.cylX(Math.abs(x) >= 0.15 ? 0.098 : 0.082, 0.035, std(c), x, 0.15, -0.03, 32);

@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { HardwareLab } from "@/components/lab/HardwareLab";
 
 export const Route = createFileRoute("/lab")({
+  validateSearch: (search: Record<string, unknown>): { add?: string; request?: string } => ({ ...(typeof search["add"] === "string" ? {add:search["add"]} : {}), ...(typeof search["request"] === "string" ? {request:search["request"]} : {}) }),
   ssr: false,
   head: () => ({
     meta: [
@@ -18,9 +19,10 @@ export const Route = createFileRoute("/lab")({
 });
 
 function LabPage() {
+  const search = Route.useSearch();
   return (
     <div className="relative">
-      <HardwareLab />
+      <HardwareLab addComponent={search.add} addRequest={search.request} />
       <Link to="/" className="fixed bottom-4 right-[336px] z-50 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-lg hover:bg-accent">
         <ArrowLeft className="size-4" /> Dashboard
       </Link>

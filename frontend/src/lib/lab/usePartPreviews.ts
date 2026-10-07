@@ -12,8 +12,10 @@ export function usePartPreviews() {
 
   useEffect(() => {
     if (cachedPreviews) return;
+    let cancelled = false;
     let renderer: THREE.WebGLRenderer | undefined;
     let environment: THREE.WebGLRenderTarget | undefined;
+    void (async () => {
     try {
       renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
       renderer.setSize(192, 144);
@@ -35,6 +37,7 @@ export function usePartPreviews() {
       const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 100);
       const images: Record<string, string> = {};
       for (const def of CATALOG) {
+        if (cancelled) break;
         const model = buildModel(def);
         scene.add(model);
         try {
@@ -69,9 +72,10 @@ export function usePartPreviews() {
           });
           textures.forEach((texture) => texture.dispose());
         }
+        if (!cancelled) setPreviews({ ...images });
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
       }
-      cachedPreviews = images;
-      setPreviews(images);
+      if (!cancelled) { cachedPreviews = images; setPreviews(images); }
     } catch (error) {
       console.warn("Component previews could not be rendered", error);
     } finally {
@@ -79,6 +83,8 @@ export function usePartPreviews() {
       renderer?.dispose();
       renderer?.forceContextLoss();
     }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   return previews;

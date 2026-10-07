@@ -1,4 +1,5 @@
 // Component definitions transcribed from the uploaded Hardware_Catalog.pdf.
+import type { PlacedPart } from "./types";
 export type PinKind = "power" | "ground" | "digital" | "analog" | "pwm" | "sda" | "scl" | "tx" | "rx" | "spi" | "motor" | "passive";
 export interface PinDef { name: string; kind: PinKind; dir: "in" | "out" | "io"; voltage?: number | undefined; maxCurrent?: number | undefined; physicalNumber?: number; label?: string; functions?: string; headerSide?: "left" | "right"; headerRow?: number; internalNet?: string }
 export const CATEGORIES = ["Microcontrollers", "Sensors", "Actuators", "Displays & LEDs", "Passive & Input", "Motor Drivers", "Wireless"] as const;
@@ -148,6 +149,11 @@ export const CATALOG: PartDef[] = [
   part("led-green", "Green LED 5 mm", d, .5, .5, "#2a9d8f", "ANODE CATHODE", 2.4, 20),
   part("led-rgb", "RGB LED", d, .7, .6, "#e9ecef", "R G B COMMON", 3.4, 60),
   part("resistor-220", "220 ohm Resistor", p, 1, .3, "#d4a373", "P1 P2", 0, 0),
+  part("resistor-variable", "Resistor (custom value)", p, 1, .3, "#d4a373", "P1 P2", 0, 0),
+  { ...part("power-source", "Battery / Adjustable Power Source", p, 1.3, .85, "#355468", "PLUS MINUS", 0, 0), h: .65 },
+  { ...part("power-switch", "Power Switch", p, .8, .65, "#252a2e", "IN OUT", 0, 0), h: .4 },
+  { ...part("xl4015", "DC-DC Converter XL4015", p, 1.8, .95, "#246ea0", "VIN+ VIN- OUT+ OUT-", 36, 10), h: .5 },
+  { ...part("s-60-12", "S-60-12 · 110/220VAC → 12VDC 5A 60W", p, 2.8, 1.6, "#bfc4c7", "L N PE V- V+", 240, 0), h: .7 },
   part("resistor-10k", "10 kohm Resistor", p, 1, .3, "#d4a373", "P1 P2", 0, 0),
   part("potentiometer", "10 kohm Potentiometer", p, .9, .9, "#577590", "END1 WIPER END2", 5, 0),
   part("l298n", "L298N Dual H-Bridge Driver", drv, 1.8, 1.8, "#d62828", "ENA IN1 IN2 OUT1 OUT2 VS 5V_LOGIC GND IN3 IN4 ENB OUT3 OUT4", 35, 36),
@@ -159,9 +165,21 @@ export const CATALOG: PartDef[] = [
   part("nrf24l01", "nRF24L01+ Radio Module", wi, 1.8, .85, "#171d21", "VCC GND CE CSN SCK MOSI MISO IRQ", 3.6, 15, 3.3),
   part("water-pump", "R385 DC 6–12 V Mini Water Pump", a, 2.7, 1.1, "#ecebd9", "PLUS MINUS", 12, 350),
 ];
-const LEADED = new Set(["dht11", "dht22", "ldr-bare", "lm35", "push-button", "sg90", "mg995", "dc-motor", "stepper", "buzzer", "led-red", "led-green", "led-rgb", "seven-seg", "resistor-220", "resistor-10k", "potentiometer", "water-pump"]);
+const LEADED = new Set(["dht11", "dht22", "ldr-bare", "lm35", "push-button", "sg90", "mg995", "dc-motor", "stepper", "buzzer", "led-red", "led-green", "led-rgb", "seven-seg", "resistor-220", "resistor-10k", "resistor-variable", "potentiometer", "water-pump"]);
 export const isLeaded = (def: PartDef) => LEADED.has(def.id);
 export const CATALOG_MAP: Record<string, PartDef> = Object.fromEntries(CATALOG.map(c => [c.id, c]));
+export function placedDefinition(placed: PlacedPart): PartDef {
+  const base = CATALOG_MAP[placed.type]!;
+  const voltage = placed.voltage ?? (placed.type === "xl4015" ? 12 : 5);
+  if (placed.type === "power-source") return { ...base, name: `Power Source · ${voltage} V`, pins: base.pins.map(pin => ({ ...pin, kind: pin.name === "PLUS" ? "power" : "ground", dir: pin.name === "PLUS" ? "out" : "in", voltage: pin.name === "PLUS" ? voltage : 0, maxCurrent: 5000 })) };
+  if (placed.type === "resistor-variable" || placed.type.startsWith("resistor-")) return { ...base, name: `Resistor · ${placed.resistance ?? (placed.type === "resistor-10k" ? 10000 : 220)} Ω` };
+  if (placed.type === "power-switch") return { ...base, pins: base.pins.map(pin => ({ ...pin, kind: "passive", internalNet: placed.enabled !== false ? "switch" : undefined } as PinDef)) };
+  if (placed.type === "xl4015" || placed.type === "s-60-12") return { ...base, pins: base.pins.map(pin => {
+    const ground = ["VIN-", "OUT-", "V-", "PE"].includes(pin.name), output = ["OUT+", "V+"].includes(pin.name);
+    return { ...pin, kind: ground ? "ground" : "power", dir: output ? "out" : "in", voltage: ground ? 0 : output ? placed.type === "s-60-12" ? 12 : voltage : undefined, maxCurrent: output ? 5000 : undefined };
+  }) };
+  return base;
+}
 const segmentNumbers: Record<string, number> = { E: 1, D: 2, COM: 3, C: 4, DP: 5, B: 6, A: 7, COM2: 8, F: 9, G: 10 };
 CATALOG_MAP["seven-seg"]!.pins.forEach(pin => { pin.physicalNumber = segmentNumbers[pin.name]!; pin.label = pin.name === "COM2" ? "COM" : pin.name; });
 CATALOG_MAP["lcd-1602"]!.pins.forEach((pin, i) => {
@@ -174,6 +192,10 @@ CATALOG_MAP["lcd-1602"]!.pins.forEach((pin, i) => {
 export const PIN_COLORS: Record<PinKind, string> = { power: "#e5484d", ground: "#2b2f33", digital: "#12a594", analog: "#f5a524", pwm: "#3e9bf0", sda: "#8e4ec6", scl: "#d6409f", tx: "#0091ff", rx: "#30a46c", spi: "#ad7f58", motor: "#f76b15", passive: "#a1a1aa" };
 /** Shared positions for visible sockets, pin targets and wiring. */
 export function pinLocal(def: PartDef, index: number): [number, number, number] {
+  if (def.id === "power-source") return [(index - .5) * .4, .22, .57];
+  if (def.id === "power-switch") return [(index - .5) * .3, .12, .46];
+  if (def.id === "xl4015") return [index < 2 ? -.8 : .8, .2, index % 2 ? .2 : -.2];
+  if (def.id === "s-60-12") return [-.85 + index * .35, .24, .7];
   if (def.id === "breadboard" || def.id === "breadboard-400") {
     const compact = def.id === "breadboard-400", columns = compact ? 30 : 63, railHoles = compact ? 25 : 50;
     if (index < columns * 10) {

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { CATALOG_MAP, PIN_COLORS, isLeaded, pinLocal, type PartDef } from "./catalog";
+import { CATALOG_MAP, placedDefinition, PIN_COLORS, isLeaded, pinLocal, type PartDef } from "./catalog";
 import { buildModel } from "./models";
 import type { CircuitData, PinRef, Wire } from "./types";
 
@@ -217,7 +217,7 @@ export class LabEngine {
   }
 
   private buildPart(id: string, type: string): PartObj {
-    const def = CATALOG_MAP[type]!;
+    const placed = this.data.parts.find(p => p.id === id)!; const def = placedDefinition(placed);
     const group = new THREE.Group();
     group.userData = { partId: id };
     const body = new THREE.Mesh(
@@ -265,29 +265,6 @@ export class LabEngine {
       // the numbered pin information instead of overlapping forty paper labels.
       if (detailedHeader) return;
 
-      const texture = this.pinLabel(p.name, uno);
-      if (texture) {
-        // On the Uno, silkscreen lettering belongs on the PCB, between the sockets and the components.
-        const direction = isLeaded(def) || z >= 0 ? 1 : -1;
-        const nameZ = uno ? z - direction * 0.36 : z + direction * (0.11 + labelDepth / 2);
-        const labelY = uno ? 0.067 : isLeaded(def) ? 0.055 : 0.15;
-        if (!uno) {
-          const backing = new THREE.Mesh(new THREE.PlaneGeometry(labelWidth + 0.018, labelDepth + 0.02), nameBacking);
-          backing.rotation.x = -Math.PI / 2;
-          backing.position.set(x, labelY, nameZ);
-          backing.raycast = () => {};
-          group.add(backing);
-        }
-        const text = new THREE.Mesh(
-          new THREE.PlaneGeometry(uno ? 0.18 : labelWidth, uno ? 0.44 : labelDepth),
-          new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, side: THREE.DoubleSide }),
-        );
-        text.rotation.x = -Math.PI / 2;
-        text.rotation.z = direction < 0 ? Math.PI : 0;
-        text.position.set(x, labelY + (uno ? 0 : 0.002), nameZ);
-        text.raycast = () => {};
-        group.add(text);
-      }
     });
 
     // selection outline
@@ -334,10 +311,10 @@ export class LabEngine {
     for (const p of this.data.parts) {
       if (!CATALOG_MAP[p.type]) continue;
       let obj = this.parts.get(p.id);
-      if (!obj || obj.type !== p.type) {
+      const settingsKey = JSON.stringify([p.voltage, p.resistance, p.enabled]); if (!obj || obj.type !== p.type || obj.group.userData["settingsKey"] !== settingsKey) {
         if (obj) this.disposeObj(obj.group);
         obj = this.buildPart(p.id, p.type);
-        this.parts.set(p.id, obj);
+        obj.group.userData["settingsKey"] = settingsKey; this.parts.set(p.id, obj);
       }
       obj.group.position.set(p.x, 0, p.z);
       obj.group.rotation.y = (-p.rot * Math.PI) / 2;

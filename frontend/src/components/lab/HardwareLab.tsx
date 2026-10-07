@@ -3,7 +3,7 @@ import {
   AlertTriangle, CheckCircle2, ChevronDown, Cpu, FilePlus2, Grid3x3, History, Magnet, Maximize, Pencil,
   Redo2, RotateCw, Save, Search, ShieldCheck, Trash2, Undo2, XCircle, ZoomIn, ZoomOut, Bookmark, Cable,
 } from "lucide-react";
-import { CATALOG, CATALOG_MAP, CATEGORIES, PIN_COLORS, type Category } from "@/lib/lab/catalog";
+import { CATALOG, CATALOG_MAP, placedDefinition, CATEGORIES, PIN_COLORS, type Category } from "@/lib/lab/catalog";
 import { usePartPreviews } from "@/lib/lab/usePartPreviews";
 import { LabEngine, type Selection } from "@/lib/lab/engine";
 import { uid, WIRE_COLORS, type PinRef } from "@/lib/lab/types";
@@ -18,8 +18,16 @@ import { toast } from "sonner";
 
 type DialogKind = null | "new" | "rename" | "version" | "history";
 
-export function HardwareLab() {
+export function HardwareLab({addComponent, addRequest}: {addComponent?: string | undefined; addRequest?: string | undefined} = {}) {
   const P = useProject();
+  const appliedRequest = useRef<string | null>(null);
+  useEffect(() => {
+    if (!addComponent || !CATALOG_MAP[addComponent]) return;
+    const key = addRequest ?? addComponent;
+    if (appliedRequest.current === key) return;
+    appliedRequest.current = key;
+    addPart(addComponent, 0, 0);
+  }, [addComponent, addRequest]);
   const previews = usePartPreviews();
   const { active } = P;
   const hostRef = useRef<HTMLDivElement>(null);
@@ -124,12 +132,12 @@ export function HardwareLab() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const parts = CATALOG.filter((c) => (cat === "All" || c.category === cat) && c.name.toLowerCase().includes(query.toLowerCase()));
+  const parts = CATALOG.filter((c) => !["resistor-220", "resistor-10k"].includes(c.id) && (cat === "All" || c.category === cat) && c.name.toLowerCase().includes(query.toLowerCase()));
   const selPart = selection?.kind === "part" ? active.data.parts.find((p) => p.id === selection.id) : undefined;
   const selWire = selection?.kind === "wire" ? active.data.wires.find((w) => w.id === selection.id) : undefined;
   const pinLabel = (r: PinRef) => {
     const part = active.data.parts.find((p) => p.id === r.partId);
-    const def = part && CATALOG_MAP[part.type];
+    const def = part && placedDefinition(part);
     return def ? `${def.name} · ${def.pins[r.pin]?.name}` : "?";
   };
   const pinConnections = (r: PinRef) =>
@@ -254,7 +262,7 @@ export function HardwareLab() {
           </div>
           {pinInfo && (() => {
             const part = active.data.parts.find((p) => p.id === pinInfo.ref.partId);
-            const def = part && CATALOG_MAP[part.type];
+            const def = part && placedDefinition(part);
             const pin = def?.pins[pinInfo.ref.pin];
             if (!pin || !def) return null;
             const host = hostRef.current!.getBoundingClientRect();
@@ -290,7 +298,7 @@ export function HardwareLab() {
           <section className="border-b p-3">
             <h2 className="mb-2 text-sm font-semibold">Inspector</h2>
             {selPart ? (() => {
-              const def = CATALOG_MAP[selPart.type]!;
+              const def = placedDefinition(selPart);
               return (
                 <div className="space-y-3">
                   <div>
@@ -303,6 +311,15 @@ export function HardwareLab() {
                     <Button size="sm" variant="secondary" onClick={rotateSel}><RotateCw className="size-4" />Rotate</Button>
                     <Button size="sm" variant="ghost" className="text-destructive" onClick={deleteSel}><Trash2 className="size-4" />Delete</Button>
                   </div>
+                  {(["power-source", "xl4015"].includes(selPart.type) || selPart.type.startsWith("resistor-")) && (
+                    <label className="block text-xs">
+                      {selPart.type.startsWith("resistor-") ? "Resistance (Ω)" : "Output voltage (V)"}
+                      <Input type="number" min={selPart.type.startsWith("resistor-") ? 0.01 : 0.1} max={selPart.type === "xl4015" ? 32 : undefined} step="any"
+                        value={selPart.type.startsWith("resistor-") ? selPart.resistance ?? (selPart.type === "resistor-10k" ? 10000 : 220) : selPart.voltage ?? (selPart.type === "xl4015" ? 12 : 5)}
+                        onChange={e => { const value = Number(e.target.value); if (!Number.isFinite(value) || value <= 0 || selPart.type === "xl4015" && value > 32) return; P.edit(data => ({ ...data, parts: data.parts.map(part => part.id === selPart.id ? { ...part, ...(selPart.type.startsWith("resistor-") ? { resistance: value } : { voltage: value }) } : part) })); }} />
+                    </label>
+                  )}
+                  {selPart.type === "power-switch" && <Button variant="secondary" onClick={() => P.edit(data => ({ ...data, parts: data.parts.map(part => part.id === selPart.id ? { ...part, enabled: part.enabled === false } : part) }))}>{selPart.enabled === false ? "Switch OFF" : "Switch ON"}</Button>}
                   <div className="flex flex-wrap gap-1">
                     {def.pins.slice().sort((a, b) => (a.physicalNumber ?? ((a.headerRow ?? 0) * 2 + (a.headerSide === "right" ? 1 : 0))) - (b.physicalNumber ?? ((b.headerRow ?? 0) * 2 + (b.headerSide === "right" ? 1 : 0)))).map((p, i) => (
                       <span key={i} title={p.functions} className="flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px]">

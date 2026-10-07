@@ -1,3 +1,5 @@
+import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
+import { WorkshopDashboard } from "@/components/WorkshopDashboard";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
@@ -34,9 +36,9 @@ const initialComponents = [
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [
-    { title: "Student Dashboard | HardwareMate AI" },
+    { title: "HardwareMate | Dashboard" },
     { name: "description", content: "Track your hardware project, milestones, components, feedback, and weekly reports in HardwareMate AI." },
-    { property: "og:title", content: "Student Dashboard | HardwareMate AI" },
+    { property: "og:title", content: "HardwareMate | Dashboard" },
     { property: "og:description", content: "Your hardware project workspace for progress, tasks, components, and feedback." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
@@ -66,9 +68,10 @@ function Dashboard() {
     setSidebarOpen(false);
     setSection(label);
     if (label === "Dashboard") { setModal(null); return; }
-    if (label === "My Project") setModal("project");
+    if (label === "My Project") { navigate({ to: "/project" }); return; }
     else if (label === "3D Lab") { navigate({ to: "/lab" }); return; }
-    else if (label === "Reports") setModal("report");
+    else if (label === "Component Catalog") { navigate({ to: "/catalog" }); return; }
+    else if (label === "Reports") { navigate({ to: "/project", search: { action: "report" } }); return; }
     else setModal("section");
   }
   function addIssue() {
@@ -90,23 +93,7 @@ function Dashboard() {
     <div className="dashboard-background min-h-screen font-sans">
       <div className="mx-auto flex min-h-screen max-w-[1800px] gap-3 p-2.5 lg:h-screen lg:max-h-[1100px] lg:overflow-hidden">
         {sidebarOpen && <div className="fixed inset-0 z-30 bg-foreground/20 lg:hidden" onClick={() => setSidebarOpen(false)} />}
-        <aside className={`glass-panel glass-strong fixed inset-y-2.5 left-2.5 z-40 flex w-[224px] flex-col rounded-[18px] px-2.5 py-3 transition-transform lg:static lg:inset-auto lg:w-[220px] lg:shrink-0 lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-[110%]"}`}>
-          <div className="flex items-center justify-between px-3 pb-5 pt-2 lg:pb-6">
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-9 items-center justify-center text-primary"><Cpu size={33} strokeWidth={2.2} /></div>
-              <div><div className="text-[16px] font-extrabold leading-tight text-foreground">HardwareMate</div><div className="text-[10px] font-medium text-muted-foreground">Build · Simulate · Learn</div></div>
-            </div>
-            <Button variant="ghost" size="icon" className="size-7 lg:hidden" onClick={() => setSidebarOpen(false)} aria-label="Close menu"><X /></Button>
-          </div>
-          <nav className="flex flex-col gap-1 overflow-y-auto" aria-label="Main navigation">
-            {navItems.map(({ label, icon: Icon }) => (
-              <Button key={label} variant="ghost" onClick={() => openNav(label)} className={`h-10 w-full justify-start gap-3 rounded-[11px] px-3 text-[13px] font-medium shadow-none ${section === label ? "bg-mint text-mint-foreground hover:bg-mint" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"}`}>
-                <Icon className="!size-[18px]" strokeWidth={2.2} />{label}
-              </Button>
-            ))}
-          </nav>
-          <div className="mt-auto px-3 pt-4"><div className="border-t soft-divider pt-4 text-[10px] font-medium text-muted-foreground">HardwareMate AI <span className="float-right">v2.4</span></div></div>
-        </aside>
+        <WorkspaceSidebar active={section} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onSelect={openNav} className="lg:static" />
 
         <main className="dashboard-main min-w-0 flex-1 overflow-y-auto px-1 pb-3 pt-1 lg:overflow-y-auto lg:px-2 lg:pb-1">
           <header className="flex h-12 items-center gap-3 lg:h-[54px]">
@@ -126,15 +113,15 @@ function Dashboard() {
 
           <section aria-label="Project statistics" className="stats-grid mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
             <Stat icon={Activity} label="Project Progress" value="68%" detail="On track" tone="mint" />
-            <Stat icon={Zap} label="Current Milestone" value="04 / 06" detail="Prototyping" tone="blue" />
-            <Stat icon={CircleAlert} label="Open Issues" value={String(2 + issues.length).padStart(2, "0")} detail="1 needs attention" tone="rose" />
-            <Stat icon={CheckCircle2} label="Budget Status" value="72%" detail="Within budget" tone="amber" />
+            <Stat icon={Zap} label="Current Milestone" value="03 / 05" detail="Prototype Testing" tone="blue" />
+            <Stat icon={CircleAlert} label="Open Issues" value={String(3 + issues.length).padStart(2, "0")} detail="1 needs attention" tone="rose" />
+            <Stat icon={CheckCircle2} label="Budget Status" value="74%" detail="$184 of $250 used" tone="amber" />
           </section>
 
           <div className="grid gap-3 xl:grid-cols-[minmax(0,1.9fr)_minmax(275px,.85fr)]">
             <div className="min-w-0 space-y-3">
               <section className="project-card glass-panel rounded-[16px] px-4 py-4 sm:px-5" aria-labelledby="project-title">
-                <div className="mb-3 flex items-start justify-between gap-2"><div><div className="mb-1 flex items-center gap-2"><span className="rounded-full bg-mint px-2.5 py-0.5 text-[10px] font-bold text-mint-foreground">CURRENT PROJECT</span><span className="text-[11px] text-muted-foreground">HM-2026-0142</span></div><h2 id="project-title" className="text-[19px] font-bold leading-tight text-foreground">Smart Car — Autonomous Navigation</h2><p className="mt-0.5 text-[11px] text-muted-foreground">An intelligent vehicle that senses and avoids obstacles.</p></div><Button variant="ghost" size="icon" className="size-8 shrink-0 rounded-lg text-muted-foreground" title="Open project" onClick={() => setModal("project")}><ArrowUpRight /></Button></div>
+                <div className="mb-3 flex items-start justify-between gap-2"><div><div className="mb-1 flex items-center gap-2"><span className="rounded-full bg-mint px-2.5 py-0.5 text-[10px] font-bold text-mint-foreground">CURRENT PROJECT</span></div><h2 id="project-title" className="text-[19px] font-bold leading-tight text-foreground">Smart Car — Autonomous Navigation</h2><p className="mt-0.5 text-[11px] text-muted-foreground">An intelligent vehicle that senses and avoids obstacles.</p></div><Button variant="ghost" size="icon" className="size-8 shrink-0 rounded-lg text-muted-foreground" title="Open project" onClick={() => navigate({ to: "/project" })}><ArrowUpRight /></Button></div>
                 <div className="mb-3 flex items-center gap-3"><div className="progress-track h-2 flex-1 overflow-hidden rounded-full"><div className="progress-fill h-full w-[68%] rounded-full" /></div><span className="text-xs font-bold text-primary">68%</span></div>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t soft-divider pt-3 sm:grid-cols-4">
                   <ProjectDetail icon={Zap} label="Current Milestone" value="Prototype Testing" />
@@ -144,24 +131,18 @@ function Dashboard() {
                 </div>
               </section>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <section className="work-card glass-panel min-w-0 rounded-[16px] px-4 py-3.5" aria-labelledby="tasks-title"><SectionTitle icon={CalendarDays} title="Upcoming Tasks & Deadlines" /><div className="mt-2.5 space-y-2">{initialTasks.map((task) => <div key={task.title} className="flex items-center gap-2.5"><Button variant="ghost" size="icon" title={completedTasks.includes(task.title) ? "Mark incomplete" : "Mark complete"} aria-label={`Toggle ${task.title}`} onClick={() => setCompletedTasks((current) => current.includes(task.title) ? current.filter((item) => item !== task.title) : [...current, task.title])} className={`size-7 shrink-0 rounded-full ${completedTasks.includes(task.title) ? "text-primary" : "text-muted-foreground"}`}>{completedTasks.includes(task.title) ? <CheckCircle2 /> : <div className="size-3.5 rounded-full border-[1.5px] border-current" />}</Button><div className="min-w-0 flex-1"><div className={`truncate text-[11px] font-semibold ${completedTasks.includes(task.title) ? "text-muted-foreground line-through" : "text-foreground"}`}>{task.title}</div><div className="text-[10px] text-muted-foreground">{task.kind}</div></div><span className="shrink-0 rounded-md bg-soft-blue px-2 py-1 text-[10px] font-semibold text-foreground">{task.date}</span></div>)}</div></section>
-                <section className="missing-components-card work-card glass-panel min-w-0 rounded-[16px] px-4 py-3.5" aria-labelledby="components-title"><SectionTitle icon={Package} title="Missing Components" /><div className="mt-2.5 space-y-2.5">{initialComponents.map(({ title, amount, image }) => <div className="flex items-center gap-2.5" key={title}><span className="missing-component-preview"><img src={image} alt={title} width={64} height={48} loading="lazy" /></span><div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold text-foreground">{title}</div><div className="text-[10px] text-muted-foreground">{amount}</div></div><CircleAlert size={14} className="shrink-0 text-destructive" /></div>)}</div></section>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <section className="note-card glass-panel min-w-0 rounded-[16px] px-4 py-3.5" aria-labelledby="feedback-title"><SectionTitle icon={MessageSquare} title="Latest Supervisor Feedback" /><div className="mt-2.5 flex gap-2.5"><span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-soft-blue text-[11px] font-bold text-foreground">LH</span><div className="min-w-0"><div className="text-[11px] font-bold text-foreground">Dr. Lina Hassan <span className="ml-1 font-normal text-muted-foreground">· 2 days ago</span></div><p className="mt-1 line-clamp-2 text-[11px] leading-[1.4] text-muted-foreground">Great progress on the sensor integration. Please double-check the motor driver connections before testing.</p></div></div></section>
-                <section className="note-card glass-panel min-w-0 rounded-[16px] px-4 py-3.5" aria-labelledby="report-title"><SectionTitle icon={ClipboardList} title="Weekly Report Status" /><div className="mt-2.5 flex items-center justify-between gap-2"><div><span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold ${reportSubmitted ? "bg-mint text-mint-foreground" : "bg-soft-amber text-foreground"}`}>{reportSubmitted ? <Check size={12} /> : <Clock3 size={12} />}{reportSubmitted ? "Submitted" : "Pending submission"}</span><p className="mt-2 text-[11px] text-muted-foreground">Week 06 <span className="mx-1">·</span> Due Oct 09</p></div><Button variant="ghost" size="icon" className="glass-inset size-8 shrink-0 rounded-[9px] text-primary" title="View weekly report" onClick={() => setModal("report")}><ArrowRight /></Button></div></section>
-              </div>
+              <section className="glass-panel rounded-[16px] p-5"><h2 className="text-sm font-bold">Your project workspace</h2><p className="mt-2 text-xs leading-6 text-muted-foreground">Team progress, upcoming deadlines, missing components, supervisor feedback, and weekly reports are together in My Project.</p><Button className="mt-4" size="sm" onClick={() => navigate({ to: "/project" })}>View project details<ArrowRight size={15} /></Button></section>
             </div>
 
             <section className="glass-panel flex min-w-0 flex-col rounded-[16px] px-4 py-4 sm:px-5" aria-labelledby="activity-title"><div className="flex items-center justify-between"><h2 id="activity-title" className="text-[17px] font-bold text-foreground">Recent Activity</h2><MoreHorizontal size={18} className="text-muted-foreground" /></div><div className="mt-4 flex-1">{activity.map(({ label, time, icon: Icon, tone }, index) => <div key={`${label}-${index}`} className="flex gap-3 border-b soft-divider py-3 first:pt-0 last:border-b-0"><span className={`flex size-10 shrink-0 items-center justify-center rounded-full ${tone === "mint" ? "bg-mint text-mint-foreground" : tone === "rose" ? "bg-soft-rose text-destructive" : "bg-soft-blue text-primary"}`}><Icon size={19} strokeWidth={2.2} /></span><div className="min-w-0 self-center"><p className="text-[12px] font-medium leading-snug text-foreground">{label}</p><span className="text-[11px] text-muted-foreground">{time}</span></div></div>)}</div><div className="mt-2 flex items-center gap-2 border-t soft-divider pt-3 text-[11px] text-muted-foreground"><span className="size-1.5 rounded-full bg-primary" />Project activity is up to date</div></section>
           </div>
 
+          <WorkshopDashboard />
           <section className="quick-card glass-panel mt-3 rounded-[16px] px-4 py-3.5 sm:px-5" aria-labelledby="actions-title"><h2 id="actions-title" className="mb-2.5 text-[17px] font-bold text-foreground">Quick Actions</h2><div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">{[
-            { label: "Open Project", icon: FolderKanban, click: () => setModal("project") },
+            { label: "Open Project", icon: FolderKanban, click: () => navigate({ to: "/project" }) },
             { label: "Open 3D Lab", icon: Box, click: () => navigate({ to: "/lab" }) },
-            { label: "Add Issue", icon: CircleAlert, click: () => setModal("issue") },
-            { label: "Submit Weekly Report", icon: Send, click: () => setModal("report") },
+            { label: "Add Issue", icon: CircleAlert, click: () => navigate({ to: "/project", search: { action: "issue" } }) },
+            { label: "Submit Weekly Report", icon: Send, click: () => navigate({ to: "/project", search: { action: "report" } }) },
           ].map(({ label, icon: Icon, click }) => <Button key={label} variant="ghost" onClick={click} className="quick-button glass-inset flex h-[65px] flex-col gap-1 rounded-[11px] px-2 py-2 text-center text-[11px] font-semibold text-foreground transition-transform hover:-translate-y-0.5 hover:bg-accent/60 sm:h-[68px]"><Icon className="!size-[20px] text-primary" strokeWidth={1.9} /><span className="whitespace-normal leading-tight">{label}</span></Button>)}</div></section>
         </main>
       </div>

@@ -1,4 +1,4 @@
-import { CATALOG_MAP, type PinDef } from "./catalog";
+import { CATALOG_MAP, placedDefinition, type PinDef } from "./catalog";
 import type { CircuitData } from "./types";
 
 export type IssueType =
@@ -34,7 +34,7 @@ export function validate(data: CircuitData): ValidationResult {
   const pinDef = (k: string): PinDef | undefined => {
     const [pid = "", i = "0"] = k.split(":");
     const part = partById.get(pid);
-    return part ? CATALOG_MAP[part.type]?.pins[+i] : undefined;
+    return part ? placedDefinition(part).pins[+i] : undefined;
   };
   const partName = (pid: string) => CATALOG_MAP[partById.get(pid)?.type ?? ""]?.name ?? "Part";
   const label = (k: string) => `${partName(k.split(":")[0]!)} · ${pinDef(k)?.name}`;
@@ -55,7 +55,7 @@ export function validate(data: CircuitData): ValidationResult {
   // Breadboard strips and rails conduct without an explicit wire between holes.
   for (const part of data.parts) {
     const buses = new Map<string, string>();
-    CATALOG_MAP[part.type]?.pins.forEach((pin, i) => {
+    placedDefinition(part).pins.forEach((pin, i) => {
       if (!pin.internalNet) return;
       const k = key(part.id, i), first = buses.get(pin.internalNet);
       if (first) parent.set(find(k), find(first));
@@ -147,7 +147,7 @@ export function validate(data: CircuitData): ValidationResult {
       for (const x of defs) {
         if (x.d.kind !== "power" || x.d.dir !== "in") continue;
         const pid = x.k.split(":")[0]!;
-        const def = CATALOG_MAP[partById.get(pid)!.type]!;
+        const def = placedDefinition(partById.get(pid)!);
         load += def.draw;
         if (v > def.vMax + 0.1) {
           issues.push({ type: "Voltage Over Limit", severity: "error", message: `${def.name} gets ${v}V but tolerates max ${def.vMax}V`, partIds: [pid], wireIds: netWires });
@@ -181,7 +181,7 @@ export function validate(data: CircuitData): ValidationResult {
 
   // missing power / ground per part
   for (const part of data.parts) {
-    const def = CATALOG_MAP[part.type];
+    const def = placedDefinition(part);
     if (!def || def.category === "Passive & Input") continue;
     const pk = def.pins.map((p, i) => ({ p, k: key(part.id, i) }));
     const needsPower = pk.filter((x) => x.p.kind === "power" && x.p.dir === "in");
