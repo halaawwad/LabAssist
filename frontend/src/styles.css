@@ -219,4 +219,34 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, .dashboard-background::-webkit
 .workshop-stock-badge, .workshop-pending-badge { display: inline-flex; border-radius: 12px; padding: 3px 7px; font-size: 9px; font-weight: 600; }
 .workshop-stock-badge { background: var(--mint); color: var(--mint-foreground); }
 .workshop-pending-badge { background: var(--soft-amber); color: var(--foreground); }
+.catalog-intro { background: linear-gradient(110deg, var(--glass-strong), var(--glass)); }
+.catalog-select { background: var(--glass-strong); color: var(--foreground); border: 1px solid var(--border); }
+.catalog-filter { background: var(--glass); border: 1px solid var(--border); color: var(--muted-foreground); }
+.catalog-filter-active { color: var(--mint-foreground); background: var(--mint); border-color: var(--primary); }
+.catalog-image { background: oklch(1 0 0 / 74%); width: 100%; }
+.catalog-background { background-image: url("./assets/catalog-hardware-background.png"); }
 .project-background { background-image: url("./assets/project-hardware-background.png"); }
+.catalog-image { position: relative; cursor: grab; }
+.catalog-preview-label { position: absolute; bottom: 7px; right: 8px; color: var(--primary); font-size: 9px; background: var(--glass-strong); padding: 3px 6px; border-radius: 6px; }
+.component-preview { position: relative; height: 128px; width: 100%; overflow: hidden; border-radius: 12px; background: radial-gradient(ellipse at center, #fff, #e9f4f1); }
+.catalog-details .component-preview { height: 240px; }
+.component-preview-canvas { height: 100%; width: 100%; }
+.component-preview-canvas canvas { display: block; cursor: grab; touch-action: none; }
+.component-preview-canvas canvas:active { cursor: grabbing; }
+.component-preview-controls { position: absolute; right: 7px; top: 7px; display: flex; gap: 4px; }
+.component-preview-controls button { padding: 5px; border-radius: 7px; background: var(--glass-strong); color: var(--primary); border: 1px solid var(--border); cursor: pointer; }
+.component-preview-controls button:hover { background: var(--mint); }
+.component-preview-controls button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.component-preview-hint { position: absolute; bottom: 6px; left: 8px; pointer-events: none; font-size: 8px; color: var(--muted-foreground); }
+.catalog-card-footer { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
+.catalog-specifications { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 10px; margin-bottom: 8px; border-radius: 8px; background: var(--secondary); color: var(--primary); font-size: 11px; font-weight: 600; cursor: pointer; }
+.catalog-specifications:hover { background: var(--mint); }
+.catalog-specifications:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.catalog-category { font-size: 9px; color: var(--primary); border-radius: 12px; background: var(--mint); padding: 3px 7px; }
+.catalog-notice { background: var(--mint); color: var(--mint-foreground); }
+.catalog-documents { background: var(--mint); border: 1px solid var(--border); }
+.catalog-document { background: var(--glass-strong); border: 1px solid var(--glass-border); }
+.catalog-document-link { background: var(--primary); color: var(--primary-foreground); }
+.catalog-document-link:hover { opacity: .9; }
+.catalog-document-link:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+.catalog-details { position: fixed; left: 50%; top: 50%; right: auto; bottom: auto; width: calc(100vw - 32px); max-width: 560px; max-height: calc(100dvh - 32px); border-radius: 18px; }

@@ -1,6 +1,7 @@
 import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { componentCatalog, readBom } from "@/lib/componentCatalog";
 import { ArrowUpRight, Box, Check, CheckCircle2, CircleAlert, Cpu, FileText, FolderKanban, LayoutDashboard, Package, Plus, Users, Wallet, X, Menu, CalendarDays, MessageSquare, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -30,7 +31,12 @@ function Panel({ title, subtitle, icon: Icon, children, className = "" }: { titl
 }
 
 function ProjectPage() {
-  const bom = initialBom;
+  const [bom, setBom] = useState(initialBom);
+  useEffect(() => {
+    const merged = initialBom.map(item => ({...item}));
+    readBom().forEach(entry => { const component=componentCatalog.find(item=>item.key===entry.key)!; const existing=merged.find(item=>item.name===component.name); if(existing) existing.quantity+=entry.quantity; else merged.push({name:component.name,quantity:entry.quantity,cost:0,available:false}); });
+    setBom(merged);
+  }, []);
   const navigate = useNavigate();
   const search = Route.useSearch();
   const [abstract, setAbstract] = useState("We\u0027re developing an autonomous smart car that detects obstacles and navigates safely using ultrasonic sensors, an Arduino controller, and a dual motor driver. Our goal is to combine reliable sensing, efficient power management, and responsive motor control into an affordable, compact prototype. The expected result is a working vehicle that identifies obstacles in real time, adjusts its path, and demonstrates the practical use of embedded systems in autonomous navigation.");
@@ -46,7 +52,7 @@ function ProjectPage() {
   return <div className="dashboard-background project-background min-h-screen">
     <div className="mx-auto flex max-w-[1800px] gap-4 p-3 lg:p-4">
       {menu && <button aria-label="Close navigation overlay" onClick={() => setMenu(false)} className="fixed inset-0 z-30 bg-foreground/20 lg:hidden" />}
-      <WorkspaceSidebar active="My Project" open={menu} onClose={() => setMenu(false)} onSelect={label => { if(label === "Dashboard") navigate({to:"/"}); else if(label === "Reports") setModal("report"); else if(label === "Inventory") setModal("bom"); else if(label === "Team") document.getElementById("project-team")?.scrollIntoView({behavior:"smooth"}); else if(label !== "My Project") navigate({to:"/"}); }} className="lg:sticky lg:top-4 lg:h-[calc(100vh-32px)]" />
+      <WorkspaceSidebar active="My Project" open={menu} onClose={() => setMenu(false)} onSelect={label => { if(label === "Dashboard") navigate({to:"/"}); else if(label === "3D Lab") navigate({to:"/lab"}); else if(label === "Reports") setModal("report"); else if(label === "Component Catalog") navigate({to:"/catalog"}); else if(label === "Inventory") setModal("bom"); else if(label === "Team") document.getElementById("project-team")?.scrollIntoView({behavior:"smooth"}); else if(label !== "My Project") navigate({to:"/"}); }} className="lg:sticky lg:top-4 lg:h-[calc(100vh-32px)]" />
       <main className="min-w-0 flex-1 space-y-4 pb-5">
         <header className="flex items-center justify-between px-1 py-2"><div className="flex items-center gap-3"><button onClick={() => setMenu(true)} aria-label="Open menu" className="lg:hidden"><Menu /></button><div><p className="text-[11px] text-muted-foreground">Workspace / My Project</p><h1 className="mt-1 text-xl font-bold">My Project</h1></div></div><span className="project-badge"><span className="size-1.5 rounded-full bg-primary" />One team. One shared goal.</span></header>
         <section className="glass-panel project-hero relative overflow-hidden rounded-[22px] p-5 sm:p-6">
@@ -69,7 +75,7 @@ function ProjectPage() {
           <Panel title="Latest Supervisor Feedback" icon={MessageSquare}><div className="flex gap-3"><span className="project-section-icon shrink-0 text-base font-bold">LH</span><div><p className="text-xs font-bold">Dr. Lina Hassan</p><time className="text-[10px] text-muted-foreground" dateTime="2026-10-03">Oct 03, 2026</time><blockquote className="mt-3 border-l-2 border-primary/30 pl-3 text-xs leading-6 text-foreground/80">“Good progress on the prototype. Please verify the sensor readings under different lighting conditions and include a power consumption comparison in your next weekly report.”</blockquote></div></div></Panel>
           <Panel title="Weekly Report Status" icon={FileText}><div className="glass-inset flex items-center justify-between rounded-xl p-3"><div><p className="text-xs font-bold">Week 06 · Prototype Testing</p><p className="mt-1 text-[10px] text-muted-foreground">Due Oct 09, 2026</p></div><span className="project-badge">{submitted ? "Submitted" : "Pending"}</span></div><p className="mt-3 text-[11px] leading-5 text-muted-foreground">{submitted ? "Your report has been marked as submitted in this session." : "Share this week's progress, test results, and any blockers with your supervisor."}</p><button onClick={() => setModal("report")} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">{submitted ? "View report" : "Prepare weekly report"}<ArrowUpRight size={13} /></button></Panel>
         </div>
-        <div className="glass-panel flex flex-wrap items-center justify-between gap-3 rounded-[20px] p-4"><div><h2 className="text-sm font-bold">Keep the project moving</h2><p className="mt-1 text-[11px] text-muted-foreground">Your next step, one click away.</p></div><div className="flex flex-wrap gap-2"><Button variant="secondary" size="sm" onClick={() => setModal("bom")}><Package size={15} />View BOM</Button><Button variant="secondary" size="sm" onClick={() => setModal("issue")}><Plus size={15} />Add Issue</Button><Button variant="secondary" size="sm" onClick={() => setModal("report")}><FileText size={15} />Submit Weekly Report</Button></div></div>
+        <div className="glass-panel flex flex-wrap items-center justify-between gap-3 rounded-[20px] p-4"><div><h2 className="text-sm font-bold">Keep the project moving</h2><p className="mt-1 text-[11px] text-muted-foreground">Your next step, one click away.</p></div><div className="flex flex-wrap gap-2"><Button asChild size="sm"><Link to="/lab"><Box size={15} />Open 3D Lab</Link></Button><Button variant="secondary" size="sm" onClick={() => setModal("bom")}><Package size={15} />View BOM</Button><Button variant="secondary" size="sm" onClick={() => setModal("issue")}><Plus size={15} />Add Issue</Button><Button variant="secondary" size="sm" onClick={() => setModal("report")}><FileText size={15} />Submit Weekly Report</Button></div></div>
         {issues.length > 0 && <Panel title="Issues added this session" icon={CircleAlert}>{issues.map((issue,i)=><p key={i} className="mt-2 text-xs">{issue}</p>)}</Panel>}
       </main>
     </div>
