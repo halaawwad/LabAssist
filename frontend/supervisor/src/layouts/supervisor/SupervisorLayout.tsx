@@ -11,14 +11,24 @@ const supervisorRoutes: Record<string, string> = {
   Dashboard: '/supervisor/dashboard',
   'My Projects': '/supervisor/projects',
   Students: '/supervisor/students',
+  Progress: '/supervisor/progress',
+  Tasks: '/supervisor/tasks',
 }
+
+const primaryItems = sidebarItems.filter((item) => !item.footer)
+const footerItems = sidebarItems.filter((item) => item.footer)
 
 export function SupervisorLayout({ children }: SupervisorLayoutProps) {
   const location = useLocation()
-  const isStudentsPage = location.pathname === '/supervisor/students'
+  const routeClass = {
+    '/supervisor/projects': 'is-projects-route',
+    '/supervisor/students': 'is-students-route',
+    '/supervisor/progress': 'is-progress-route',
+    '/supervisor/tasks': 'is-tasks-route',
+  }[location.pathname] ?? ''
 
   return (
-    <div className={`supervisor-shell ${isStudentsPage ? 'is-students-route' : ''}`}>
+    <div className={`supervisor-shell ${routeClass}`}>
       <aside className="supervisor-sidebar" aria-label="Supervisor navigation">
         <div className="brand-mark">
           <div className="brand-icon" aria-hidden="true">
@@ -31,7 +41,7 @@ export function SupervisorLayout({ children }: SupervisorLayoutProps) {
         </div>
 
         <nav className="sidebar-nav">
-          {sidebarItems.slice(0, 11).map((item) => {
+          {primaryItems.map((item) => {
             const route = supervisorRoutes[item.label]
 
             if (route) {
@@ -57,7 +67,7 @@ export function SupervisorLayout({ children }: SupervisorLayoutProps) {
         </nav>
 
         <nav className="sidebar-nav sidebar-nav-bottom">
-          {sidebarItems.slice(11).map((item) => (
+          {footerItems.map((item) => (
             <button className="nav-item" key={item.label} type="button">
               <span className="nav-icon-with-badge">
                 <item.icon size={21} />
