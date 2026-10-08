@@ -4,6 +4,7 @@ dist/
 build/
 .DS_Store
 AGENTS.md
+.claude-tmp/
 
 # Frontend build outputs
 node_modules/
