@@ -13,3 +13,17 @@ node_modules/
 .nitro/
 .tanstack/
 .vinxi/
+node_modules/
+.env
+dist/
+build/
+.DS_Store
+AGENTS.md
+
+# Frontend build outputs
+node_modules/
+.output/
+.wrangler/
+.nitro/
+.tanstack/
+.vinxi/
