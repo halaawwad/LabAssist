@@ -1,3 +1,6 @@
+import { ProjectImageProvider } from "@/components/ProjectMedia";
+import { ProjectWorkspaceProvider } from "@/lib/projectWorkspace";
+import { StudentProfileProvider } from "@/lib/studentProfile";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -117,8 +120,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <StudentProfileProvider><ProjectWorkspaceProvider><ProjectImageProvider><Outlet /></ProjectImageProvider></ProjectWorkspaceProvider></StudentProfileProvider>
     </QueryClientProvider>
   );
 }
