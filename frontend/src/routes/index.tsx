@@ -14,8 +14,16 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import avatar from "@/assets/student-avatar.jpg";
 
-type ModalName = "project" | "issue" | "report" | "notifications" | "profile" | "section" | null;
+type ModalName = "project" | "lab" | "issue" | "report" | "notifications" | "profile" | "section" | null;
 
+const navItems = [
+  { label: "Dashboard", icon: LayoutDashboard }, { label: "My Project", icon: FolderKanban },
+  { label: "3D Lab", icon: Box }, { label: "Component Catalog", icon: Cpu },
+  { label: "My Circuits", icon: CircuitBoard }, { label: "Inventory", icon: Package },
+  { label: "Team", icon: Users }, { label: "Learning Hub", icon: BookOpen },
+  { label: "Messages", icon: MessageSquare }, { label: "Reports", icon: FileText },
+  { label: "Settings", icon: Settings },
+];
 
 const initialTasks = [
   { title: "Finalize circuit schematic", date: "Oct 08", kind: "Design" },
@@ -61,6 +69,8 @@ function Dashboard() {
     setSection(label);
     if (label === "Dashboard") { setModal(null); return; }
     if (label === "My Project") { navigate({ to: "/project" }); return; }
+    else if (label === "3D Lab") { navigate({ to: "/lab" }); return; }
+    else if (label === "Component Catalog") { navigate({ to: "/catalog" }); return; }
     else if (label === "Reports") { navigate({ to: "/project", search: { action: "report" } }); return; }
     else setModal("section");
   }
@@ -76,7 +86,7 @@ function Dashboard() {
     setActivity((current) => [{ label: "Submitted weekly report", time: "Just now", icon: FileText, tone: "mint" }, ...current].slice(0, 4));
     setModal(null);
   }
-  const searchEntries = ["Smart Car — Autonomous Navigation", ...initialTasks.map((item) => item.title), ...initialComponents.map((item) => item.title), "Weekly Report"];
+  const searchEntries = ["Smart Car — Autonomous Navigation", ...initialTasks.map((item) => item.title), ...initialComponents.map((item) => item.title), "Weekly Report", "3D Lab"];
   const results = searchEntries.filter((item) => item.toLowerCase().includes(search.toLowerCase())).slice(0, 5);
 
   return (
@@ -91,7 +101,7 @@ function Dashboard() {
             <div className="relative w-full max-w-[535px]">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
               <input aria-label="Search dashboard" value={search} onFocus={() => setSearchFocused(true)} onBlur={() => setTimeout(() => setSearchFocused(false), 150)} onChange={(event) => setSearch(event.target.value)} placeholder="Search components, tasks, or projects..." className="glass-panel h-11 w-full rounded-[12px] pl-11 pr-4 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/40" />
-              {search && searchFocused && <div className="glass-panel glass-strong absolute left-0 right-0 top-12 z-20 rounded-[12px] p-2">{results.length ? results.map((item) => <Button variant="ghost" key={item} onMouseDown={() => { setSearch(item); setSearchFocused(false); setModal(item.includes("Report") ? "report" : "project"); }} className="h-9 w-full justify-start truncate text-left text-xs text-foreground">{item}</Button>) : <p className="px-3 py-2 text-xs text-muted-foreground">No matches found</p>}</div>}
+              {search && searchFocused && <div className="glass-panel glass-strong absolute left-0 right-0 top-12 z-20 rounded-[12px] p-2">{results.length ? results.map((item) => <Button variant="ghost" key={item} onMouseDown={() => { setSearch(item); setSearchFocused(false); setModal(item.includes("Report") ? "report" : item.includes("Lab") ? (navigate({ to: "/lab" }), null) : "project"); }} className="h-9 w-full justify-start truncate text-left text-xs text-foreground">{item}</Button>) : <p className="px-3 py-2 text-xs text-muted-foreground">No matches found</p>}</div>}
             </div>
             <div className="ml-auto flex items-center gap-2">
               <Button variant="ghost" size="icon" onClick={() => { setModal("notifications"); setNoticeRead(true); }} className="glass-panel relative size-11 shrink-0 rounded-[12px] text-muted-foreground" aria-label="Notifications"><Bell className="!size-[19px]" />{!noticeRead && <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] text-destructive-foreground">2</span>}</Button>
@@ -130,15 +140,16 @@ function Dashboard() {
           <WorkshopDashboard />
           <section className="quick-card glass-panel mt-3 rounded-[16px] px-4 py-3.5 sm:px-5" aria-labelledby="actions-title"><h2 id="actions-title" className="mb-2.5 text-[17px] font-bold text-foreground">Quick Actions</h2><div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">{[
             { label: "Open Project", icon: FolderKanban, click: () => navigate({ to: "/project" }) },
-            { label: "View Team Tasks", icon: Users, click: () => navigate({ to: "/project", hash: "project-team" }) },
+            { label: "Open 3D Lab", icon: Box, click: () => navigate({ to: "/lab" }) },
             { label: "Add Issue", icon: CircleAlert, click: () => navigate({ to: "/project", search: { action: "issue" } }) },
             { label: "Submit Weekly Report", icon: Send, click: () => navigate({ to: "/project", search: { action: "report" } }) },
           ].map(({ label, icon: Icon, click }) => <Button key={label} variant="ghost" onClick={click} className="quick-button glass-inset flex h-[65px] flex-col gap-1 rounded-[11px] px-2 py-2 text-center text-[11px] font-semibold text-foreground transition-transform hover:-translate-y-0.5 hover:bg-accent/60 sm:h-[68px]"><Icon className="!size-[20px] text-primary" strokeWidth={1.9} /><span className="whitespace-normal leading-tight">{label}</span></Button>)}</div></section>
         </main>
       </div>
 
-      <Dialog open={modal !== null} onOpenChange={(open) => { if (!open) setModal(null); }}><DialogContent className="glass-panel glass-strong max-h-[85vh] max-w-md overflow-y-auto rounded-[18px] border-0 p-6 text-foreground shadow-xl"><DialogHeader><DialogTitle className="text-xl">{modal === "project" ? "Smart Car — Autonomous Navigation" : modal === "issue" ? "Add an Issue" : modal === "report" ? "Weekly Report" : modal === "notifications" ? "Notifications" : modal === "profile" ? "Student Profile" : section}</DialogTitle><DialogDescription>{modal === "project" ? "Your current hardware project" : modal === "issue" ? "Record a blocker for your project team." : modal === "report" ? "Week 06 · Due Oct 09, 2026" : modal === "section" ? "Smart Car project workspace" : "HardwareMate AI"}</DialogDescription></DialogHeader>
+      <Dialog open={modal !== null} onOpenChange={(open) => { if (!open) setModal(null); }}><DialogContent className="glass-panel glass-strong max-h-[85vh] max-w-md overflow-y-auto rounded-[18px] border-0 p-6 text-foreground shadow-xl"><DialogHeader><DialogTitle className="text-xl">{modal === "project" ? "Smart Car — Autonomous Navigation" : modal === "lab" ? "3D Lab" : modal === "issue" ? "Add an Issue" : modal === "report" ? "Weekly Report" : modal === "notifications" ? "Notifications" : modal === "profile" ? "Student Profile" : section}</DialogTitle><DialogDescription>{modal === "project" ? "Your current hardware project · HM-2026-0142" : modal === "issue" ? "Record a blocker for your project team." : modal === "report" ? "Week 06 · Due Oct 09, 2026" : modal === "lab" ? "Your prototype workspace" : modal === "section" ? "Smart Car project workspace" : "HardwareMate AI"}</DialogDescription></DialogHeader>
         {modal === "project" && <div className="space-y-4 text-sm"><div className="glass-inset rounded-xl p-4"><div className="mb-2 flex justify-between font-semibold"><span>Overall progress</span><span className="text-primary">68%</span></div><div className="progress-track h-2 rounded-full"><div className="progress-fill h-2 w-[68%] rounded-full" /></div></div><div className="grid grid-cols-2 gap-3 text-xs"><div><span className="text-muted-foreground">Milestone</span><p className="font-semibold">Prototype Testing</p></div><div><span className="text-muted-foreground">Deadline</span><p className="font-semibold">Oct 24, 2026</p></div><div><span className="text-muted-foreground">Team</span><p className="font-semibold">NOOR OWASSI, Omar + 2</p></div><div><span className="text-muted-foreground">Supervisor</span><p className="font-semibold">Dr. Lina Hassan</p></div></div></div>}
+        {modal === "lab" && <div className="glass-inset flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl p-5 text-center"><Box size={38} className="text-primary" /><p className="font-semibold">Smart Car Prototype</p><p className="max-w-xs text-xs text-muted-foreground">Your 3D model will appear here when a model is added to this project.</p></div>}
         {modal === "issue" && <div className="space-y-3"><label htmlFor="issue-input" className="text-xs font-semibold">Issue description</label><textarea id="issue-input" value={issueText} onChange={(event) => setIssueText(event.target.value)} placeholder="Describe the issue..." className="glass-inset min-h-24 w-full resize-none rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-ring/40" /><Button onClick={addIssue} disabled={!issueText.trim()} className="w-full">Add Issue</Button></div>}
         {modal === "report" && <div className="space-y-3"><div className="glass-inset rounded-xl p-4 text-sm"><p className="font-semibold">Week 06 progress report</p><p className="mt-1 text-xs text-muted-foreground">Prototype Testing · 68% project progress · {completedTasks.length} of 2 upcoming tasks completed</p></div><Button onClick={submitReport} disabled={reportSubmitted} className="w-full">{reportSubmitted ? "Report Submitted" : "Submit Weekly Report"}</Button></div>}
         {modal === "notifications" && <div className="space-y-2 text-sm"><div className="glass-inset rounded-xl p-3">Dr. Lina Hassan left feedback on your circuit.<p className="text-xs text-muted-foreground">2 days ago</p></div><div className="glass-inset rounded-xl p-3">Your weekly report is due Oct 09.<p className="text-xs text-muted-foreground">Upcoming deadline</p></div></div>}

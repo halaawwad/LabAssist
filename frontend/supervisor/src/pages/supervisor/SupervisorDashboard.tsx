@@ -8,7 +8,7 @@ import { stats } from '../../data/supervisor/supervisorMockData'
 
 export function SupervisorDashboard() {
   return (
-    <>
+    <div className="dashboard-page">
       <DashboardHeader />
 
       <section className="stats-grid" aria-label="Project summary">
@@ -25,6 +25,6 @@ export function SupervisorDashboard() {
         <HardwareSupportCard />
         <MeetingsPanel />
       </section>
-    </>
+    </div>
   )
 }

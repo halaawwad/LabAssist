@@ -1,7 +1,12 @@
 import { Cpu, LayoutDashboard, FolderKanban, Box, CircuitBoard, Package, Users, BookOpen, MessageSquare, FileText, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const navigation = [{label:"Dashboard",icon:LayoutDashboard},{label:"My Project",icon:FolderKanban}];
+const navigation = [
+  {label:"Dashboard",icon:LayoutDashboard},{label:"My Project",icon:FolderKanban},{label:"3D Lab",icon:Box},
+  {label:"Component Catalog",icon:Cpu},{label:"My Circuits",icon:CircuitBoard},{label:"Inventory",icon:Package},
+  {label:"Team",icon:Users},{label:"Learning Hub",icon:BookOpen},{label:"Messages",icon:MessageSquare},
+  {label:"Reports",icon:FileText},{label:"Settings",icon:Settings},
+];
 export function WorkspaceSidebar({active,open,onClose,onSelect,className=""}:{active:string;open:boolean;onClose:()=>void;onSelect:(label:string)=>void;className?:string}) {
   return <aside className={`glass-panel glass-strong workspace-sidebar fixed inset-y-2.5 left-2.5 z-40 flex w-[220px] shrink-0 flex-col rounded-[18px] px-2.5 py-3 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-[110%]"} ${className}`}>
     <div className="flex items-center justify-between px-3 pb-5 pt-2 lg:pb-6"><div className="flex items-center gap-2.5"><div className="flex size-9 items-center justify-center text-primary"><Cpu size={33} strokeWidth={2.2}/></div><div><div className="text-[16px] font-extrabold leading-tight">HardwareMate</div><div className="text-[10px] font-medium text-muted-foreground">Build · Simulate · Learn</div></div></div><Button variant="ghost" size="icon" className="size-7 lg:hidden" aria-label="Close menu" onClick={onClose}><X/></Button></div>
