@@ -1,3 +1,4 @@
+import { MessagesProvider } from "@/lib/messages";
 import { ProjectImageProvider } from "@/components/ProjectMedia";
 import { ProjectWorkspaceProvider } from "@/lib/projectWorkspace";
 import { StudentProfileProvider } from "@/lib/studentProfile";
@@ -77,9 +78,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "HardwareMate AI" },
+      { title: "HardwareMate" },
       { name: "description", content: "Student hardware project workspace" },
-      { property: "og:title", content: "HardwareMate AI" },
+      { property: "og:title", content: "HardwareMate" },
       { property: "og:description", content: "Student hardware project workspace" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -120,7 +121,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StudentProfileProvider><ProjectWorkspaceProvider><ProjectImageProvider><Outlet /></ProjectImageProvider></ProjectWorkspaceProvider></StudentProfileProvider>
+      <MessagesProvider><StudentProfileProvider><ProjectWorkspaceProvider><ProjectImageProvider><Outlet /></ProjectImageProvider></ProjectWorkspaceProvider></StudentProfileProvider></MessagesProvider>
     </QueryClientProvider>
   );
 }

@@ -1,4 +1,4 @@
-﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { ArrowRight, ArrowUpRight, Bell, BookOpen, Calendar, Camera, Check, CheckCircle2, Github, GraduationCap, Mail, Menu, Pencil, Phone, Plus, Sparkles, StickyNote, Trash2, UserRound, Hash } from "lucide-react";
 import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
@@ -7,7 +7,7 @@ import { ProgressRing } from "@/components/ProjectVisuals";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { teammates } from "@/lib/projectWorkspace";
 import { safeProfileLink, useStudentProfile } from "@/lib/studentProfile";
-export const Route=createFileRoute("/profile")({head:()=>({meta:[{title:"My Profile | HardwareMate AI"}]}),component:ProfilePage});
+export const Route=createFileRoute("/profile")({head:()=>({meta:[{title:"My Profile | HardwareMate"}]}),component:ProfilePage});
 const fields=[{key:"name",label:"Full name",icon:UserRound,type:"text"},{key:"birthYear",label:"Birth year",icon:Calendar,type:"number"},{key:"major",label:"Major",icon:GraduationCap,type:"text"},{key:"studentNumber",label:"Student number",icon:Hash,type:"text"},{key:"year",label:"Academic year",icon:BookOpen,type:"text"},{key:"phone",label:"Phone number",icon:Phone,type:"tel"},{key:"email",label:"Email",icon:Mail,type:"email"}] as const;
 function ProfilePage(){
  const navigate=useNavigate(),state=useStudentProfile(),{profile,updateProfile,note,setNote,tasks,setTasks,reminders,setReminders}=state;
