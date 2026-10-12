@@ -5,19 +5,22 @@ import { MeetingsPanel } from '../../components/supervisor/MeetingsPanel'
 import { ProgressOverview } from '../../components/supervisor/ProgressOverview'
 import { StatCard } from '../../components/supervisor/StatCard'
 import { stats } from '../../data/supervisor/supervisorMockData'
+import { useI18n } from '../../i18n/i18nContext'
 
 export function SupervisorDashboard() {
+  const { t } = useI18n()
+
   return (
     <div className="dashboard-page">
       <DashboardHeader />
 
-      <section className="stats-grid" aria-label="Project summary">
+      <section className="stats-grid" aria-label={t('dashboard.statsAria')}>
         {stats.map((stat) => (
-          <StatCard key={stat.label} stat={stat} />
+          <StatCard key={stat.id} stat={stat} />
         ))}
       </section>
 
-      <section className="dashboard-grid" aria-label="Supervisor dashboard details">
+      <section className="dashboard-grid" aria-label={t('dashboard.detailsAria')}>
         <div className="main-stack">
           <ProgressOverview />
           <ActivityPanel />

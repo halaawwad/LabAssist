@@ -6,8 +6,10 @@ import { OtherProjectsList } from '../../components/supervisor/projects/OtherPro
 import { ProjectOverviewCard } from '../../components/supervisor/projects/ProjectOverviewCard'
 import { UpcomingReviews } from '../../components/supervisor/projects/UpcomingReviews'
 import { supervisedProjects, upcomingReviews } from '../../data/supervisor/projectsMockData'
+import { useI18n } from '../../i18n/i18nContext'
 
 export function MyProjects() {
+  const { t } = useI18n()
   const [featuredName, setFeaturedName] = useState(supervisedProjects[0].name)
   const featured = supervisedProjects.find((project) => project.name === featuredName) ?? supervisedProjects[0]
   const others = supervisedProjects.filter((project) => project !== featured)
@@ -20,12 +22,12 @@ export function MyProjects() {
         <section className="mp-main" aria-labelledby="my-projects-title">
           <header className="mp-heading">
             <div>
-              <h1 id="my-projects-title">My Projects</h1>
-              <p>Manage and review your supervised projects.</p>
+              <h1 id="my-projects-title">{t('projects.title')}</h1>
+              <p>{t('projects.subtitle')}</p>
             </div>
             <button className="new-project-button" type="button">
               <Plus size={20} />
-              <span>New Project</span>
+              <span>{t('projects.newProject')}</span>
             </button>
           </header>
 
@@ -33,7 +35,7 @@ export function MyProjects() {
           <OtherProjectsList projects={others} onSelect={setFeaturedName} />
         </section>
 
-        <aside className="mp-side" aria-label="Projects summary">
+        <aside className="mp-side" aria-label={t('projects.summaryAria')}>
           <ProjectOverviewCard projects={supervisedProjects} />
           <UpcomingReviews reviews={upcomingReviews} />
         </aside>

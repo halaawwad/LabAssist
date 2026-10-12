@@ -1,4 +1,6 @@
 import type { SupervisedProject } from '../../../data/supervisor/projectsMockData'
+import { useI18n } from '../../../i18n/i18nContext'
+import { statusLabelKeys } from '../../../i18n/labels'
 import { projectStatuses, statusTone } from './projectHelpers'
 
 type ProjectOverviewCardProps = {
@@ -9,6 +11,7 @@ type ProjectOverviewCardProps = {
 const segmentGap = 3
 
 export function ProjectOverviewCard({ projects }: ProjectOverviewCardProps) {
+  const { t } = useI18n()
   const total = projects.length
   const counts = projectStatuses.map((status) => ({
     status,
@@ -24,9 +27,9 @@ export function ProjectOverviewCard({ projects }: ProjectOverviewCardProps) {
   return (
     <section className="mp-side-section" aria-labelledby="mp-overview-title">
       <div className="mp-side-heading">
-        <h2 id="mp-overview-title">Project Overview</h2>
+        <h2 id="mp-overview-title">{t('projects.overview.title')}</h2>
         <a className="mp-view-all" href="#mp-others-title">
-          View all
+          {t('common.viewAll')}
         </a>
       </div>
 
@@ -47,7 +50,7 @@ export function ProjectOverviewCard({ projects }: ProjectOverviewCardProps) {
           </svg>
           <div>
             <strong>{total}</strong>
-            <span>Total Projects</span>
+            <span>{t('projects.overview.total')}</span>
           </div>
         </div>
 
@@ -56,7 +59,7 @@ export function ProjectOverviewCard({ projects }: ProjectOverviewCardProps) {
             <li className={`tone-${statusTone(status)}`} key={status}>
               <i aria-hidden="true" />
               <strong>{count}</strong>
-              {status}
+              {t(statusLabelKeys[status])}
             </li>
           ))}
         </ul>
