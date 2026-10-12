@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CatalogRouteImport } from './routes/catalog'
 import { Route as LabRouteImport } from './routes/lab'
+import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ProjectRouteImport } from './routes/project'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +31,16 @@ const LabRoute = LabRouteImport.update({
   path: '/lab',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectRoute = ProjectRouteImport.update({
   id: '/project',
   path: '/project',
@@ -39,12 +51,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/catalog': typeof CatalogRoute
   '/lab': typeof LabRoute
+  '/messages': typeof MessagesRoute
+  '/profile': typeof ProfileRoute
   '/project': typeof ProjectRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/catalog': typeof CatalogRoute
   '/lab': typeof LabRoute
+  '/messages': typeof MessagesRoute
+  '/profile': typeof ProfileRoute
   '/project': typeof ProjectRoute
 }
 export interface FileRoutesById {
@@ -52,20 +68,31 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/catalog': typeof CatalogRoute
   '/lab': typeof LabRoute
+  '/messages': typeof MessagesRoute
+  '/profile': typeof ProfileRoute
   '/project': typeof ProjectRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/catalog' | '/lab' | '/project'
+  fullPaths: '/' | '/catalog' | '/lab' | '/messages' | '/profile' | '/project'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/catalog' | '/lab' | '/project'
-  id: '__root__' | '/' | '/catalog' | '/lab' | '/project'
+  to: '/' | '/catalog' | '/lab' | '/messages' | '/profile' | '/project'
+  id:
+    | '__root__'
+    | '/'
+    | '/catalog'
+    | '/lab'
+    | '/messages'
+    | '/profile'
+    | '/project'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CatalogRoute: typeof CatalogRoute
   LabRoute: typeof LabRoute
+  MessagesRoute: typeof MessagesRoute
+  ProfileRoute: typeof ProfileRoute
   ProjectRoute: typeof ProjectRoute
 }
 
@@ -92,6 +119,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LabRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/project': {
       id: '/project'
       path: '/project'
@@ -106,6 +147,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CatalogRoute: CatalogRoute,
   LabRoute: LabRoute,
+  MessagesRoute: MessagesRoute,
+  ProfileRoute: ProfileRoute,
   ProjectRoute: ProjectRoute,
 }
 export const routeTree = rootRouteImport
