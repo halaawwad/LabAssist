@@ -1,5 +1,6 @@
 import { TrendingDown, TrendingUp } from 'lucide-react'
 import { progressChartWeeks, type ProjectProgress } from '../../../data/supervisor/progressMockData'
+import { useI18n } from '../../../i18n/i18nContext'
 import { progressMetrics, projectProgress } from './progressHelpers'
 
 type ProgressOverviewPanelProps = {
@@ -9,6 +10,7 @@ type ProgressOverviewPanelProps = {
 const gridLines = [100, 75, 50, 25, 0]
 
 export function ProgressOverviewPanel({ project }: ProgressOverviewPanelProps) {
+  const { t } = useI18n()
   const { overall, weeklyChange } = progressMetrics(project)
   const completedWeeks = project.weeklyProgress.length
   const totalWeeks = Math.max(progressChartWeeks, completedWeeks)
@@ -26,9 +28,9 @@ export function ProgressOverviewPanel({ project }: ProgressOverviewPanelProps) {
   const ChangeIcon = weeklyChange >= 0 ? TrendingUp : TrendingDown
 
   return (
-    <section className="progress-overview" aria-label={`${project.code} progress overview`}>
+    <section className="progress-overview" aria-label={t('progress.overview.aria', { code: project.code })}>
       <div className="progress-overview-ring">
-        <div className="progress-ring" aria-label={`${overall} percent complete`}>
+        <div className="progress-ring" aria-label={t('progress.overview.ringAria', { value: overall })}>
           <svg viewBox="0 0 120 120" role="presentation" aria-hidden="true">
             <defs>
               <linearGradient id="progress-ring-gradient" gradientUnits="userSpaceOnUse" x1="110" y1="110" x2="10" y2="10">
@@ -48,19 +50,18 @@ export function ProgressOverviewPanel({ project }: ProgressOverviewPanelProps) {
           </svg>
           <div>
             <strong>{overall}%</strong>
-            <span>Complete</span>
+            <span>{t('progress.overview.complete')}</span>
           </div>
         </div>
         <span className="progress-overview-change">
           <ChangeIcon size={18} strokeWidth={2.4} aria-hidden="true" />
-          {weeklyChange >= 0 ? '+' : '−'}
-          {Math.abs(weeklyChange)}% this week
+          {t('progress.overview.thisWeek', { change: `${weeklyChange >= 0 ? '+' : '−'}${Math.abs(weeklyChange)}` })}
         </span>
       </div>
 
       <figure
         className="progress-chart"
-        aria-label={`Weekly progress of ${project.code}: ${overall}% in week ${completedWeeks}. Dashed line shows the projection at the current pace.`}
+        aria-label={t('progress.overview.chartAria', { code: project.code, value: overall, week: completedWeeks })}
       >
         <div className="progress-chart-y" aria-hidden="true">
           {gridLines.map((value) => (
@@ -103,7 +104,7 @@ export function ProgressOverviewPanel({ project }: ProgressOverviewPanelProps) {
           {current ? (
             <span className="progress-chart-marker" style={{ left: `${current.x}%`, top: `${current.y}%` }} aria-hidden="true">
               <b>
-                {overall}%<small>Week {completedWeeks}</small>
+                {overall}%<small>{t('progress.overview.week', { week: completedWeeks })}</small>
               </b>
             </span>
           ) : null}
@@ -116,7 +117,7 @@ export function ProgressOverviewPanel({ project }: ProgressOverviewPanelProps) {
               style={{ left: `${xOf(weekIndex)}%` }}
               key={weekIndex}
             >
-              W{weekIndex + 1}
+              {t('progress.overview.weekShort', { week: weekIndex + 1 })}
             </span>
           ))}
         </div>

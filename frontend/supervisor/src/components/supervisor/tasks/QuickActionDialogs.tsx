@@ -6,8 +6,10 @@ import {
   type SupervisorTask,
   type TaskPriority,
 } from '../../../data/supervisor/tasksMockData'
+import { useI18n, type TranslationKey } from '../../../i18n/i18nContext'
+import { priorityLabelKeys, reportStatusLabelKeys } from '../../../i18n/labels'
 import { ActionDialog, ProjectSelect } from './ActionDialog'
-import { findProject, formatDueDate } from './taskHelpers'
+import { findProject } from './taskHelpers'
 
 export type NewTask = Omit<SupervisorTask, 'id' | 'status'>
 
@@ -21,6 +23,8 @@ const priorities: TaskPriority[] = ['Urgent', 'High', 'Medium', 'Low']
 const text = (data: FormData, key: string) => String(data.get(key) ?? '').trim()
 
 export function CreateTaskDialog({ onClose, onNotice, onCreate }: DialogProps & { onCreate: (task: NewTask) => void }) {
+  const { t } = useI18n()
+
   const submit = (data: FormData) => {
     const project = findProject(text(data, 'project'))
     if (!project) return
@@ -31,130 +35,144 @@ export function CreateTaskDialog({ onClose, onNotice, onCreate }: DialogProps & 
       priority: text(data, 'priority') as TaskPriority,
       dueDate: text(data, 'dueDate'),
     })
-    onNotice(`Task added for ${project.code}.`)
+    onNotice(t('tasks.dialogs.create.notice', { code: project.code }))
     onClose()
   }
 
   return (
     <ActionDialog
-      title="Create Task"
-      description="Add a supervision task to your task list."
+      title={t('tasks.dialogs.create.title')}
+      description={t('tasks.dialogs.create.description')}
       icon={FilePlus2}
-      submitLabel="Create Task"
+      submitLabel={t('tasks.dialogs.create.submit')}
       onSubmit={submit}
       onClose={onClose}
     >
       <label className="dialog-field">
-        <span>Task</span>
-        <input name="title" type="text" required maxLength={80} placeholder="e.g. Review weekly report" autoFocus />
+        <span>{t('tasks.dialogs.create.task')}</span>
+        <input
+          name="title"
+          type="text"
+          required
+          maxLength={80}
+          placeholder={t('tasks.dialogs.create.taskPlaceholder')}
+          autoFocus
+        />
       </label>
       <ProjectSelect />
       <fieldset className="dialog-field">
-        <legend>Priority</legend>
+        <legend>{t('tasks.dialogs.create.priority')}</legend>
         <div className="dialog-segmented">
           {priorities.map((priority) => (
             <label key={priority}>
               <input type="radio" name="priority" value={priority} defaultChecked={priority === 'Medium'} />
-              <span>{priority}</span>
+              <span>{t(priorityLabelKeys[priority])}</span>
             </label>
           ))}
         </div>
       </fieldset>
       <label className="dialog-field">
-        <span>Due date</span>
+        <span>{t('tasks.dialogs.create.dueDate')}</span>
         <input name="dueDate" type="date" required min={tasksMockToday} defaultValue={tasksMockToday} />
       </label>
     </ActionDialog>
   )
 }
 
+const meetingModes: { value: 'inPerson' | 'online'; label: TranslationKey }[] = [
+  { value: 'inPerson', label: 'tasks.dialogs.meeting.inPerson' },
+  { value: 'online', label: 'tasks.dialogs.meeting.online' },
+]
+
 export function ScheduleMeetingDialog({ onClose, onNotice, onCreate }: DialogProps & { onCreate: (task: NewTask) => void }) {
+  const { t, formatDay, formatTime } = useI18n()
+
   const submit = (data: FormData) => {
     const project = findProject(text(data, 'project'))
     if (!project) return
     const date = text(data, 'date')
-    const time = text(data, 'time')
-    const mode = text(data, 'mode')
+    const time = formatTime(text(data, 'time'))
+    const mode = meetingModes.find((item) => item.value === text(data, 'mode')) ?? meetingModes[0]
     onCreate({
-      title: `Supervision meeting · ${time}, ${mode}`,
+      title: t('tasks.dialogs.meeting.taskTitle', { time, mode: t(mode.label) }),
       projectCode: project.code,
       projectName: project.name,
       priority: 'Medium',
       dueDate: date,
     })
-    onNotice(`Meeting with the ${project.code} team scheduled for ${formatDueDate(date, tasksMockToday)} at ${time}.`)
+    onNotice(t('tasks.dialogs.meeting.notice', { code: project.code, date: formatDay(date, tasksMockToday), time }))
     onClose()
   }
 
   return (
     <ActionDialog
-      title="Schedule Meeting"
-      description="Book a supervision meeting with a project team."
+      title={t('tasks.dialogs.meeting.title')}
+      description={t('tasks.dialogs.meeting.description')}
       icon={CalendarDays}
-      submitLabel="Schedule Meeting"
+      submitLabel={t('tasks.dialogs.meeting.submit')}
       onSubmit={submit}
       onClose={onClose}
     >
       <ProjectSelect />
       <div className="dialog-row">
         <label className="dialog-field">
-          <span>Date</span>
+          <span>{t('tasks.dialogs.meeting.date')}</span>
           <input name="date" type="date" required min={tasksMockToday} defaultValue={tasksMockToday} />
         </label>
         <label className="dialog-field">
-          <span>Time</span>
+          <span>{t('tasks.dialogs.meeting.time')}</span>
           <input name="time" type="time" required defaultValue="10:00" />
         </label>
       </div>
       <fieldset className="dialog-field">
-        <legend>Meeting type</legend>
+        <legend>{t('tasks.dialogs.meeting.type')}</legend>
         <div className="dialog-segmented">
-          {['In person', 'Online'].map((mode) => (
-            <label key={mode}>
-              <input type="radio" name="mode" value={mode} defaultChecked={mode === 'In person'} />
-              <span>{mode}</span>
+          {meetingModes.map((mode) => (
+            <label key={mode.value}>
+              <input type="radio" name="mode" value={mode.value} defaultChecked={mode.value === 'inPerson'} />
+              <span>{t(mode.label)}</span>
             </label>
           ))}
         </div>
       </fieldset>
       <label className="dialog-field">
-        <span>Location or link</span>
-        <input name="location" type="text" placeholder="e.g. Room A-105 or Teams link" />
+        <span>{t('tasks.dialogs.meeting.location')}</span>
+        <input name="location" type="text" placeholder={t('tasks.dialogs.meeting.locationPlaceholder')} />
       </label>
       <label className="dialog-field">
-        <span>Agenda</span>
-        <textarea name="agenda" rows={3} placeholder="What do you want to discuss?" />
+        <span>{t('tasks.dialogs.meeting.agenda')}</span>
+        <textarea name="agenda" rows={3} placeholder={t('tasks.dialogs.meeting.agendaPlaceholder')} />
       </label>
     </ActionDialog>
   )
 }
 
-const feedbackTopics = ['Weekly report', '3D circuit version', 'Reported issue', 'Final report draft', 'General progress']
+const feedbackTopics = ['weeklyReport', 'circuit', 'issue', 'finalDraft', 'general'] as const
 
 export function SendFeedbackDialog({ onClose, onNotice }: DialogProps) {
+  const { t, tp } = useI18n()
   const [projectCode, setProjectCode] = useState('')
   const project = findProject(projectCode)
 
   const submit = () => {
     if (!project) return
-    const count = project.students.length
-    onNotice(`Feedback sent to the ${project.code} team (${count} ${count === 1 ? 'student' : 'students'}).`)
+    onNotice(tp('tasks.dialogs.feedback.notice', project.students.length, { code: project.code }))
     onClose()
   }
 
   return (
     <ActionDialog
-      title="Send Feedback"
-      description="Share feedback with a project team."
+      title={t('tasks.dialogs.feedback.title')}
+      description={t('tasks.dialogs.feedback.description')}
       icon={MessageCircle}
-      submitLabel="Send Feedback"
+      submitLabel={t('tasks.dialogs.feedback.submit')}
       onSubmit={submit}
       onClose={onClose}
     >
       <ProjectSelect value={projectCode} onChange={setProjectCode} />
       {project ? (
         <div className="dialog-recipients">
-          <span>Sent to</span>
+          <span>{t('tasks.dialogs.feedback.sentTo')}</span>
           <ul>
             {project.students.map((student) => (
               <li key={student.universityId}>
@@ -166,35 +184,38 @@ export function SendFeedbackDialog({ onClose, onNotice }: DialogProps) {
         </div>
       ) : null}
       <label className="dialog-field">
-        <span>Topic</span>
+        <span>{t('tasks.dialogs.feedback.topic')}</span>
         <select name="topic" defaultValue={feedbackTopics[0]}>
           {feedbackTopics.map((topic) => (
-            <option key={topic}>{topic}</option>
+            <option value={topic} key={topic}>
+              {t(`tasks.dialogs.feedback.topics.${topic}`)}
+            </option>
           ))}
         </select>
       </label>
       <label className="dialog-field">
-        <span>Feedback</span>
-        <textarea name="message" rows={5} required placeholder="Write your feedback for the team..." />
+        <span>{t('tasks.dialogs.feedback.message')}</span>
+        <textarea name="message" rows={5} required placeholder={t('tasks.dialogs.feedback.messagePlaceholder')} />
       </label>
     </ActionDialog>
   )
 }
 
 export function ReportsDialog({ onClose, onNotice }: DialogProps) {
+  const { t, tp, formatDay } = useI18n()
   const [reports, setReports] = useState(weeklyReports)
   const waiting = reports.filter((report) => report.status !== 'Reviewed').length
 
   const markReviewed = (id: string) => {
     const report = reports.find((item) => item.id === id)
     setReports((current) => current.map((item) => (item.id === id ? { ...item, status: 'Reviewed' } : item)))
-    if (report) onNotice(`Week ${report.week} report of ${report.projectCode} marked as reviewed.`)
+    if (report) onNotice(t('tasks.dialogs.reports.notice', { week: report.week, code: report.projectCode }))
   }
 
   return (
     <ActionDialog
-      title="Weekly Reports"
-      description={waiting > 0 ? `${waiting} reports need your review.` : 'All weekly reports are reviewed.'}
+      title={t('tasks.dialogs.reports.title')}
+      description={waiting > 0 ? tp('tasks.dialogs.reports.waiting', waiting) : t('tasks.dialogs.reports.allReviewed')}
       icon={ChartColumn}
       onClose={onClose}
     >
@@ -202,23 +223,24 @@ export function ReportsDialog({ onClose, onNotice }: DialogProps) {
         {reports.map((report) => (
           <li key={report.id}>
             <div>
-              <strong>
-                {report.projectCode} · Week {report.week}
-              </strong>
+              <strong>{t('tasks.dialogs.reports.item', { code: report.projectCode, week: report.week })}</strong>
               <small>
-                {report.projectName} · Submitted {formatDueDate(report.submittedOn, tasksMockToday)}
+                {t('tasks.dialogs.reports.submitted', {
+                  name: report.projectName,
+                  date: formatDay(report.submittedOn, tasksMockToday),
+                })}
               </small>
             </div>
             <span className={`tasks-status status-${report.status.toLowerCase().replaceAll(' ', '-')}`}>
-              {report.status}
+              {t(reportStatusLabelKeys[report.status])}
             </span>
             {report.status === 'Reviewed' ? (
-              <span className="dialog-report-done" aria-label="Reviewed">
+              <span className="dialog-report-done" aria-label={t('tasks.dialogs.reports.reviewed')}>
                 <Check size={16} strokeWidth={2.6} />
               </span>
             ) : (
               <button className="dialog-secondary-button" type="button" onClick={() => markReviewed(report.id)}>
-                Mark Reviewed
+                {t('tasks.dialogs.reports.markReviewed')}
               </button>
             )}
           </li>

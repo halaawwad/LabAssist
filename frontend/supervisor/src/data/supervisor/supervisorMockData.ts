@@ -17,32 +17,53 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+export type SidebarItemId =
+  | 'dashboard'
+  | 'projects'
+  | 'students'
+  | 'progress'
+  | 'tasks'
+  | 'labReview'
+  | 'bom'
+  | 'issues'
+  | 'reports'
+  | 'meetings'
+  | 'messages'
+  | 'notifications'
+  | 'profile'
+  | 'settings'
+  | 'logout'
+
 export type SidebarItem = {
-  label: string
+  /** Also the translation key under `nav.`. */
+  id: SidebarItemId
   icon: LucideIcon
-  active?: boolean
-  badge?: number
+  /** Items without a route are not built yet. */
+  route?: string
   footer?: boolean
 }
 
 export type StatCard = {
-  label: string
+  /** Translation key under `dashboard.stats.`. */
+  id: 'myProjects' | 'delayed' | 'reports' | 'issues'
   value: string
-  trend: string
   tone: 'green' | 'orange' | 'blue' | 'red'
   icon: LucideIcon
   highlighted?: boolean
 }
 
 export type ProgressItem = {
-  label: string
+  /** Translation key under `dashboard.progressItems.`. */
+  id: 'hardwareDesign' | 'prototype' | 'testing' | 'finalReport'
   value: number
 }
 
 export type Meeting = {
-  project: string
+  projectCode: string
   team: string
+  /** ISO date (YYYY-MM-DD). */
   date: string
+  /** 24-hour time (HH:mm). */
   time: string
   tone: 'green' | 'blue'
 }
@@ -50,83 +71,58 @@ export type Meeting = {
 export type Activity = {
   initials: string
   student: string
-  action: string
   project: string
-  time: string
+  hoursAgo: number
   tone: 'blue' | 'green' | 'violet'
+  /** Also the translation key of the action under `dashboard.activity.`. */
   status: 'report' | 'task' | 'model'
 }
 
 export const sidebarItems: SidebarItem[] = [
-  { label: 'Dashboard', icon: Home, active: true },
-  { label: 'My Projects', icon: Folder },
-  { label: 'Students', icon: Users },
-  { label: 'Progress', icon: ChartColumn },
-  { label: 'Tasks', icon: ClipboardList },
-  { label: '3D Lab Review', icon: Box },
-  { label: 'BOM & Parts', icon: Cpu },
-  { label: 'Issues & Risks', icon: TriangleAlert },
-  { label: 'Weekly Reports', icon: CheckSquare },
-  { label: 'Meetings', icon: CalendarDays },
-  { label: 'Messages', icon: MessageCircle },
-  { label: 'Notifications', icon: Bell, badge: 3, footer: true },
-  { label: 'Profile', icon: User, footer: true },
-  { label: 'Settings', icon: Settings, footer: true },
-  { label: 'Logout', icon: LogOut, footer: true },
+  { id: 'dashboard', icon: Home, route: '/supervisor/dashboard' },
+  { id: 'projects', icon: Folder, route: '/supervisor/projects' },
+  { id: 'students', icon: Users, route: '/supervisor/students' },
+  { id: 'progress', icon: ChartColumn, route: '/supervisor/progress' },
+  { id: 'tasks', icon: ClipboardList, route: '/supervisor/tasks' },
+  { id: 'labReview', icon: Box },
+  { id: 'bom', icon: Cpu },
+  { id: 'issues', icon: TriangleAlert },
+  { id: 'reports', icon: CheckSquare },
+  { id: 'meetings', icon: CalendarDays },
+  { id: 'messages', icon: MessageCircle },
+  { id: 'notifications', icon: Bell, route: '/supervisor/notifications', footer: true },
+  { id: 'profile', icon: User, route: '/supervisor/profile', footer: true },
+  { id: 'settings', icon: Settings, route: '/supervisor/settings', footer: true },
+  { id: 'logout', icon: LogOut, footer: true },
 ]
 
 export const stats: StatCard[] = [
-  {
-    label: 'My Projects',
-    value: '5',
-    trend: '+1 this semester',
-    tone: 'green',
-    icon: Folder,
-    highlighted: true,
-  },
-  {
-    label: 'Delayed Projects',
-    value: '1',
-    trend: 'Needs attention',
-    tone: 'orange',
-    icon: CalendarDays,
-  },
-  {
-    label: 'Reports to Review',
-    value: '3',
-    trend: 'This week',
-    tone: 'blue',
-    icon: ClipboardList,
-  },
-  {
-    label: 'Open Issues',
-    value: '4',
-    trend: '2 high priority',
-    tone: 'red',
-    icon: TriangleAlert,
-  },
+  { id: 'myProjects', value: '5', tone: 'green', icon: Folder, highlighted: true },
+  { id: 'delayed', value: '1', tone: 'orange', icon: CalendarDays },
+  { id: 'reports', value: '3', tone: 'blue', icon: ClipboardList },
+  { id: 'issues', value: '4', tone: 'red', icon: TriangleAlert },
 ]
 
 export const progressItems: ProgressItem[] = [
-  { label: 'Hardware Design', value: 100 },
-  { label: 'Prototype', value: 80 },
-  { label: 'Testing', value: 35 },
-  { label: 'Final Report', value: 0 },
+  { id: 'hardwareDesign', value: 100 },
+  { id: 'prototype', value: 80 },
+  { id: 'testing', value: 35 },
+  { id: 'finalReport', value: 0 },
 ]
 
 export const meetings: Meeting[] = [
   {
-    project: 'Project LA-101',
+    projectCode: 'LA-101',
     team: 'Team Alpha',
-    date: 'Tomorrow',
-    time: '10:00 AM',
+    date: '2026-10-09',
+    time: '10:00',
     tone: 'green',
   },
   {
-    project: 'Project LA-205',
+    projectCode: 'LA-205',
     team: 'Team Delta',
-    date: '12 Oct 2026',
-    time: '2:00 PM',
+    date: '2026-10-12',
+    time: '14:00',
     tone: 'blue',
   },
 ]
@@ -135,20 +131,17 @@ export const activities: Activity[] = [
   {
     initials: 'SA',
     student: 'Sara Ahmad',
-    action: 'submitted a weekly report',
     project: 'LA-101',
-    time: '2 hours ago',
+    hoursAgo: 2,
     tone: 'blue',
     status: 'report',
   },
   {
     initials: 'OM',
     student: 'Omar Mahmoud',
-    action: 'updated a task',
     project: 'LA-205',
-    time: '4 hours ago',
+    hoursAgo: 4,
     tone: 'green',
     status: 'task',
   },
 ]
-

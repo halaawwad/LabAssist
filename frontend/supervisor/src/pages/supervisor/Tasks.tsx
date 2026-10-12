@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CircleCheck } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { SupervisorTopBar } from '../../components/supervisor/SupervisorTopBar'
 import {
   CreateTaskDialog,
@@ -20,12 +21,18 @@ import {
   type TaskSort,
 } from '../../components/supervisor/tasks/taskHelpers'
 import { supervisorTasks, tasksMockToday } from '../../data/supervisor/tasksMockData'
+import { useI18n } from '../../i18n/i18nContext'
 
 export function Tasks() {
+  const { t } = useI18n()
+  // `?open=reports` (used by notifications) opens the weekly reports dialog on arrival.
+  const [searchParams, setSearchParams] = useSearchParams()
   const [tasks, setTasks] = useState(supervisorTasks)
   const [filter, setFilter] = useState<TaskFilter>('All')
   const [sort, setSort] = useState<TaskSort>('dueDate')
-  const [openDialog, setOpenDialog] = useState<QuickActionId | null>(null)
+  const [openDialog, setOpenDialog] = useState<QuickActionId | null>(() =>
+    searchParams.get('open') === 'reports' ? 'reports' : null,
+  )
   const [notice, setNotice] = useState('')
 
   useEffect(() => {
@@ -48,7 +55,12 @@ export function Tasks() {
   const addTask = (task: NewTask) =>
     setTasks((current) => [...current, { ...task, id: `task-${current.length + 1}-${Date.now()}`, status: 'Pending' }])
 
-  const dialogProps = { onClose: () => setOpenDialog(null), onNotice: setNotice }
+  const closeDialog = () => {
+    setOpenDialog(null)
+    if (searchParams.has('open')) setSearchParams({}, { replace: true })
+  }
+
+  const dialogProps = { onClose: closeDialog, onNotice: setNotice }
 
   return (
     <>
@@ -57,8 +69,8 @@ export function Tasks() {
       <section className="tasks-page" aria-labelledby="tasks-title">
         <div className="tasks-content">
           <header className="tasks-heading">
-            <h1 id="tasks-title">Tasks</h1>
-            <p>Stay on top of your supervision tasks.</p>
+            <h1 id="tasks-title">{t('tasks.title')}</h1>
+            <p>{t('tasks.subtitle')}</p>
           </header>
 
           <TaskSummary tasks={tasks} />

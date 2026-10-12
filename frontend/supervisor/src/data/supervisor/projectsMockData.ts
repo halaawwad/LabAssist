@@ -20,24 +20,24 @@ export type SupervisedProject = {
   weeklyChange: number
   students: number
   nextMilestone: string
+  /** ISO date (YYYY-MM-DD). */
   milestoneDate: string
   openIssues: number
   image: string
 }
 
 export type ReviewLocation = 'Workshop' | 'Supervisor Office' | 'Online Meeting'
+/** Also selects the translated label and title under `projects.reviews.kinds.`. */
 export type ReviewKind = 'progress' | 'design' | 'final' | 'demo'
 
 export type UpcomingReview = {
   id: string
-  month: string
-  day: string
-  /** Short label on the timeline; `title` is shown in the details card. */
-  label: string
-  title: string
+  /** ISO date (YYYY-MM-DD). */
+  date: string
   /** Short project name shown on the timeline; the full name appears in the details card. */
   projectShort: string
   project: string
+  /** 24-hour time (HH:mm). */
   time: string
   location: ReviewLocation
   team: string
@@ -55,7 +55,7 @@ export const supervisedProjects: SupervisedProject[] = [
     weeklyChange: 12,
     students: 3,
     nextMilestone: 'Prototype navigation test',
-    milestoneDate: 'Oct 28, 2026',
+    milestoneDate: '2026-10-28',
     openIssues: 1,
     image: robotImage,
   },
@@ -68,7 +68,7 @@ export const supervisedProjects: SupervisedProject[] = [
     weeklyChange: 4,
     students: 2,
     nextMilestone: 'Sensor calibration review',
-    milestoneDate: 'Nov 04, 2026',
+    milestoneDate: '2026-11-04',
     openIssues: 2,
     image: greenhouseImage,
   },
@@ -80,7 +80,7 @@ export const supervisedProjects: SupervisedProject[] = [
     weeklyChange: 3,
     students: 3,
     nextMilestone: 'Power budget validation',
-    milestoneDate: 'Nov 12, 2026',
+    milestoneDate: '2026-11-12',
     openIssues: 3,
     image: weatherImage,
   },
@@ -92,7 +92,7 @@ export const supervisedProjects: SupervisedProject[] = [
     weeklyChange: 5,
     students: 2,
     nextMilestone: 'Hardware integration',
-    milestoneDate: 'Nov 20, 2026',
+    milestoneDate: '2026-11-20',
     openIssues: 1,
     image: wearableImage,
   },
@@ -104,7 +104,7 @@ export const supervisedProjects: SupervisedProject[] = [
     weeklyChange: 5,
     students: 2,
     nextMilestone: 'Field testing',
-    milestoneDate: 'Nov 24, 2026',
+    milestoneDate: '2026-11-24',
     openIssues: 0,
     image: irrigationImage,
   },
@@ -113,13 +113,10 @@ export const supervisedProjects: SupervisedProject[] = [
 export const upcomingReviews: UpcomingReview[] = [
   {
     id: 'review-1',
-    month: 'OCT',
-    day: '20',
-    label: 'Weekly Progress',
-    title: 'Weekly Progress Review',
+    date: '2026-10-20',
     projectShort: 'Autonomous Robot',
     project: 'Autonomous Delivery Robot',
-    time: '10:00 AM',
+    time: '10:00',
     location: 'Workshop',
     team: 'Team Alpha',
     kind: 'progress',
@@ -127,13 +124,10 @@ export const upcomingReviews: UpcomingReview[] = [
   },
   {
     id: 'review-2',
-    month: 'OCT',
-    day: '21',
-    label: 'Design Review',
-    title: 'Design Review',
+    date: '2026-10-21',
     projectShort: 'Greenhouse Monitor',
     project: 'Smart Greenhouse Monitor',
-    time: '1:00 PM',
+    time: '13:00',
     location: 'Supervisor Office',
     team: 'Team Delta',
     kind: 'design',
@@ -141,13 +135,10 @@ export const upcomingReviews: UpcomingReview[] = [
   },
   {
     id: 'review-3',
-    month: 'OCT',
-    day: '22',
-    label: 'Final Design Review',
-    title: 'Final Design Review',
+    date: '2026-10-22',
     projectShort: 'Weather Station',
     project: 'Solar-Powered Weather Station',
-    time: '10:00 AM',
+    time: '10:00',
     location: 'Supervisor Office',
     team: 'EE-299 team',
     kind: 'final',
@@ -155,13 +146,10 @@ export const upcomingReviews: UpcomingReview[] = [
   },
   {
     id: 'review-4',
-    month: 'OCT',
-    day: '24',
-    label: 'Prototype Demo',
-    title: 'Prototype Demo',
+    date: '2026-10-24',
     projectShort: 'Wearable Monitor',
     project: 'Wearable Health Monitor',
-    time: '2:00 PM',
+    time: '16:00',
     location: 'Workshop',
     team: 'HW07 team',
     kind: 'demo',

@@ -20,7 +20,7 @@ export type ProjectStudent = {
 
 export type ProgressEvidence = {
   title: string
-  /** Short display date, e.g. "Oct 6". */
+  /** ISO date (YYYY-MM-DD). */
   date: string
   photo: string
 }
@@ -36,7 +36,7 @@ export type ProjectProgress = {
   status: ProgressStatus
   /** Latest student-uploaded prototype photo, if any. */
   photo?: string
-  /** Short display date of the final deadline, e.g. "Dec 20". */
+  /** ISO date (YYYY-MM-DD) of the final deadline. */
   finalDeadline: string
   /** Groups have 1–3 students. */
   students: ProjectStudent[]
@@ -49,12 +49,13 @@ export type ProjectProgress = {
   note: string
 }
 
-export const projectMilestones = ['Proposal', 'BOM', 'Circuit', 'Prototype', 'Testing', 'Final']
+/** Milestone ids, in order; labels live under `progress.milestones.names.`. */
+export const projectMilestones = ['proposal', 'bom', 'circuit', 'prototype', 'testing', 'final'] as const
 
 /** Weeks shown on the progress chart: the completed weeks plus a short look-ahead. */
 export const progressChartWeeks = 10
 
-const finalDeadline = 'Dec 20'
+const finalDeadline = '2026-12-20'
 
 export const progressProjects: ProjectProgress[] = [
   {
@@ -71,10 +72,10 @@ export const progressProjects: ProjectProgress[] = [
     weeklyProgress: [8, 14, 20, 27, 35, 44, 54, 68],
     milestoneStage: 2,
     evidence: [
-      { title: 'Chassis Assembly', date: 'Oct 6', photo: chassisAssemblyPhoto },
-      { title: 'Motor Drivers Installed', date: 'Sep 30', photo: motorDriversPhoto },
-      { title: 'Sensor Module Testing', date: 'Sep 23', photo: sensorTestingPhoto },
-      { title: 'Navigation Testing', date: 'Sep 18', photo: navigationTestingPhoto },
+      { title: 'Chassis Assembly', date: '2026-10-06', photo: chassisAssemblyPhoto },
+      { title: 'Motor Drivers Installed', date: '2026-09-30', photo: motorDriversPhoto },
+      { title: 'Sensor Module Testing', date: '2026-09-23', photo: sensorTestingPhoto },
+      { title: 'Navigation Testing', date: '2026-09-18', photo: navigationTestingPhoto },
     ],
     issues: [{ title: 'Inconsistent motor response', detail: 'Need to adjust motor driver configuration.' }],
     note: 'Good progress. Focus on navigation stability next week.',

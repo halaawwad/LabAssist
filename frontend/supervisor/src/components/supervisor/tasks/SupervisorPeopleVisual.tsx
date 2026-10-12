@@ -1,5 +1,6 @@
 import { CalendarDays, GraduationCap } from 'lucide-react'
 import { supervisorTasksImage } from '../../../data/supervisor/tasksMockData'
+import { useI18n } from '../../../i18n/i18nContext'
 
 export function SupervisorPeopleVisual() {
   return (
@@ -16,6 +17,7 @@ export function SupervisorPeopleVisual() {
 
 /** Line drawing of a clipboard titled "To Do List" with ticked items. */
 function TodoListDrawing() {
+  const { t } = useI18n()
   const rows = [64, 90, 116]
 
   return (
@@ -23,7 +25,7 @@ function TodoListDrawing() {
       <rect x="6" y="14" width="108" height="130" rx="12" />
       <rect x="38" y="5" width="44" height="18" rx="6" />
       <text x="60" y="45" textAnchor="middle" fill="currentColor" stroke="none" fontSize="13" fontWeight="700">
-        To Do List
+        {t('tasks.todoDrawing')}
       </text>
       {rows.map((y, index) => (
         <g key={y}>

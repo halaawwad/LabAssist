@@ -1,5 +1,7 @@
 import { CalendarDays, ChevronRight, TrendingDown, TrendingUp, TriangleAlert, Users } from 'lucide-react'
 import type { SupervisedProject } from '../../../data/supervisor/projectsMockData'
+import { useI18n } from '../../../i18n/i18nContext'
+import { statusLabelKeys } from '../../../i18n/labels'
 import { statusTone } from './projectHelpers'
 
 type FeaturedProjectProps = {
@@ -7,19 +9,20 @@ type FeaturedProjectProps = {
 }
 
 export function FeaturedProject({ project }: FeaturedProjectProps) {
+  const { t, tp, formatDate } = useI18n()
   const ChangeIcon = project.weeklyChange >= 0 ? TrendingUp : TrendingDown
 
   return (
     <section className="mp-featured glass-panel" aria-labelledby="mp-featured-title">
-      <img className="mp-featured-photo" src={project.image} alt={`${project.name} prototype`} />
-      <button className="mp-featured-open" type="button" aria-label={`Open ${project.name}`}>
+      <img className="mp-featured-photo" src={project.image} alt={t('projects.featured.photoAlt', { name: project.name })} />
+      <button className="mp-featured-open" type="button" aria-label={t('projects.featured.open', { name: project.name })}>
         <ChevronRight size={20} />
       </button>
 
       <div className="mp-featured-copy">
         <p className={`mp-status-text tone-${statusTone(project.status)}`}>
           <i aria-hidden="true" />
-          {project.status}
+          {t(statusLabelKeys[project.status])}
         </p>
         <h2 id="mp-featured-title">{project.name}</h2>
         <p className="mp-featured-code">
@@ -27,7 +30,7 @@ export function FeaturedProject({ project }: FeaturedProjectProps) {
           {project.team ? <span> · {project.team}</span> : null}
         </p>
 
-        <ul className="mp-featured-stats" aria-label="Project summary">
+        <ul className="mp-featured-stats" aria-label={t('projects.featured.summaryAria')}>
           <li className="mp-stat-progress">
             <span className="mp-ring" aria-hidden="true">
               <svg viewBox="0 0 44 44">
@@ -44,29 +47,29 @@ export function FeaturedProject({ project }: FeaturedProjectProps) {
               <b>{project.progress}%</b>
             </span>
             <span>
-              <em>Overall Progress</em>
+              <em>{t('projects.featured.overallProgress')}</em>
               <b className="mp-change">
                 <ChangeIcon size={14} aria-hidden="true" />
                 {project.weeklyChange >= 0 ? '+' : '−'}
                 {Math.abs(project.weeklyChange)}%
               </b>
             </span>
-            <span className="visually-hidden">{project.progress}% complete</span>
+            <span className="visually-hidden">{t('projects.featured.complete', { value: project.progress })}</span>
           </li>
 
           <li>
             <Users className="mp-stat-icon" size={22} aria-hidden="true" />
             <span>
               <b>{project.students}</b>
-              <em>{project.students === 1 ? 'Student' : 'Students'}</em>
+              <em>{tp('projects.featured.students', project.students)}</em>
             </span>
           </li>
 
           <li>
             <CalendarDays className="mp-stat-icon tone-at-risk" size={22} aria-hidden="true" />
             <span>
-              <b>{project.milestoneDate}</b>
-              <em>Next Milestone</em>
+              <b>{formatDate(project.milestoneDate, { month: 'short', day: '2-digit', year: 'numeric' })}</b>
+              <em>{t('projects.featured.nextMilestone')}</em>
               <small>{project.nextMilestone}</small>
             </span>
           </li>
@@ -79,7 +82,7 @@ export function FeaturedProject({ project }: FeaturedProjectProps) {
             />
             <span>
               <b>{project.openIssues}</b>
-              <em>{project.openIssues === 1 ? 'Open Issue' : 'Open Issues'}</em>
+              <em>{tp('projects.featured.openIssues', project.openIssues)}</em>
             </span>
           </li>
         </ul>

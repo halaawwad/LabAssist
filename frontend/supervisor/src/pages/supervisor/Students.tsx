@@ -5,11 +5,16 @@ import {
   MoreVertical,
   Search,
 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import studentsHero from '../../assets/supervisor-students-hero.png'
 import { SupervisorTopBar } from '../../components/supervisor/SupervisorTopBar'
+import { useI18n, type TranslationKey } from '../../i18n/i18nContext'
+import { statusLabelKeys } from '../../i18n/labels'
 
-type Attendance = 'Present' | 'Absence'
+type Attendance = 'present' | 'absence'
 type StudentStatus = 'On Track' | 'At Risk' | 'Delayed'
+/** Translation key under `students.issues.`. */
+type StudentIssue = 'testingDelay' | 'none' | 'missingComponents' | 'reportPending' | 'slowProgress'
 
 type SupervisedStudent = {
   name: string
@@ -17,7 +22,7 @@ type SupervisedStudent = {
   universityId: string
   project: string
   progress: number
-  issue: string
+  issue: StudentIssue
   issueTone: 'neutral' | 'orange' | 'red'
   attendance: Attendance
   repeatedAbsence?: boolean
@@ -32,9 +37,9 @@ const students: SupervisedStudent[] = [
     universityId: '12217669',
     project: 'Smart Greenhouse Monitor',
     progress: 62,
-    issue: 'Delay in testing',
+    issue: 'testingDelay',
     issueTone: 'red',
-    attendance: 'Absence',
+    attendance: 'absence',
     repeatedAbsence: true,
     status: 'At Risk',
     avatarTone: 'green',
@@ -45,9 +50,9 @@ const students: SupervisedStudent[] = [
     universityId: '12199821',
     project: 'Autonomous Delivery Robot',
     progress: 80,
-    issue: 'No issues',
+    issue: 'none',
     issueTone: 'neutral',
-    attendance: 'Present',
+    attendance: 'present',
     status: 'On Track',
     avatarTone: 'blue',
   },
@@ -57,9 +62,9 @@ const students: SupervisedStudent[] = [
     universityId: '12214500',
     project: 'Solar Weather Station',
     progress: 45,
-    issue: 'Missing components',
+    issue: 'missingComponents',
     issueTone: 'red',
-    attendance: 'Absence',
+    attendance: 'absence',
     status: 'Delayed',
     avatarTone: 'gold',
   },
@@ -69,9 +74,9 @@ const students: SupervisedStudent[] = [
     universityId: '12218840',
     project: 'Irrigation Control System',
     progress: 71,
-    issue: 'Weekly report pending',
+    issue: 'reportPending',
     issueTone: 'orange',
-    attendance: 'Present',
+    attendance: 'present',
     status: 'At Risk',
     avatarTone: 'violet',
   },
@@ -81,24 +86,51 @@ const students: SupervisedStudent[] = [
     universityId: '12213220',
     project: 'Delivery Robot',
     progress: 38,
-    issue: 'Slow progress',
+    issue: 'slowProgress',
     issueTone: 'red',
-    attendance: 'Absence',
+    attendance: 'absence',
     repeatedAbsence: true,
     status: 'Delayed',
     avatarTone: 'coral',
   },
 ]
 
-const projectOptions = ['All Projects', ...Array.from(new Set(students.map((student) => student.project)))]
-const attendanceOptions = ['All Attendance', 'Present', 'Absence']
-const statusOptions = ['All Status', 'On Track', 'At Risk', 'Delayed']
+/** Filter value meaning "no filter". */
+const ALL = 'all'
+
+const projectNames = Array.from(new Set(students.map((student) => student.project)))
+const attendanceValues: Attendance[] = ['present', 'absence']
+const statusValues: StudentStatus[] = ['On Track', 'At Risk', 'Delayed']
+
+const attendanceLabelKeys: Record<Attendance, TranslationKey> = {
+  present: 'students.attendance.present',
+  absence: 'students.attendance.absence',
+}
 
 export function Students() {
+  const { t } = useI18n()
+  // `?attendance=absence` (used by notifications) preselects the attendance filter.
+  const [searchParams] = useSearchParams()
   const [query, setQuery] = useState('')
-  const [project, setProject] = useState('All Projects')
-  const [attendance, setAttendance] = useState('All Attendance')
-  const [status, setStatus] = useState('All Status')
+  const [project, setProject] = useState(ALL)
+  const [attendance, setAttendance] = useState(() => {
+    const requested = searchParams.get('attendance')
+    return attendanceValues.some((value) => value === requested) ? (requested as Attendance) : ALL
+  })
+  const [status, setStatus] = useState(ALL)
+
+  const projectOptions = [
+    { value: ALL, label: t('students.allProjects') },
+    ...projectNames.map((name) => ({ value: name, label: name })),
+  ]
+  const attendanceOptions = [
+    { value: ALL, label: t('students.allAttendance') },
+    ...attendanceValues.map((value) => ({ value, label: t(attendanceLabelKeys[value]) })),
+  ]
+  const statusOptions = [
+    { value: ALL, label: t('students.allStatus') },
+    ...statusValues.map((value) => ({ value, label: t(statusLabelKeys[value]) })),
+  ]
 
   const filteredStudents = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -112,9 +144,9 @@ export function Students() {
 
       return (
         matchesQuery &&
-        (project === 'All Projects' || student.project === project) &&
-        (attendance === 'All Attendance' || student.attendance === attendance) &&
-        (status === 'All Status' || student.status === status)
+        (project === ALL || student.project === project) &&
+        (attendance === ALL || student.attendance === attendance) &&
+        (status === ALL || student.status === status)
       )
     })
   }, [attendance, project, query, status])
@@ -127,53 +159,53 @@ export function Students() {
 
         <header className="students-hero">
           <div>
-            <h1 id="students-title">Students</h1>
-            <p>Monitor supervised students, attendance, and project progress.</p>
+            <h1 id="students-title">{t('students.title')}</h1>
+            <p>{t('students.subtitle')}</p>
           </div>
         </header>
       </div>
 
-      <section className="students-filter-panel glass-panel" aria-label="Student filters">
+      <section className="students-filter-panel glass-panel" aria-label={t('students.filtersAria')}>
         <label className="students-search-field">
           <Search size={22} aria-hidden="true" />
           <input
             type="search"
-            placeholder="Search students, projects, or ID..."
+            placeholder={t('students.searchPlaceholder')}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
 
         <FilterSelect
-          label="Project"
+          label={t('students.filterProject')}
           value={project}
           options={projectOptions}
           onChange={setProject}
         />
         <FilterSelect
-          label="Attendance"
+          label={t('students.filterAttendance')}
           value={attendance}
           options={attendanceOptions}
           onChange={setAttendance}
         />
         <FilterSelect
-          label="Status"
+          label={t('students.filterStatus')}
           value={status}
           options={statusOptions}
           onChange={setStatus}
         />
       </section>
 
-      <section className="students-table-panel glass-panel" aria-label="Supervised students">
+      <section className="students-table-panel glass-panel" aria-label={t('students.tableAria')}>
         <div className="students-table">
           <div className="students-table-header" role="row">
-            <span>Student</span>
-            <span>University ID</span>
-            <span>Project</span>
-            <span>Progress</span>
-            <span>Issues / Delay</span>
-            <span>Attendance</span>
-            <span>Alert</span>
+            <span>{t('students.columns.student')}</span>
+            <span>{t('students.columns.universityId')}</span>
+            <span>{t('students.columns.project')}</span>
+            <span>{t('students.columns.progress')}</span>
+            <span>{t('students.columns.issues')}</span>
+            <span>{t('students.columns.attendance')}</span>
+            <span>{t('students.columns.alert')}</span>
             <span aria-hidden="true" />
           </div>
 
@@ -194,22 +226,28 @@ export function Students() {
                     <span style={{ width: `${student.progress}%` }} />
                   </span>
                 </div>
-                <span className={`student-issue tone-${student.issueTone}`}>{student.issue}</span>
-                <span className={`attendance-pill tone-${student.attendance.toLowerCase()}`}>
+                <span className={`student-issue tone-${student.issueTone}`}>
+                  {t(`students.issues.${student.issue}`)}
+                </span>
+                <span className={`attendance-pill tone-${student.attendance}`}>
                   <i aria-hidden="true" />
-                  {student.attendance}
+                  {t(attendanceLabelKeys[student.attendance])}
                 </span>
                 <span className={student.repeatedAbsence ? 'absence-alert' : 'student-no-alert'}>
                   {student.repeatedAbsence ? (
                     <>
                       <AlertTriangle size={20} aria-hidden="true" />
-                      Repeated absence
+                      {t('students.repeatedAbsence')}
                     </>
                   ) : (
                     '—'
                   )}
                 </span>
-                <button className="student-menu-button" type="button" aria-label={`Open ${student.name} actions`}>
+                <button
+                  className="student-menu-button"
+                  type="button"
+                  aria-label={t('students.actions', { name: student.name })}
+                >
                   <MoreVertical size={20} />
                 </button>
               </article>
@@ -224,7 +262,7 @@ export function Students() {
 type FilterSelectProps = {
   label: string
   value: string
-  options: string[]
+  options: { value: string; label: string }[]
   onChange: (value: string) => void
 }
 
@@ -235,8 +273,8 @@ function FilterSelect({ label, value, options, onChange }: FilterSelectProps) {
       <div>
         <select value={value} onChange={(event) => onChange(event.target.value)}>
           {options.map((option) => (
-            <option value={option} key={option}>
-              {option}
+            <option value={option.value} key={option.value}>
+              {option.label}
             </option>
           ))}
         </select>
