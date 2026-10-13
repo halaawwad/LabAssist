@@ -7,10 +7,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { people, useMessages, type ChatAttachment, type ChatPerson, type ChatMessage } from "@/lib/messages";
 import { useStudentProfile } from "@/lib/studentProfile";
-export const Route=createFileRoute("/messages")({head:()=>({meta:[{title:"Messages | HardwareMate"}]}),component:MessagesPage});
+export const Route=createFileRoute("/messages")({validateSearch:(search:Record<string,unknown>):{chat?:string}=>typeof search["chat"]==="string"?{chat:search["chat"]}:{},head:()=>({meta:[{title:"Messages | HardwareMate"}]}),component:MessagesPage});
 function MessagesPage(){
+ const routeSearch=Route.useSearch();
  const navigate=useNavigate(),{chats,setChats}=useMessages(),{profile}=useStudentProfile();
- const [menu,setMenu]=useState(false),[active,setActive]=useState("saved"),[search,setSearch]=useState(""),[newChat,setNewChat]=useState(false),[personSearch,setPersonSearch]=useState(""),[personKind,setPersonKind]=useState("All"),[text,setText]=useState(""),[attachment,setAttachment]=useState<ChatAttachment|null>(null),[error,setError]=useState(""),[mobileChat,setMobileChat]=useState(false);
+ const [menu,setMenu]=useState(false),[active,setActive]=useState(()=>chats.some(c=>c.id===routeSearch.chat)?routeSearch.chat!:"saved"),[search,setSearch]=useState(""),[newChat,setNewChat]=useState(false),[personSearch,setPersonSearch]=useState(""),[personKind,setPersonKind]=useState("All"),[text,setText]=useState(""),[attachment,setAttachment]=useState<ChatAttachment|null>(null),[error,setError]=useState(""),[mobileChat,setMobileChat]=useState(!!routeSearch.chat);
  const [reply,setReply]=useState<ChatMessage|null>(null),[forward,setForward]=useState<ChatMessage|null>(null),[toolMode,setToolMode]=useState<"forward"|"starred"|"media"|null>(null);
  const [groupEdit,setGroupEdit]=useState(false),[groupName,setGroupName]=useState(""),[groupPhoto,setGroupPhoto]=useState<string|undefined>(),[groupError,setGroupError]=useState("");
  const groupInput=useRef<HTMLInputElement>(null);
