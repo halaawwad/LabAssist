@@ -8,6 +8,9 @@ import { Students } from './pages/supervisor/Students'
 import { Progress } from './pages/supervisor/Progress'
 import { Tasks } from './pages/supervisor/Tasks'
 import { Notifications } from './pages/supervisor/Notifications'
+import { Messages } from './pages/supervisor/Messages'
+import { Meetings } from './pages/supervisor/Meetings'
+import { WeeklyReports } from './pages/supervisor/WeeklyReports'
 import { Profile } from './pages/supervisor/Profile'
 import { Settings } from './pages/supervisor/Settings'
 
@@ -30,6 +33,9 @@ function App() {
         <Route path="students" element={<Students />} />
         <Route path="progress" element={<Progress />} />
         <Route path="tasks" element={<Tasks />} />
+        <Route path="reports" element={<WeeklyReports />} />
+        <Route path="meetings" element={<Meetings />} />
+        <Route path="messages" element={<Messages />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<Settings />} />
