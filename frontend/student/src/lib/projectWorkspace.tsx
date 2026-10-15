@@ -37,7 +37,7 @@ function useWorkspaceState() {
   const toggleTask = (id: string) => setCompleted(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
   const completedCount = teammates.reduce((sum, person) => sum + person.done, 0) + completed.length;
   const taskCount = teammates.reduce((sum, person) => sum + person.done + person.remaining, 0)+Math.max(0,teamTasks.length-6);
-  return { teamTasks,setTeamTasks,teamActivity,logTeamActivity,abstract, setAbstract, completed, toggleTask, issues, addIssue: (text: string) => setIssues(current => [...current, text]), report, setReport, submitted, submitReport: () => setSubmitted(true), progress: Math.round(completedCount / taskCount * 100), completedCount, taskCount };
+  return { teamTasks,setTeamTasks,teamActivity,logTeamActivity,abstract, setAbstract, completed, toggleTask, issues, addIssue: (text: string) => setIssues(current => [...current, text]), report, setReport, submitted, submitReport: () => setSubmitted(true), withdrawReport: () => setSubmitted(false), progress: Math.round(completedCount / taskCount * 100), completedCount, taskCount };
 }
 const WorkspaceContext = createContext<ReturnType<typeof useWorkspaceState> | null>(null);
 export function ProjectWorkspaceProvider({ children }: { children: ReactNode }) {
@@ -49,3 +49,4 @@ export function useProjectWorkspace() {
   if (!context) throw new Error("ProjectWorkspaceProvider is required");
   return context;
 }
+
