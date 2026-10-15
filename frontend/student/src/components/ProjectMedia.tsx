@@ -7,13 +7,13 @@ export function ProjectImageProvider({ children }: { children: ReactNode }) {
   return <ProjectImageContext.Provider value={{ image, setImage }}>{children}</ProjectImageContext.Provider>;
 }
 
-export function ProjectMedia() {
+export function ProjectMedia({variant="default"}:{variant?:"default"|"cover"}={}) {
   const context = useContext(ProjectImageContext);
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   if (!context) return null;
   const { image, setImage } = context;
-  return <div className="project-media">
+  return <div className={`project-media ${variant==="cover"?"project-cover-photo":""} ${image?"has-cover-image":""}`}>
     <div className={`project-media-frame ${image ? "has-photo" : ""}`}>
       {image ? <img src={image} alt="Your project photo" /> : <div className="project-media-empty"><span className="project-media-orbit orbit-one"/><span className="project-media-orbit orbit-two"/><span className="project-media-camera"><Camera size={18}/></span><span className="project-media-circuit"><CircuitBoard size={24}/></span><ImagePlus size={34}/><strong>Your project, your picture</strong><small>Prototype, sketch, or a work in progress</small></div>}
       {image && <button className="project-media-remove" aria-label="Remove project photo" onClick={() => { setImage(null); setError(""); }}><X size={13}/></button>}
@@ -35,7 +35,7 @@ export function ProjectMedia() {
       };
       reader.readAsDataURL(file);
     }}/>
-    <button className="project-media-upload" onClick={() => input.current?.click()}><ImagePlus size={13}/>{image ? "Change photo" : "Add project photo"}</button>
-    <p className="project-media-note">{error || "Shared across your pages · saved for this session"}</p>
+    <button className="project-media-upload" onClick={() => input.current?.click()}><ImagePlus size={13}/>{variant==="cover"?(image?"Change cover":"Add cover photo"):(image?"Change photo":"Add project photo")}</button>
+    <p className={`project-media-note ${error?"has-error":""}`} role={error?"alert":undefined}>{error || "Shared across your pages · saved for this session"}</p>
   </div>;
 }
