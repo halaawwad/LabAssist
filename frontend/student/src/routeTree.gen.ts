@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MeetingsRouteImport } from './routes/meetings'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ProjectRouteImport } from './routes/project'
@@ -18,6 +19,11 @@ import { Route as TeamRouteImport } from './routes/team'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeetingsRoute = MeetingsRouteImport.update({
+  id: '/meetings',
+  path: '/meetings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MessagesRoute = MessagesRouteImport.update({
@@ -43,6 +49,7 @@ const TeamRoute = TeamRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/meetings': typeof MeetingsRoute
   '/messages': typeof MessagesRoute
   '/profile': typeof ProfileRoute
   '/project': typeof ProjectRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/meetings': typeof MeetingsRoute
   '/messages': typeof MessagesRoute
   '/profile': typeof ProfileRoute
   '/project': typeof ProjectRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/meetings': typeof MeetingsRoute
   '/messages': typeof MessagesRoute
   '/profile': typeof ProfileRoute
   '/project': typeof ProjectRoute
@@ -65,14 +74,22 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/messages' | '/profile' | '/project' | '/team'
+  fullPaths: '/' | '/meetings' | '/messages' | '/profile' | '/project' | '/team'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/messages' | '/profile' | '/project' | '/team'
-  id: '__root__' | '/' | '/messages' | '/profile' | '/project' | '/team'
+  to: '/' | '/meetings' | '/messages' | '/profile' | '/project' | '/team'
+  id:
+    | '__root__'
+    | '/'
+    | '/meetings'
+    | '/messages'
+    | '/profile'
+    | '/project'
+    | '/team'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  MeetingsRoute: typeof MeetingsRoute
   MessagesRoute: typeof MessagesRoute
   ProfileRoute: typeof ProfileRoute
   ProjectRoute: typeof ProjectRoute
@@ -86,6 +103,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/meetings': {
+      id: '/meetings'
+      path: '/meetings'
+      fullPath: '/meetings'
+      preLoaderRoute: typeof MeetingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/messages': {
@@ -121,6 +145,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  MeetingsRoute: MeetingsRoute,
   MessagesRoute: MessagesRoute,
   ProfileRoute: ProfileRoute,
   ProjectRoute: ProjectRoute,
