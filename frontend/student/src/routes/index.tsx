@@ -24,7 +24,7 @@ function Dashboard() {
   const today = teammates[0]!;
   const doneToday = today.tasks.filter((_, i) => workspace.completed.includes(`0-${i}`)).length;
   const recentActivity=[...(workspace.issues.length?[{id:"latest-issue",name:"New issue recorded",detail:workspace.issues.at(-1)!,icon:CircleAlert,tone:"orange"}]:[]),...workspace.teamActivity.slice(0,3).map(item=>({id:item.id,name:item.text,detail:`${item.owner===0?profile.name:teammates[item.owner]?.name||"Teammate"} · ${item.time}`,icon:item.owner===1?FileText:item.owner===2?Zap:Cpu,tone:["olive","blue","purple"][item.owner]||"olive"}))];
-  const openProject = (tab: "overview" | "team" | "components" | "reports" = "overview") => navigate({ to: "/project", search: { tab } });
+  const openProject = (tab: "overview" | "team" | "components" | "reports" = "overview") => tab === "reports" ? navigate({to:"/reports"}) : navigate({ to: "/project", search: { tab } });
   const matches = [{ name: `${project.name} — ${project.subtitle}`, tab: "overview" as const }, { name: "Team & today's tasks", tab: "team" as const }, { name: "Components & budget", tab: "components" as const }, { name: "Weekly report & supervisor feedback", tab: "reports" as const }].filter(item => item.name.toLowerCase().includes(query.trim().toLowerCase()));
   return <div className="dashboard-background student-dashboard-theme min-h-screen">
     <div className="insight-shell">
