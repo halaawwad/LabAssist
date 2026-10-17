@@ -1,3 +1,4 @@
+import { ReportsProvider } from "@/lib/reports";
 import { MessagesProvider } from "@/lib/messages";
 import { ProjectImageProvider } from "@/components/ProjectMedia";
 import { ProjectWorkspaceProvider } from "@/lib/projectWorkspace";
@@ -121,7 +122,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <MessagesProvider><StudentProfileProvider><ProjectWorkspaceProvider><ProjectImageProvider><Outlet /></ProjectImageProvider></ProjectWorkspaceProvider></StudentProfileProvider></MessagesProvider>
+      <ReportsProvider><MessagesProvider><StudentProfileProvider><ProjectWorkspaceProvider><ProjectImageProvider><Outlet /></ProjectImageProvider></ProjectWorkspaceProvider></StudentProfileProvider></MessagesProvider></ReportsProvider>
     </QueryClientProvider>
   );
 }
