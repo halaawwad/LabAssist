@@ -1,3 +1,5 @@
+import { NotificationsProvider } from "@/lib/notifications";
+import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { StudentSettingsProvider } from "@/lib/studentSettings";
 import { ReportsProvider } from "@/lib/reports";
 import { MessagesProvider } from "@/lib/messages";
@@ -123,7 +125,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StudentSettingsProvider><ReportsProvider><MessagesProvider><StudentProfileProvider><ProjectWorkspaceProvider><ProjectImageProvider><Outlet /></ProjectImageProvider></ProjectWorkspaceProvider></StudentProfileProvider></MessagesProvider></ReportsProvider></StudentSettingsProvider>
+      <StudentSettingsProvider><ReportsProvider><MessagesProvider><StudentProfileProvider><ProjectWorkspaceProvider><ProjectImageProvider><NotificationsProvider><Outlet /><NotificationsPanel/></NotificationsProvider></ProjectImageProvider></ProjectWorkspaceProvider></StudentProfileProvider></MessagesProvider></ReportsProvider></StudentSettingsProvider>
     </QueryClientProvider>
   );
 }
