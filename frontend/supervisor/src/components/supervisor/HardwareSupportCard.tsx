@@ -1,9 +1,11 @@
 import { ArrowRight } from 'lucide-react'
 import supportHardware from '../../assets/supervisor-support-portrait.png'
 import { useI18n } from '../../i18n/i18nContext'
+import { useNavigate } from 'react-router-dom'
 
 export function HardwareSupportCard() {
   const { t } = useI18n()
+  const navigate = useNavigate()
 
   return (
     <section className="support-card" aria-label={t('dashboard.support.aria')}>
@@ -15,7 +17,12 @@ export function HardwareSupportCard() {
           {t('dashboard.support.titleLine2')}
         </h2>
         <p>{t('dashboard.support.body')}</p>
-        <button className="support-arrow" type="button" aria-label={t('dashboard.support.open')}>
+        <button
+          className="support-arrow"
+          type="button"
+          aria-label={t('dashboard.support.open')}
+          onClick={() => navigate('/supervisor/projects')}
+        >
           <ArrowRight size={24} />
         </button>
       </div>

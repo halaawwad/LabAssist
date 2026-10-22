@@ -17,7 +17,6 @@ export const ar: Dictionary = {
     progress: 'التقدم',
     tasks: 'المهام',
     labReview: 'مراجعة المختبر ثلاثي الأبعاد',
-    bom: 'قائمة المواد والقطع',
     issues: 'المشكلات والمخاطر',
     reports: 'التقارير الأسبوعية',
     meetings: 'الاجتماعات',

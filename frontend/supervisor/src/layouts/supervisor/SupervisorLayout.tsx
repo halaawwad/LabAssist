@@ -27,6 +27,7 @@ export function SupervisorLayout({ children }: SupervisorLayoutProps) {
     '/supervisor/students': 'is-students-route',
     '/supervisor/progress': 'is-progress-route',
     '/supervisor/tasks': 'is-tasks-route',
+    '/supervisor/issues': 'is-issues-route',
     '/supervisor/reports': 'is-account-route',
     '/supervisor/meetings': 'is-account-route',
     '/supervisor/messages': 'is-account-route',

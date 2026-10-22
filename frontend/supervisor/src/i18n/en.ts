@@ -16,7 +16,6 @@ export const en = {
     progress: 'Progress',
     tasks: 'Tasks',
     labReview: '3D Lab Review',
-    bom: 'BOM & Parts',
     issues: 'Issues & Risks',
     reports: 'Weekly Reports',
     meetings: 'Meetings',

@@ -1,6 +1,7 @@
 import { ArrowRight, TrendingUp } from 'lucide-react'
 import type { StatCard as StatCardType } from '../../data/supervisor/supervisorMockData'
 import { useI18n } from '../../i18n/i18nContext'
+import { useNavigate } from 'react-router-dom'
 
 type StatCardProps = {
   stat: StatCardType
@@ -8,15 +9,32 @@ type StatCardProps = {
 
 export function StatCard({ stat }: StatCardProps) {
   const { t } = useI18n()
+  const navigate = useNavigate()
+  const destination = {
+    myProjects: 'projects',
+    delayed: 'progress',
+    reports: 'reports',
+    issues: 'issues',
+  }[stat.id]
   const label = t(`dashboard.stats.${stat.id}.label`)
 
   return (
     <article className={`stat-card tone-${stat.tone} ${stat.highlighted ? 'is-highlighted' : ''}`}>
+      <svg className="dashboard-stat-sparkline" viewBox="0 0 210 90" aria-hidden="true">
+        <path d="M5 70 Q20 52 36 67 T68 57 T100 52 T134 35 T170 16 T205 28" />
+        <circle cx="170" cy="16" r="4" />
+        <circle cx="205" cy="28" r="4" />
+      </svg>
       <div className="stat-card-top">
         <span className="stat-icon">
           <stat.icon size={26} />
         </span>
-        <button className="round-arrow" type="button" aria-label={t('dashboard.openStat', { label })}>
+        <button
+          className="round-arrow"
+          type="button"
+          aria-label={t('dashboard.openStat', { label })}
+          onClick={() => navigate(`/supervisor/${destination}`)}
+        >
           <ArrowRight size={23} />
         </button>
       </div>
