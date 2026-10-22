@@ -3,6 +3,16 @@
 // swapped for API data later. Teams, members and projects come from `progressMockData`.
 // Report text (summaries, feedback, file names) is user content and stays in the language it was written in.
 import { progressProjects, type ProjectStudent } from './progressMockData'
+import type { IssueType, Priority } from './issuesMockData'
+
+/** Extraction candidates belong to a team report; confirmation creates a separate tracked issue. */
+export type DetectedReportIssue = {
+  id: string
+  title: string
+  type: IssueType
+  suggestedPriority: Priority
+  reason: string
+}
 
 export type ReportStatus = 'reviewed' | 'pending' | 'revision'
 
@@ -53,6 +63,7 @@ export type WeeklyTeamReport = {
   nextSteps: string[]
   files: ReportFile[]
   feedback: ReportFeedback[]
+  detectedIssues: DetectedReportIssue[]
 }
 
 export const reportWeeks: ReportWeek[] = [
@@ -123,6 +134,14 @@ const feedbackLines = [
 /** Day offset (0–6) inside the week each team submits on; spread so the chart has a natural shape. */
 const dayOffsets = [3, 0, 5, 2, 1, 6, 4]
 
+// Explicit mock extraction metadata for the existing project blockers, never inferred by AI.
+const blockerSuggestions: Record<string, { type: IssueType; priority: Priority }[]> = {
+  HW17: [{ type: 'hardware', priority: 'medium' }],
+  HW07: [{ type: 'hardware', priority: 'medium' }],
+  HW03: [{ type: 'hardware', priority: 'high' }],
+  HW28: [{ type: 'hardware', priority: 'high' }, { type: 'delay', priority: 'medium' }],
+}
+
 function addDays(iso: string, days: number) {
   const date = new Date(`${iso}T00:00:00Z`)
   date.setUTCDate(date.getUTCDate() + days)
@@ -152,6 +171,13 @@ export const weeklyTeamReports: WeeklyTeamReport[] = reportWeeks.flatMap((week, 
       tasksDone: Math.min(tasksTotal, Math.round((progress / 100) * tasksTotal)),
       tasksTotal,
       issuesOpen: project?.issues.length ?? 0,
+      detectedIssues: (project?.issues ?? []).map((issue, issueIndex) => ({
+        id: `project-blocker-${issueIndex + 1}`,
+        title: issue.title,
+        type: blockerSuggestions[team.projectCode]?.[issueIndex]?.type ?? 'hardware',
+        suggestedPriority: blockerSuggestions[team.projectCode]?.[issueIndex]?.priority ?? 'medium',
+        reason: issue.detail,
+      })),
       summary: summaries[seed % summaries.length],
       nextSteps: nextStepSets[seed % nextStepSets.length],
       files: fileSets[seed % fileSets.length],

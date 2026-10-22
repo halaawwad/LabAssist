@@ -5,7 +5,6 @@ import {
   ChartColumn,
   CheckSquare,
   ClipboardList,
-  Cpu,
   Folder,
   Home,
   LogOut,
@@ -24,7 +23,6 @@ export type SidebarItemId =
   | 'progress'
   | 'tasks'
   | 'labReview'
-  | 'bom'
   | 'issues'
   | 'reports'
   | 'meetings'
@@ -85,8 +83,7 @@ export const sidebarItems: SidebarItem[] = [
   { id: 'progress', icon: ChartColumn, route: '/supervisor/progress' },
   { id: 'tasks', icon: ClipboardList, route: '/supervisor/tasks' },
   { id: 'labReview', icon: Box },
-  { id: 'bom', icon: Cpu },
-  { id: 'issues', icon: TriangleAlert },
+  { id: 'issues', icon: TriangleAlert, route: '/supervisor/issues' },
   { id: 'reports', icon: CheckSquare, route: '/supervisor/reports' },
   { id: 'meetings', icon: CalendarDays, route: '/supervisor/meetings' },
   { id: 'messages', icon: MessageCircle, route: '/supervisor/messages' },

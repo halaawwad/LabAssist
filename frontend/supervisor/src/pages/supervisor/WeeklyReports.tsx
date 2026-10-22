@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { CalendarDays, ChevronDown, FileText, Layers, ListFilter, Users, type LucideIcon } from 'lucide-react'
 import { SupervisorTopBar } from '../../components/supervisor/SupervisorTopBar'
 import { Notice } from '../../components/supervisor/account/Notice'
@@ -23,14 +24,24 @@ const todayIso = () => new Date().toISOString().slice(0, 10)
 
 export function WeeklyReports() {
   const { t, formatDate } = useI18n()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const linkedReport = weeklyTeamReports.find(report => report.id === searchParams.get('report'))
   const [reports, setReports] = useState(weeklyTeamReports)
   const [project, setProject] = useState('all')
   const [teamId, setTeamId] = useState('all')
-  const [weekId, setWeekId] = useState(latestWeek.id)
+  const [weekId, setWeekId] = useState(linkedReport?.weekId ?? latestWeek.id)
   const [status, setStatusFilter] = useState<ReportStatus | 'all'>('all')
   const [query, setQuery] = useState('')
-  // The report open in the details modal (null when closed).
-  const [openId, setOpenId] = useState<string | null>(null)
+  // The URL identifies the specific team report, including links from Issues & Risks.
+  const openId = linkedReport?.id ?? null
+  const setOpenId = (id: string | null) => {
+    setSearchParams(current => {
+      const next = new URLSearchParams(current)
+      if (id) next.set('report', id)
+      else next.delete('report')
+      return next
+    }, { replace: true })
+  }
   const [notice, setNotice] = useNotice()
 
   const week = reportWeeks.find((item) => item.id === weekId) ?? latestWeek

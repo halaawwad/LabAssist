@@ -5,6 +5,7 @@ import type { ReportWeek, WeeklyTeamReport } from '../../../data/supervisor/week
 import { useI18n } from '../../../i18n/i18nContext'
 import { ProgressRing } from './ReportCharts'
 import { avatarTone } from './reportHelpers'
+import { DetectedIssues } from './DetectedIssues'
 
 type ReportDetailsModalProps = {
   report: WeeklyTeamReport
@@ -149,6 +150,8 @@ export function ReportDetailsModal({ report, week, onClose, onOpenFile, onSendFe
               <p className="report-sheet-note">{t('reports.details.noBlockers')}</p>
             )}
           </section>
+
+          <DetectedIssues report={report} />
 
           {report.files.length > 0 ? (
             <section>
