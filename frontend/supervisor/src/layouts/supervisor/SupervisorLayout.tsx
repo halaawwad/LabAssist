@@ -31,6 +31,7 @@ export function SupervisorLayout({ children }: SupervisorLayoutProps) {
     '/supervisor/reports': 'is-account-route',
     '/supervisor/meetings': 'is-account-route',
     '/supervisor/messages': 'is-account-route',
+    '/supervisor/final-reports': 'is-account-route',
     '/supervisor/notifications': 'is-account-route',
     '/supervisor/profile': 'is-account-route',
     '/supervisor/settings': 'is-account-route',

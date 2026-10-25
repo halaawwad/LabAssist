@@ -14,6 +14,7 @@ import { WeeklyReports } from './pages/supervisor/WeeklyReports'
 import { Profile } from './pages/supervisor/Profile'
 import { Settings } from './pages/supervisor/Settings'
 import { Issues } from './pages/supervisor/Issues'
+import { FinalReports } from './pages/supervisor/FinalReports'
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
         <Route path="issues" element={<Issues />} />
         <Route path="meetings" element={<Meetings />} />
         <Route path="messages" element={<Messages />} />
+        <Route path="final-reports" element={<FinalReports />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<Settings />} />

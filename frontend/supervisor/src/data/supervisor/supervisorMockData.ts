@@ -1,9 +1,9 @@
 import {
   Bell,
-  Box,
   CalendarDays,
   ChartColumn,
   CheckSquare,
+  FileText,
   ClipboardList,
   Folder,
   Home,
@@ -22,11 +22,11 @@ export type SidebarItemId =
   | 'students'
   | 'progress'
   | 'tasks'
-  | 'labReview'
   | 'issues'
   | 'reports'
   | 'meetings'
   | 'messages'
+  | 'finalReports'
   | 'notifications'
   | 'profile'
   | 'settings'
@@ -82,11 +82,11 @@ export const sidebarItems: SidebarItem[] = [
   { id: 'students', icon: Users, route: '/supervisor/students' },
   { id: 'progress', icon: ChartColumn, route: '/supervisor/progress' },
   { id: 'tasks', icon: ClipboardList, route: '/supervisor/tasks' },
-  { id: 'labReview', icon: Box },
   { id: 'issues', icon: TriangleAlert, route: '/supervisor/issues' },
   { id: 'reports', icon: CheckSquare, route: '/supervisor/reports' },
   { id: 'meetings', icon: CalendarDays, route: '/supervisor/meetings' },
   { id: 'messages', icon: MessageCircle, route: '/supervisor/messages' },
+  { id: 'finalReports', icon: FileText, route: '/supervisor/final-reports' },
   { id: 'notifications', icon: Bell, route: '/supervisor/notifications', footer: true },
   { id: 'profile', icon: User, route: '/supervisor/profile', footer: true },
   { id: 'settings', icon: Settings, route: '/supervisor/settings', footer: true },
