@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MessageSquarePlus, MessagesSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { SupervisorTopBar } from '../../components/supervisor/SupervisorTopBar'
@@ -7,7 +7,10 @@ import { useNotice } from '../../components/supervisor/account/useNotice'
 import { ChatPanel } from '../../components/supervisor/messages/ChatPanel'
 import { ConversationInfo } from '../../components/supervisor/messages/ConversationInfo'
 import { ConversationList } from '../../components/supervisor/messages/ConversationList'
-import { NewMessageDialog, type NewMessage } from '../../components/supervisor/messages/NewMessageDialog'
+import {
+  NewMessageDialog,
+  type NewMessage,
+} from '../../components/supervisor/messages/NewMessageDialog'
 import {
   compareByRecent,
   conversationFilters,
@@ -17,7 +20,10 @@ import {
   matchesSearch,
   type ConversationFilter,
 } from '../../components/supervisor/messages/messageHelpers'
-import { ScheduleMeetingDialog, type NewTask } from '../../components/supervisor/tasks/QuickActionDialogs'
+import {
+  ScheduleMeetingDialog,
+  type NewTask,
+} from '../../components/supervisor/tasks/QuickActionDialogs'
 import {
   conversations as initialConversations,
   messagesMockToday,
@@ -27,6 +33,9 @@ import {
 } from '../../data/supervisor/messagesMockData'
 import { findProject } from '../../components/supervisor/tasks/taskHelpers'
 import { useI18n } from '../../i18n/i18nContext'
+import { useLocalState } from '../../state/useLocalState'
+import { downloadAttachment } from '../../components/supervisor/mockDownload'
+import { localDate } from '../../state/supervisor/mockActions'
 
 type OpenDialog = 'new' | 'meeting' | null
 
@@ -38,27 +47,47 @@ const newChatTones: Conversation['tone'][] = ['blue', 'violet', 'gold', 'coral',
 export function Messages() {
   const { t, formatDay, formatDate } = useI18n()
   const navigate = useNavigate()
-  const [conversations, setConversations] = useState(initialConversations)
+  const [conversations, setConversations] = useLocalState('messages.v1', initialConversations)
   const [activeId, setActiveId] = useState<string | null>(initialConversations[0]?.id ?? null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<ConversationFilter>('all')
   const [infoOpen, setInfoOpen] = useState(() => window.matchMedia(wideLayoutQuery).matches)
+  useEffect(() => {
+    if (!infoOpen) return
+    const escape = (event: KeyboardEvent) => {
+      if (
+        event.key === 'Escape' &&
+        !event.defaultPrevented &&
+        !document.querySelector('dialog[open], .messages-chat-search')
+      )
+        setInfoOpen(false)
+    }
+    window.addEventListener('keydown', escape)
+    return () => window.removeEventListener('keydown', escape)
+  }, [infoOpen])
   const [openDialog, setOpenDialog] = useState<OpenDialog>(null)
   const [notice, setNotice] = useNotice()
 
   const active = conversations.find((conversation) => conversation.id === activeId) ?? null
   const visible = conversations
-    .filter((conversation) => matchesFilter(conversation, filter) && matchesSearch(conversation, query))
+    .filter(
+      (conversation) => matchesFilter(conversation, filter) && matchesSearch(conversation, query),
+    )
     .sort(compareByRecent)
   const counts = Object.fromEntries(
-    conversationFilters.map((item) => [item, conversations.filter((conversation) => matchesFilter(conversation, item)).length]),
+    conversationFilters.map((item) => [
+      item,
+      conversations.filter((conversation) => matchesFilter(conversation, item)).length,
+    ]),
   ) as Record<ConversationFilter, number>
   // "All" shows no badge; the other tabs show how many conversations they hold.
   counts.all = 0
 
   const update = (id: string, change: (conversation: Conversation) => Partial<Conversation>) =>
     setConversations((current) =>
-      current.map((conversation) => (conversation.id === id ? { ...conversation, ...change(conversation) } : conversation)),
+      current.map((conversation) =>
+        conversation.id === id ? { ...conversation, ...change(conversation) } : conversation,
+      ),
     )
 
   const append = (id: string, message: Omit<ChatMessage, 'id' | 'from' | 'date' | 'time'>) =>
@@ -66,7 +95,7 @@ export function Messages() {
       unread: 0,
       messages: [
         ...conversation.messages,
-        { ...message, id: `m-${Date.now()}`, from: 'me', date: messagesMockToday, time: currentTime() },
+        { ...message, id: crypto.randomUUID(), from: 'me', date: localDate(), time: currentTime() },
       ],
     }))
 
@@ -75,10 +104,21 @@ export function Messages() {
     update(id, () => ({ unread: 0 }))
   }
 
-  const openFile = (name: string) => setNotice(t('messages.downloadNotice', { name }))
+  const openFile = (name: string) => {
+    const attachment = active?.messages
+      .map((message) => message.attachment)
+      .find((attachment) => attachment?.name === name)
+    downloadAttachment(
+      name,
+      `${active?.name ?? ''} · ${active?.projectName ?? ''}`,
+      attachment?.dataUrl,
+    )
+  }
 
   const sendNewMessage = ({ studentName, projectCode, text }: NewMessage) => {
-    const existing = conversations.find((conversation) => conversation.kind === 'direct' && conversation.name === studentName)
+    const existing = conversations.find(
+      (conversation) => conversation.kind === 'direct' && conversation.name === studentName,
+    )
     const id = existing?.id ?? `direct-${Date.now()}`
     if (!existing) {
       const project = findProject(projectCode)
@@ -113,12 +153,18 @@ export function Messages() {
   // A scheduled meeting is announced in that project's team chat (or the open chat if the team has none).
   const announceMeeting = (task: NewTask) => {
     const target =
-      conversations.find((conversation) => conversation.kind === 'team' && conversation.projectCode === task.projectCode) ?? active
+      conversations.find(
+        (conversation) =>
+          conversation.kind === 'team' && conversation.projectCode === task.projectCode,
+      ) ?? active
     if (!target) return
     append(target.id, {
       text: t('messages.meetingMessage', {
         title: task.title,
-        date: task.dueDate === messagesMockToday ? formatDay(task.dueDate, messagesMockToday) : formatDate(task.dueDate),
+        date:
+          task.dueDate === messagesMockToday
+            ? formatDay(task.dueDate, messagesMockToday)
+            : formatDate(task.dueDate),
       }),
     })
     setActiveId(target.id)
@@ -134,7 +180,11 @@ export function Messages() {
             <h1 id="messages-title">{t('messages.title')}</h1>
             <p>{t('messages.subtitle')}</p>
           </div>
-          <button className="new-project-button account-heading-action" type="button" onClick={() => setOpenDialog('new')}>
+          <button
+            className="new-project-button account-heading-action"
+            type="button"
+            onClick={() => setOpenDialog('new')}
+          >
             <MessageSquarePlus size={18} aria-hidden="true" />
             {t('messages.newMessage')}
           </button>
@@ -158,7 +208,9 @@ export function Messages() {
               conversation={active}
               infoOpen={infoOpen}
               onToggleInfo={() => setInfoOpen((open) => !open)}
-              onToggleStar={() => update(active.id, (conversation) => ({ starred: !conversation.starred }))}
+              onToggleStar={() =>
+                update(active.id, (conversation) => ({ starred: !conversation.starred }))
+              }
               onSend={(text) => append(active.id, { text })}
               onAttach={(attachment: ChatAttachment) => {
                 append(active.id, { text: '', attachment })
@@ -179,13 +231,21 @@ export function Messages() {
               <ConversationInfo
                 conversation={active}
                 onClose={() => setInfoOpen(false)}
-                onViewProgress={() => navigate(`/supervisor/progress?project=${active.projectCode}`)}
+                onViewProgress={() =>
+                  navigate(`/supervisor/progress?project=${active.projectCode}`)
+                }
                 onScheduleMeeting={() => setOpenDialog('meeting')}
                 onToggleMute={() => {
                   update(active.id, (conversation) => ({ muted: !conversation.muted }))
-                  setNotice(t(active.muted ? 'messages.unmutedNotice' : 'messages.mutedNotice', { name: active.name }))
+                  setNotice(
+                    t(active.muted ? 'messages.unmutedNotice' : 'messages.mutedNotice', {
+                      name: active.name,
+                    }),
+                  )
                 }}
-                onToggleRead={() => update(active.id, (conversation) => ({ unread: conversation.unread > 0 ? 0 : 1 }))}
+                onToggleRead={() =>
+                  update(active.id, (conversation) => ({ unread: conversation.unread > 0 ? 0 : 1 }))
+                }
                 onOpenFile={openFile}
               />
             </div>
@@ -193,9 +253,15 @@ export function Messages() {
         </div>
       </section>
 
-      {openDialog === 'new' ? <NewMessageDialog onClose={() => setOpenDialog(null)} onSend={sendNewMessage} /> : null}
+      {openDialog === 'new' ? (
+        <NewMessageDialog onClose={() => setOpenDialog(null)} onSend={sendNewMessage} />
+      ) : null}
       {openDialog === 'meeting' ? (
-        <ScheduleMeetingDialog onClose={() => setOpenDialog(null)} onNotice={setNotice} onCreate={announceMeeting} />
+        <ScheduleMeetingDialog
+          onClose={() => setOpenDialog(null)}
+          onNotice={setNotice}
+          onCreate={announceMeeting}
+        />
       ) : null}
 
       <Notice message={notice} />
