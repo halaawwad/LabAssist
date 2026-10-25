@@ -15,6 +15,8 @@
                     "dev:supervisor":  "npm --prefix frontend/supervisor run dev",
                     "build:supervisor":  "npm --prefix frontend/supervisor run build",
                     "dev:student":  "cd frontend/student \u0026\u0026 vite dev",
-                    "build:student":  "cd frontend/student \u0026\u0026 vite build"
+                    "build:student":  "cd frontend/student \u0026\u0026 vite build",
+                    "dev:workshop":  "npm --prefix frontend/workshop run dev",
+                    "build:workshop":  "npm --prefix frontend/workshop run build"
                 }
 }

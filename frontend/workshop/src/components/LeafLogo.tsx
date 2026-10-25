@@ -1,0 +1,16 @@
+/** The LabAssist leaf mark used in the Workshop Manager brand. */
+export function LeafLogo({ size = 52 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#a3b096" d="M22 42C10 40 5 30 7 17c10 2 17 9 17 19 0 2-1 4-2 6Z" />
+      <path fill="#526443" d="M24 42c-3-12 1-25 15-33 4 15-1 28-15 33Z" />
+      <path
+        fill="none"
+        stroke="#f8f9f6"
+        strokeLinecap="round"
+        strokeWidth="1.6"
+        d="M25 40c2-9 6-17 12-25M21 40c-2-7-6-13-11-18"
+      />
+    </svg>
+  )
+}
