@@ -3,6 +3,9 @@ import type { SupervisorMeeting } from '../../../data/supervisor/meetingsMockDat
 import { useI18n } from '../../../i18n/i18nContext'
 import { reviewLocationLabelKeys } from '../../../i18n/labels'
 import { meetingProject, meetingStatus } from './meetingHelpers'
+import { useState } from 'react'
+import { ActionDialog } from '../tasks/ActionDialog'
+import { interactionLabels } from '../interactionLabels'
 
 type MeetingDetailsProps = {
   meeting: SupervisorMeeting
@@ -13,7 +16,8 @@ type MeetingDetailsProps = {
 const attendeeTones = ['blue', 'violet', 'gold', 'coral'] as const
 
 export function MeetingDetails({ meeting, onClose, onEdit }: MeetingDetailsProps) {
-  const { t, formatDate, formatTime } = useI18n()
+  const { t, formatDate, formatTime, language } = useI18n()
+  const [joined, setJoined] = useState(false)
   const status = meetingStatus(meeting)
   const project = meetingProject(meeting.projectCode)
   const attendees = project?.students ?? []
@@ -28,14 +32,22 @@ export function MeetingDetails({ meeting, onClose, onEdit }: MeetingDetailsProps
         : ''
 
   const join = () => {
-    if (canJoin && meeting.meetingUrl) window.open(meeting.meetingUrl, '_blank', 'noopener,noreferrer')
+    if (!canJoin) return
+    if (!meeting.googleEventId || meeting.googleEventId.startsWith('mock-')) setJoined(true)
+    else if (meeting.meetingUrl) window.open(meeting.meetingUrl, '_blank', 'noopener,noreferrer')
   }
 
   return (
     <aside className="glass-panel meetings-details-panel" aria-labelledby="meeting-details-title">
       <header className="meetings-details-header">
         <h2 id="meeting-details-title">{t('meetings.details.title')}</h2>
-        <button className="tasks-menu meetings-details-close" type="button" aria-label={t('meetings.details.close')} title={t('meetings.details.close')} onClick={onClose}>
+        <button
+          className="tasks-menu meetings-details-close"
+          type="button"
+          aria-label={t('meetings.details.close')}
+          title={t('meetings.details.close')}
+          onClick={onClose}
+        >
           <X size={19} />
         </button>
       </header>
@@ -57,7 +69,14 @@ export function MeetingDetails({ meeting, onClose, onEdit }: MeetingDetailsProps
               <CalendarDays size={18} aria-hidden="true" />
               {t('meetings.details.date')}
             </dt>
-            <dd>{formatDate(meeting.date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</dd>
+            <dd>
+              {formatDate(meeting.date, {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </dd>
           </div>
           <div>
             <dt>
@@ -85,18 +104,25 @@ export function MeetingDetails({ meeting, onClose, onEdit }: MeetingDetailsProps
             </dd>
           </div>
         </dl>
+        {meeting.agenda && <p>{meeting.agenda}</p>}
+        {meeting.locationDetails && <p>{meeting.locationDetails}</p>}
 
         <section className="meetings-attendees">
           <h3>{t('meetings.details.attendees', { count: attendees.length })}</h3>
           <ul>
             {attendees.map((student, index) => (
               <li key={student.universityId}>
-                <span className={`student-initials tone-${attendeeTones[index % attendeeTones.length]}`} aria-hidden="true">
+                <span
+                  className={`student-initials tone-${attendeeTones[index % attendeeTones.length]}`}
+                  aria-hidden="true"
+                >
                   {student.initials}
                 </span>
                 <span>
                   <strong>{student.name}</strong>
-                  <small>{index === 0 ? t('meetings.details.leader') : t('meetings.details.member')}</small>
+                  <small>
+                    {index === 0 ? t('meetings.details.leader') : t('meetings.details.member')}
+                  </small>
                 </span>
               </li>
             ))}
@@ -105,7 +131,14 @@ export function MeetingDetails({ meeting, onClose, onEdit }: MeetingDetailsProps
       </div>
 
       <div className="meetings-details-actions">
-        <button className="meetings-primary-button" type="button" disabled={!canJoin} aria-describedby={joinHint ? 'meeting-join-hint' : undefined} onClick={join}>
+        <button
+          className="meetings-primary-button"
+          type="button"
+          disabled={!canJoin}
+          title={joinHint || undefined}
+          aria-describedby={joinHint ? 'meeting-join-hint' : undefined}
+          onClick={join}
+        >
           <Video size={19} aria-hidden="true" />
           {t('meetings.details.join')}
         </button>
@@ -119,6 +152,20 @@ export function MeetingDetails({ meeting, onClose, onEdit }: MeetingDetailsProps
           {t('meetings.details.edit')}
         </button>
       </div>
+      {joined && (
+        <ActionDialog
+          title={interactionLabels[language].joined}
+          description={interactionLabels[language].room}
+          icon={Video}
+          onClose={() => setJoined(false)}
+        >
+          <h3>{meeting.title}</h3>
+          <p>
+            {project?.name} · {formatDate(meeting.date)} · {formatTime(meeting.start)}
+          </p>
+          <p>{attendees.map((student) => student.name).join(', ')}</p>
+        </ActionDialog>
+      )}
     </aside>
   )
 }
