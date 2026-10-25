@@ -12,9 +12,15 @@ import {
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { SupervisorTopBar } from '../../components/supervisor/SupervisorTopBar'
-import { notificationTypes, type NotificationType } from '../../data/supervisor/notificationsMockData'
+import {
+  notificationTypes,
+  type NotificationType,
+} from '../../data/supervisor/notificationsMockData'
 import { useI18n } from '../../i18n/i18nContext'
-import { useNotifications, type NotificationItem } from '../../state/supervisor/notificationsContext'
+import {
+  useNotifications,
+  type NotificationItem,
+} from '../../state/supervisor/notificationsContext'
 
 type ReadFilter = 'all' | 'unread'
 
@@ -35,7 +41,8 @@ export function Notifications() {
 
   const visibleTypes = notificationTypes.filter((type) => !mutedTypes.includes(type))
   const visible = notifications.filter(
-    (item) => (readFilter === 'all' || !item.read) && (typeFilter === null || item.type === typeFilter),
+    (item) =>
+      (readFilter === 'all' || !item.read) && (typeFilter === null || item.type === typeFilter),
   )
 
   const open = (item: NotificationItem) => {
@@ -53,7 +60,13 @@ export function Notifications() {
             <h1 id="notifications-title">{t('notifications.title')}</h1>
             <p>{t('notifications.subtitle')}</p>
           </div>
-          <button className="dialog-secondary-button account-heading-action" type="button" disabled={unreadCount === 0} onClick={markAllRead}>
+          <button
+            className="dialog-secondary-button account-heading-action"
+            type="button"
+            disabled={unreadCount === 0}
+            title={unreadCount === 0 ? t('notifications.allCaughtUp') : undefined}
+            onClick={markAllRead}
+          >
             <CheckCheck size={18} aria-hidden="true" />
             {t('notifications.markAllRead')}
           </button>
@@ -61,21 +74,40 @@ export function Notifications() {
 
         <div className="notifications-toolbar">
           <div className="tasks-filters" role="group" aria-label={t('notifications.filterAria')}>
-            <button type="button" aria-pressed={readFilter === 'all'} onClick={() => setReadFilter('all')}>
+            <button
+              type="button"
+              aria-pressed={readFilter === 'all'}
+              onClick={() => setReadFilter('all')}
+            >
               {t('notifications.filters.all')}
             </button>
-            <button type="button" aria-pressed={readFilter === 'unread'} onClick={() => setReadFilter('unread')}>
+            <button
+              type="button"
+              aria-pressed={readFilter === 'unread'}
+              onClick={() => setReadFilter('unread')}
+            >
               {t('notifications.filters.unread')}
-              {unreadCount > 0 ? <span className="notifications-filter-count">{unreadCount}</span> : null}
+              {unreadCount > 0 ? (
+                <span className="notifications-filter-count">{unreadCount}</span>
+              ) : null}
             </button>
           </div>
 
-          <div className="tasks-filters notifications-type-filters" role="group" aria-label={t('notifications.filterAria')}>
+          <div
+            className="tasks-filters notifications-type-filters"
+            role="group"
+            aria-label={t('notifications.filterAria')}
+          >
             {visibleTypes.map((type) => {
               const Icon = typeIcons[type]
               const isActive = typeFilter === type
               return (
-                <button type="button" aria-pressed={isActive} onClick={() => setTypeFilter(isActive ? null : type)} key={type}>
+                <button
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => setTypeFilter(isActive ? null : type)}
+                  key={type}
+                >
                   <Icon size={15} aria-hidden="true" />
                   {t(`notifications.types.${type}`)}
                 </button>
@@ -84,22 +116,36 @@ export function Notifications() {
           </div>
         </div>
 
-        <section className="glass-panel notifications-panel" aria-label={t('notifications.listAria')}>
+        <section
+          className="glass-panel notifications-panel"
+          aria-label={t('notifications.listAria')}
+        >
           <p className="notifications-summary" role="status">
-            {unreadCount > 0 ? tp('notifications.unreadCount', unreadCount) : t('notifications.allCaughtUp')}
+            {unreadCount > 0
+              ? tp('notifications.unreadCount', unreadCount)
+              : t('notifications.allCaughtUp')}
           </p>
 
           <ul className="notification-list">
             {visible.map((item) => (
-              <NotificationRow item={item} onOpen={open} onToggleRead={() => setRead(item.id, !item.read)} key={item.id} />
+              <NotificationRow
+                item={item}
+                onOpen={open}
+                onToggleRead={() => setRead(item.id, !item.read)}
+                key={item.id}
+              />
             ))}
-            {visible.length === 0 ? <li className="tasks-empty">{t('notifications.empty')}</li> : null}
+            {visible.length === 0 ? (
+              <li className="tasks-empty">{t('notifications.empty')}</li>
+            ) : null}
           </ul>
 
           {mutedTypes.length > 0 ? (
             <p className="notifications-muted">
               {tp('notifications.mutedHint', mutedTypes.length)}{' '}
-              <Link to="/supervisor/settings#notification-preferences-title">{t('notifications.manage')}</Link>
+              <Link to="/supervisor/settings#notification-preferences-title">
+                {t('notifications.manage')}
+              </Link>
             </p>
           ) : null}
         </section>
@@ -134,7 +180,8 @@ function NotificationRow({ item, onOpen, onToggleRead }: NotificationRowProps) {
           <strong>{t(`notifications.templates.${item.template}.title`, params)}</strong>
           <span>{t(`notifications.templates.${item.template}.body`, params)}</span>
           <small>
-            {t(`notifications.types.${item.type}`)} · <time dateTime={item.createdAt}>{formatRelative(item.createdAt)}</time>
+            {t(`notifications.types.${item.type}`)} ·{' '}
+            <time dateTime={item.createdAt}>{formatRelative(item.createdAt)}</time>
           </small>
         </span>
         {item.read ? null : (

@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { CircleAlert, CircleCheck, Download, FileText, Flag, RotateCcw, Send, X } from 'lucide-react'
+import {
+  CircleAlert,
+  CircleCheck,
+  Download,
+  FileText,
+  Flag,
+  RotateCcw,
+  Send,
+  X,
+} from 'lucide-react'
 import { progressProjects, projectMilestones } from '../../../data/supervisor/progressMockData'
 import type { ReportWeek, WeeklyTeamReport } from '../../../data/supervisor/weeklyReportsMockData'
 import { useI18n } from '../../../i18n/i18nContext'
@@ -17,7 +26,14 @@ type ReportDetailsModalProps = {
 }
 
 /** A report shown as a ruled paper sheet in a modal. Closes with Esc, the X button or a click outside. */
-export function ReportDetailsModal({ report, week, onClose, onOpenFile, onSendFeedback, onSetStatus }: ReportDetailsModalProps) {
+export function ReportDetailsModal({
+  report,
+  week,
+  onClose,
+  onOpenFile,
+  onSendFeedback,
+  onSetStatus,
+}: ReportDetailsModalProps) {
   const { t, tp, formatDate } = useI18n()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState('')
@@ -51,12 +67,21 @@ export function ReportDetailsModal({ report, week, onClose, onOpenFile, onSendFe
       }}
     >
       <article className="report-sheet-paper">
-        <button className="report-sheet-close" type="button" aria-label={t('reports.details.close')} title={t('reports.details.close')} onClick={onClose}>
+        <button
+          className="report-sheet-close"
+          type="button"
+          aria-label={t('reports.details.close')}
+          title={t('reports.details.close')}
+          onClick={onClose}
+        >
           <X size={20} />
         </button>
 
         <header className="report-sheet-header">
-          <span className={`student-initials report-sheet-avatar tone-${avatarTone(team.id)}`} aria-hidden="true">
+          <span
+            className={`student-initials report-sheet-avatar tone-${avatarTone(team.id)}`}
+            aria-hidden="true"
+          >
             {team.initials}
           </span>
           <div>
@@ -70,10 +95,16 @@ export function ReportDetailsModal({ report, week, onClose, onOpenFile, onSendFe
             <p>
               {team.projectCode} · {team.projectName}
             </p>
-            <ul className="report-sheet-members" aria-label={tp('reports.list.members', team.members.length)}>
+            <ul
+              className="report-sheet-members"
+              aria-label={tp('reports.list.members', team.members.length)}
+            >
               {team.members.map((member) => (
                 <li key={member.universityId}>
-                  <span className={`student-initials tone-${avatarTone(member.universityId)}`} aria-hidden="true">
+                  <span
+                    className={`student-initials tone-${avatarTone(member.universityId)}`}
+                    aria-hidden="true"
+                  >
                     {member.initials}
                   </span>
                   {member.name}
@@ -81,11 +112,17 @@ export function ReportDetailsModal({ report, week, onClose, onOpenFile, onSendFe
               ))}
             </ul>
           </div>
-          <span className={`report-sheet-stamp is-${report.status}`}>{t(`reports.status.${report.status}`)}</span>
+          <span className={`report-sheet-stamp is-${report.status}`}>
+            {t(`reports.status.${report.status}`)}
+          </span>
         </header>
 
         <section className="report-sheet-figures" aria-label={t('reports.details.figuresAria')}>
-          <ProgressRing value={report.progress} label={t('reports.details.projectProgress')} size="md" />
+          <ProgressRing
+            value={report.progress}
+            label={t('reports.details.projectProgress')}
+            size="md"
+          />
           <dl>
             <div>
               <dt>
@@ -122,7 +159,13 @@ export function ReportDetailsModal({ report, week, onClose, onOpenFile, onSendFe
             <h3>{t('reports.details.summary')}</h3>
             <p>{report.summary}</p>
             <small className="report-sheet-note">
-              {t('reports.details.submitted', { date: formatDate(report.submittedOn, { weekday: 'short', month: 'short', day: 'numeric' }) })}
+              {t('reports.details.submitted', {
+                date: formatDate(report.submittedOn, {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                }),
+              })}
             </small>
           </section>
 
@@ -159,7 +202,11 @@ export function ReportDetailsModal({ report, week, onClose, onOpenFile, onSendFe
               <ul className="report-sheet-files">
                 {report.files.map((file) => (
                   <li key={file.name}>
-                    <button type="button" aria-label={t('reports.details.download', { name: file.name })} onClick={() => onOpenFile(file.name)}>
+                    <button
+                      type="button"
+                      aria-label={t('reports.details.download', { name: file.name })}
+                      onClick={() => onOpenFile(file.name)}
+                    >
                       <FileText size={18} aria-hidden="true" />
                       <span>
                         <strong>{file.name}</strong>
@@ -182,7 +229,8 @@ export function ReportDetailsModal({ report, week, onClose, onOpenFile, onSendFe
                 <li key={item.id}>
                   <p>“{item.text}”</p>
                   <small>
-                    — {item.from === 'me' ? t('reports.details.you') : item.from} · {formatDate(item.date)}
+                    — {item.from === 'me' ? t('reports.details.you') : item.from} ·{' '}
+                    {formatDate(item.date)}
                   </small>
                 </li>
               ))}
@@ -199,7 +247,11 @@ export function ReportDetailsModal({ report, week, onClose, onOpenFile, onSendFe
               aria-label={t('reports.details.feedbackPlaceholder')}
               onChange={(event) => setDraft(event.target.value)}
             />
-            <button className="reports-primary-button is-small" type="submit" disabled={!draft.trim()}>
+            <button
+              className="reports-primary-button is-small"
+              type="submit"
+              disabled={!draft.trim()}
+            >
               <Send size={16} aria-hidden="true" />
               {t('reports.details.sendFeedback')}
             </button>
@@ -207,11 +259,24 @@ export function ReportDetailsModal({ report, week, onClose, onOpenFile, onSendFe
         </section>
 
         <footer className="report-sheet-actions">
-          <button className="reports-primary-button" type="button" disabled={report.status === 'reviewed'} onClick={() => onSetStatus('reviewed')}>
+          <button
+            className="reports-primary-button"
+            type="button"
+            disabled={report.status === 'reviewed'}
+            onClick={() => onSetStatus('reviewed')}
+          >
             <CircleCheck size={18} aria-hidden="true" />
-            {report.status === 'reviewed' ? t('reports.details.alreadyReviewed') : t('reports.details.markReviewed')}
+            {report.status === 'reviewed'
+              ? t('reports.details.alreadyReviewed')
+              : t('reports.details.markReviewed')}
           </button>
-          <button className="reports-secondary-button" type="button" disabled={report.status === 'revision'} onClick={() => onSetStatus('revision')}>
+          <button
+            className="reports-secondary-button"
+            type="button"
+            disabled={report.status === 'revision'}
+            title={report.status === 'revision' ? t('reports.status.revision') : undefined}
+            onClick={() => onSetStatus('revision')}
+          >
             <RotateCcw size={17} aria-hidden="true" />
             {t('reports.details.requestRevision')}
           </button>

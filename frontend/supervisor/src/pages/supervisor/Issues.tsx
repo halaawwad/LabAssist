@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from 'react-router-dom';
 import {
   ArrowDownUp,
   Check,
@@ -52,6 +53,7 @@ const today = () =>
   }).format(new Date());
 
 export function Issues() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { language, t, formatDate } = useI18n();
   const l = issuesLabels[language];
   const [issues, setIssues] = useIssues();
@@ -69,7 +71,12 @@ export function Issues() {
   const [type, setType] = useState("all");
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(0);
-  const [dialog, setDialog] = useState<string | null>(null);
+  const [localDialog, setDialogState] = useState<string | null>(null);
+  const dialog = searchParams.get('issue') ?? localDialog;
+  const setDialog = (value: string | null) => {
+    setDialogState(value);
+    if (searchParams.has('issue')) setSearchParams({}, { replace: true });
+  };
   const [comment, setComment] = useState("");
   useEffect(() => {
     writeStored("issue-activity.v1", activities);
@@ -494,6 +501,7 @@ export function Issues() {
             className="dialog-secondary-button"
             type="button"
             disabled={!comment.trim()}
+            title={!comment.trim() ? l.addComment : undefined}
             onClick={() => {
               update(selected.id, { comments: [...selected.comments, comment.trim()] });
               recordActivity(selected.id, "comment");
