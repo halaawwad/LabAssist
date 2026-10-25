@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type FormEvent, type ReactNode } from 'react'
 import { X, type LucideIcon } from 'lucide-react'
 import { progressProjects } from '../../../data/supervisor/progressMockData'
 import { useI18n } from '../../../i18n/i18nContext'
+import { interactionLabels } from '../interactionLabels'
 
 type ActionDialogProps = {
   title: string
@@ -15,8 +16,16 @@ type ActionDialogProps = {
 }
 
 /** Modal window used by the Quick Actions. Closes with Esc, the X button or a click outside. */
-export function ActionDialog({ title, description, icon: Icon, onClose, children, submitLabel, onSubmit }: ActionDialogProps) {
-  const { t } = useI18n()
+export function ActionDialog({
+  title,
+  description,
+  icon: Icon,
+  onClose,
+  children,
+  submitLabel,
+  onSubmit,
+}: ActionDialogProps) {
+  const { t, language } = useI18n()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const titleId = useId()
 
@@ -27,6 +36,16 @@ export function ActionDialog({ title, description, icon: Icon, onClose, children
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const fields = event.currentTarget.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+      'input[required], textarea[required]',
+    )
+    for (const field of fields) {
+      if (['text', 'search', 'textarea'].includes(field.type) && !field.value.trim()) {
+        field.setCustomValidity(interactionLabels[language].required)
+        field.reportValidity()
+        return
+      }
+    }
     onSubmit?.(new FormData(event.currentTarget))
   }
 
@@ -40,7 +59,12 @@ export function ActionDialog({ title, description, icon: Icon, onClose, children
           <h2 id={titleId}>{title}</h2>
           <p>{description}</p>
         </div>
-        <button className="action-dialog-close" type="button" aria-label={t('common.close')} onClick={onClose}>
+        <button
+          className="action-dialog-close"
+          type="button"
+          aria-label={t('common.close')}
+          onClick={onClose}
+        >
           <X size={18} />
         </button>
       </header>
@@ -70,18 +94,32 @@ export function ActionDialog({ title, description, icon: Icon, onClose, children
         if (event.target === event.currentTarget) onClose()
       }}
     >
-      {onSubmit ? <form onSubmit={handleSubmit}>{content}</form> : <div>{content}</div>}
+      {onSubmit ? (
+        <form
+          onSubmit={handleSubmit}
+          onInput={(event) => {
+            const field = event.target
+            if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)
+              field.setCustomValidity('')
+          }}
+        >
+          {content}
+        </form>
+      ) : (
+        <div>{content}</div>
+      )}
     </dialog>
   )
 }
 
 type ProjectSelectProps = {
   value?: string
+  defaultValue?: string
   onChange?: (code: string) => void
 }
 
 /** Supervised project picker shared by the Quick Action forms. */
-export function ProjectSelect({ value, onChange }: ProjectSelectProps) {
+export function ProjectSelect({ value, defaultValue, onChange }: ProjectSelectProps) {
   const { t } = useI18n()
 
   return (
@@ -91,7 +129,7 @@ export function ProjectSelect({ value, onChange }: ProjectSelectProps) {
         name="project"
         required
         value={value}
-        defaultValue={value === undefined ? '' : undefined}
+        defaultValue={value === undefined ? (defaultValue ?? '') : undefined}
         onChange={onChange ? (event) => onChange(event.target.value) : undefined}
       >
         <option value="" disabled>

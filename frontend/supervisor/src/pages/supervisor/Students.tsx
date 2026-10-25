@@ -1,99 +1,19 @@
 import { useMemo, useState } from 'react'
-import {
-  AlertTriangle,
-  ChevronDown,
-  MoreVertical,
-  Search,
-} from 'lucide-react'
+import { AlertTriangle, ChevronDown, MoreVertical, Search } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import studentsHero from '../../assets/supervisor-students-hero.png'
 import { SupervisorTopBar } from '../../components/supervisor/SupervisorTopBar'
 import { useI18n, type TranslationKey } from '../../i18n/i18nContext'
 import { statusLabelKeys } from '../../i18n/labels'
+import { ActionDialog } from '../../components/supervisor/tasks/ActionDialog'
+import { interactionLabels } from '../../components/supervisor/interactionLabels'
+import { useLocalState } from '../../state/useLocalState'
 
-type Attendance = 'present' | 'absence'
-type StudentStatus = 'On Track' | 'At Risk' | 'Delayed'
-/** Translation key under `students.issues.`. */
-type StudentIssue = 'testingDelay' | 'none' | 'missingComponents' | 'reportPending' | 'slowProgress'
-
-type SupervisedStudent = {
-  name: string
-  initials: string
-  universityId: string
-  project: string
-  progress: number
-  issue: StudentIssue
-  issueTone: 'neutral' | 'orange' | 'red'
-  attendance: Attendance
-  repeatedAbsence?: boolean
-  status: StudentStatus
-  avatarTone: 'green' | 'blue' | 'gold' | 'violet' | 'coral'
-}
-
-const students: SupervisedStudent[] = [
-  {
-    name: 'Ahmad Ali',
-    initials: 'AA',
-    universityId: '12217669',
-    project: 'Smart Greenhouse Monitor',
-    progress: 62,
-    issue: 'testingDelay',
-    issueTone: 'red',
-    attendance: 'absence',
-    repeatedAbsence: true,
-    status: 'At Risk',
-    avatarTone: 'green',
-  },
-  {
-    name: 'Lina Hasan',
-    initials: 'LH',
-    universityId: '12199821',
-    project: 'Autonomous Delivery Robot',
-    progress: 80,
-    issue: 'none',
-    issueTone: 'neutral',
-    attendance: 'present',
-    status: 'On Track',
-    avatarTone: 'blue',
-  },
-  {
-    name: 'Omar Samer',
-    initials: 'OS',
-    universityId: '12214500',
-    project: 'Solar Weather Station',
-    progress: 45,
-    issue: 'missingComponents',
-    issueTone: 'red',
-    attendance: 'absence',
-    status: 'Delayed',
-    avatarTone: 'gold',
-  },
-  {
-    name: 'Sara Nasser',
-    initials: 'SN',
-    universityId: '12218840',
-    project: 'Irrigation Control System',
-    progress: 71,
-    issue: 'reportPending',
-    issueTone: 'orange',
-    attendance: 'present',
-    status: 'At Risk',
-    avatarTone: 'violet',
-  },
-  {
-    name: 'Yazan Khalil',
-    initials: 'YK',
-    universityId: '12213220',
-    project: 'Delivery Robot',
-    progress: 38,
-    issue: 'slowProgress',
-    issueTone: 'red',
-    attendance: 'absence',
-    repeatedAbsence: true,
-    status: 'Delayed',
-    avatarTone: 'coral',
-  },
-]
+import {
+  supervisedStudents as students,
+  type Attendance,
+  type StudentStatus,
+} from '../../data/supervisor/studentsMockData'
 
 /** Filter value meaning "no filter". */
 const ALL = 'all'
@@ -108,10 +28,28 @@ const attendanceLabelKeys: Record<Attendance, TranslationKey> = {
 }
 
 export function Students() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
+  const l = interactionLabels[language]
+  const [records, setRecords] = useLocalState('students.v1', students)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [request, setRequest] = useState('')
+  const selected = records.find((student) => student.universityId === selectedId)
   // `?attendance=absence` (used by notifications) preselects the attendance filter.
-  const [searchParams] = useSearchParams()
-  const [query, setQuery] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [localQuery, setLocalQuery] = useState('')
+  const query = searchParams.get('student') ?? localQuery
+  const setQuery = (value: string) => {
+    setLocalQuery(value)
+    if (searchParams.has('student'))
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          next.delete('student')
+          return next
+        },
+        { replace: true },
+      )
+  }
   const [project, setProject] = useState(ALL)
   const [attendance, setAttendance] = useState(() => {
     const requested = searchParams.get('attendance')
@@ -135,7 +73,7 @@ export function Students() {
   const filteredStudents = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
 
-    return students.filter((student) => {
+    return records.filter((student) => {
       const matchesQuery =
         !normalizedQuery ||
         student.name.toLowerCase().includes(normalizedQuery) ||
@@ -149,7 +87,7 @@ export function Students() {
         (status === ALL || student.status === status)
       )
     })
-  }, [attendance, project, query, status])
+  }, [attendance, project, query, status, records])
 
   return (
     <section className="students-page" aria-labelledby="students-title">
@@ -247,6 +185,10 @@ export function Students() {
                   className="student-menu-button"
                   type="button"
                   aria-label={t('students.actions', { name: student.name })}
+                  onClick={() => {
+                    setSelectedId(student.universityId)
+                    setRequest('')
+                  }}
                 >
                   <MoreVertical size={20} />
                 </button>
@@ -255,6 +197,89 @@ export function Students() {
           </div>
         </div>
       </section>
+      {selected && (
+        <ActionDialog
+          title={selected.name}
+          description={`${selected.universityId} · ${selected.project}`}
+          icon={AlertTriangle}
+          onClose={() => setSelectedId(null)}
+          submitLabel={t('common.save')}
+          onSubmit={(data) => {
+            setRecords((items) =>
+              items.map((student) =>
+                student.universityId === selected.universityId
+                  ? {
+                      ...student,
+                      attendance: data.get('attendance') as Attendance,
+                      status: data.get('status') as StudentStatus,
+                    }
+                  : student,
+              ),
+            )
+            setSelectedId(null)
+          }}
+        >
+          <p>
+            {l.student} · {selected.progress}%
+          </p>
+          <label className="dialog-field">
+            <span>{l.attendance}</span>
+            <select name="attendance" defaultValue={selected.attendance}>
+              {attendanceValues.map((value) => (
+                <option key={value} value={value}>
+                  {t(attendanceLabelKeys[value])}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="dialog-field">
+            <span>{l.status}</span>
+            <select name="status" defaultValue={selected.status}>
+              {statusValues.map((value) => (
+                <option key={value} value={value}>
+                  {t(statusLabelKeys[value])}
+                </option>
+              ))}
+            </select>
+          </label>
+          <h3>{l.requests}</h3>
+          {selected.updateRequests?.length ? (
+            selected.updateRequests.map((text, index) => <p key={index}>{text}</p>)
+          ) : (
+            <p>{l.noRequests}</p>
+          )}
+          <label className="dialog-field">
+            <span>{l.message}</span>
+            <textarea
+              value={request}
+              maxLength={1000}
+              onChange={(event) => setRequest(event.target.value)}
+            />
+          </label>
+          <p>{l.requestHint}</p>
+          <button
+            className="dialog-secondary-button"
+            type="button"
+            disabled={!request.trim()}
+            title={!request.trim() ? l.required : undefined}
+            onClick={() => {
+              setRecords((items) =>
+                items.map((student) =>
+                  student.universityId === selected.universityId
+                    ? {
+                        ...student,
+                        updateRequests: [...(student.updateRequests ?? []), request.trim()],
+                      }
+                    : student,
+                ),
+              )
+              setRequest('')
+            }}
+          >
+            {l.request}
+          </button>
+        </ActionDialog>
+      )}
     </section>
   )
 }

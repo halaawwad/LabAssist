@@ -1,8 +1,19 @@
-import { CalendarDays, Clock3, FileText, FlaskConical, MapPin, Users, type LucideIcon } from 'lucide-react'
+import {
+  CalendarDays,
+  Clock3,
+  FileText,
+  FlaskConical,
+  MapPin,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 import type { ReviewKind, UpcomingReview } from '../../../data/supervisor/projectsMockData'
 import { useI18n } from '../../../i18n/i18nContext'
 import { reviewLocationLabelKeys } from '../../../i18n/labels'
 import { statusTone } from './projectHelpers'
+import { useState } from 'react'
+import { ActionDialog } from '../tasks/ActionDialog'
+import { interactionLabels } from '../interactionLabels'
 
 type UpcomingReviewsProps = {
   reviews: UpcomingReview[]
@@ -16,13 +27,22 @@ const kindIcons: Record<ReviewKind, LucideIcon> = {
 }
 
 export function UpcomingReviews({ reviews }: UpcomingReviewsProps) {
-  const { t, formatDate, formatTime, locale } = useI18n()
+  const { t, formatDate, formatTime, locale, language } = useI18n()
+  const [open, setOpen] = useState<string | null>(null)
+  const selected = reviews.filter((review) => open === 'all' || review.id === open)
 
   return (
     <section className="mp-side-section" aria-labelledby="mp-reviews-title">
       <div className="mp-side-heading">
         <h2 id="mp-reviews-title">{t('projects.reviews.title')}</h2>
-        <a className="mp-view-all" href="#mp-reviews-title">
+        <a
+          className="mp-view-all"
+          href="#mp-reviews-title"
+          onClick={(event) => {
+            event.preventDefault()
+            setOpen('all')
+          }}
+        >
           {t('common.viewAll')}
         </a>
       </div>
@@ -41,7 +61,12 @@ export function UpcomingReviews({ reviews }: UpcomingReviewsProps) {
               </time>
               <i className="mp-review-dot" aria-hidden="true" />
               {/* Focusable so keyboard users can open the details card too. */}
-              <button className="mp-review-item" type="button" aria-describedby={detailsId}>
+              <button
+                className="mp-review-item"
+                type="button"
+                aria-describedby={detailsId}
+                onClick={() => setOpen(review.id)}
+              >
                 <span className="mp-review-icon" aria-hidden="true">
                   <Icon size={19} />
                 </span>
@@ -75,6 +100,24 @@ export function UpcomingReviews({ reviews }: UpcomingReviewsProps) {
           )
         })}
       </ol>
+      {open && (
+        <ActionDialog
+          title={interactionLabels[language][open === 'all' ? 'reviews' : 'review']}
+          description={interactionLabels[language].local}
+          icon={CalendarDays}
+          onClose={() => setOpen(null)}
+        >
+          {selected.map((review) => (
+            <section key={review.id}>
+              <h3>{review.project}</h3>
+              <p>
+                {review.team} · {formatDate(review.date)} · {formatTime(review.time)}
+              </p>
+              <p>{t(reviewLocationLabelKeys[review.location])}</p>
+            </section>
+          ))}
+        </ActionDialog>
+      )}
     </section>
   )
 }
