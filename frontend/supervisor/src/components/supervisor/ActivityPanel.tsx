@@ -50,7 +50,18 @@ export function ActivityPanel() {
                   {formatRelative(new Date(loadedAt - activity.hoursAgo * 3_600_000))}
                 </small>
               </div>
-              <Icon size={22} />
+              <button
+                className="activity-open"
+                type="button"
+                aria-label={`${t('common.viewAll')}: ${activity.student} · ${t(`dashboard.activity.${activity.status}`)}`}
+                onClick={() =>
+                  navigate(
+                    `/supervisor/${activity.status === 'report' ? 'reports' : activity.status === 'task' ? 'tasks' : 'projects'}`,
+                  )
+                }
+              >
+                <Icon size={22} />
+              </button>
             </div>
           )
         })}

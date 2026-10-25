@@ -1,0 +1,35 @@
+.supervisor-search-results {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 8px;
+}
+.supervisor-search-results button {
+  width: 100%;
+  text-align: start;
+}
+.dashboard-canvas button:disabled,
+.action-dialog button:disabled,
+.report-sheet button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.dashboard-main .stat-card[role='link'] {
+  cursor: pointer;
+}
+.dashboard-main .stat-card[role='link']:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 4px;
+}
+.activity-open {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
