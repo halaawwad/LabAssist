@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react'
 import { FileText, Info, Paperclip, Search, SendHorizontal, Star, X } from 'lucide-react'
 import { messagesMockToday, type Conversation } from '../../../data/supervisor/messagesMockData'
 import { useI18n } from '../../../i18n/i18nContext'
+import { interactionLabels } from '../interactionLabels'
 import { ChatAvatar } from './ConversationList'
 import { formatFileSize } from './messageHelpers'
 
@@ -11,13 +12,23 @@ type ChatPanelProps = {
   onToggleInfo: () => void
   onToggleStar: () => void
   onSend: (text: string) => void
-  onAttach: (attachment: { name: string; size: string }) => void
+  onAttach: (attachment: { name: string; size: string; dataUrl?: string }) => void
   onOpenFile: (name: string) => void
 }
 
 /** Active chat. The page keys it by conversation, so the draft and in-chat search reset when switching. */
-export function ChatPanel({ conversation, infoOpen, onToggleInfo, onToggleStar, onSend, onAttach, onOpenFile }: ChatPanelProps) {
-  const { t, tp, formatDay, formatTime } = useI18n()
+export function ChatPanel({
+  conversation,
+  infoOpen,
+  onToggleInfo,
+  onToggleStar,
+  onSend,
+  onAttach,
+  onOpenFile,
+}: ChatPanelProps) {
+  const { t, tp, formatDay, formatTime, language } = useI18n()
+  const l = interactionLabels[language]
+  const [fileError, setFileError] = useState('')
   const [draft, setDraft] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -59,14 +70,22 @@ export function ChatPanel({ conversation, infoOpen, onToggleInfo, onToggleStar, 
         : t('messages.offline')
 
   return (
-    <section className="glass-panel messages-chat-panel" aria-label={t('messages.chatAria', { name: conversation.name })}>
+    <section
+      className="glass-panel messages-chat-panel"
+      aria-label={t('messages.chatAria', { name: conversation.name })}
+    >
       <header className="messages-chat-header">
-        <ChatAvatar initials={conversation.initials} tone={conversation.tone} online={conversation.online} team={conversation.kind === 'team'} />
+        <ChatAvatar
+          initials={conversation.initials}
+          tone={conversation.tone}
+          online={conversation.online}
+          team={conversation.kind === 'team'}
+        />
         <div className="messages-chat-title">
           <h2>{conversation.name}</h2>
           <p>
-            <span className={conversation.online ? 'is-online' : ''}>{subtitle}</span> · {conversation.projectCode} ·{' '}
-            {conversation.projectName}
+            <span className={conversation.online ? 'is-online' : ''}>{subtitle}</span> ·{' '}
+            {conversation.projectCode} · {conversation.projectName}
           </p>
         </div>
         <div className="messages-chat-actions">
@@ -114,10 +133,18 @@ export function ChatPanel({ conversation, infoOpen, onToggleInfo, onToggleStar, 
             autoFocus
             onChange={(event) => setSearchQuery(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Escape') closeSearch()
+              if (event.key === 'Escape') {
+                event.stopPropagation()
+                closeSearch()
+              }
             }}
           />
-          <button className="tasks-menu" type="button" aria-label={t('messages.closeSearch')} onClick={closeSearch}>
+          <button
+            className="tasks-menu"
+            type="button"
+            aria-label={t('messages.closeSearch')}
+            onClick={closeSearch}
+          >
             <X size={16} />
           </button>
         </div>
@@ -128,7 +155,8 @@ export function ChatPanel({ conversation, infoOpen, onToggleInfo, onToggleStar, 
           const previous = messages[index - 1]
           const newDay = !previous || previous.date !== message.date
           const mine = message.from === 'me'
-          const showSender = !mine && conversation.kind === 'team' && (newDay || previous.from !== message.from)
+          const showSender =
+            !mine && conversation.kind === 'team' && (newDay || previous.from !== message.from)
 
           return (
             <Fragment key={message.id}>
@@ -141,7 +169,11 @@ export function ChatPanel({ conversation, infoOpen, onToggleInfo, onToggleStar, 
                 <div className="messages-bubble">
                   {showSender ? <strong className="messages-sender">{message.from}</strong> : null}
                   {message.attachment ? (
-                    <button className="messages-attachment" type="button" onClick={() => onOpenFile(message.attachment!.name)}>
+                    <button
+                      className="messages-attachment"
+                      type="button"
+                      onClick={() => onOpenFile(message.attachment!.name)}
+                    >
                       <FileText size={20} aria-hidden="true" />
                       <span>
                         <b>{message.attachment.name}</b>
@@ -150,7 +182,9 @@ export function ChatPanel({ conversation, infoOpen, onToggleInfo, onToggleStar, 
                     </button>
                   ) : null}
                   {message.text ? <p>{message.text}</p> : null}
-                  <time dateTime={`${message.date}T${message.time}`}>{formatTime(message.time)}</time>
+                  <time dateTime={`${message.date}T${message.time}`}>
+                    {formatTime(message.time)}
+                  </time>
                 </div>
               </li>
             </Fragment>
@@ -158,7 +192,9 @@ export function ChatPanel({ conversation, infoOpen, onToggleInfo, onToggleStar, 
         })}
         {messages.length === 0 ? (
           <li className="tasks-empty messages-empty">
-            {needle ? t('messages.noMatches', { query: searchQuery.trim() }) : t('messages.noMessages')}
+            {needle
+              ? t('messages.noMatches', { query: searchQuery.trim() })
+              : t('messages.noMessages')}
           </li>
         ) : null}
       </ol>
@@ -172,7 +208,21 @@ export function ChatPanel({ conversation, infoOpen, onToggleInfo, onToggleStar, 
           aria-hidden="true"
           onChange={(event) => {
             const file = event.target.files?.[0]
-            if (file) onAttach({ name: file.name, size: formatFileSize(file.size) })
+            if (file) {
+              setFileError('')
+              if (file.size > 2 * 1024 * 1024) setFileError(l.fileLimit)
+              else {
+                const reader = new FileReader()
+                reader.onload = () =>
+                  onAttach({
+                    name: file.name,
+                    size: formatFileSize(file.size),
+                    dataUrl: String(reader.result),
+                  })
+                reader.onerror = () => setFileError(l.fileError)
+                reader.readAsDataURL(file)
+              }
+            }
             event.target.value = ''
             draftRef.current?.focus()
           }}
@@ -196,11 +246,18 @@ export function ChatPanel({ conversation, infoOpen, onToggleInfo, onToggleStar, 
           aria-label={t('messages.inputAria')}
           onChange={(event) => setDraft(event.target.value)}
         />
-        <button className="messages-send" type="submit" disabled={!draft.trim()} aria-label={t('messages.send')} title={t('messages.send')}>
+        <button
+          className="messages-send"
+          type="submit"
+          disabled={!draft.trim()}
+          aria-label={t('messages.send')}
+          title={!draft.trim() ? l.required : t('messages.send')}
+        >
           <SendHorizontal size={19} />
           <span>{t('messages.send')}</span>
         </button>
       </form>
+      {fileError && <p role="alert">{fileError}</p>}
     </section>
   )
 }

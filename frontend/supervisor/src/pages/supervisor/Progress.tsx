@@ -14,9 +14,26 @@ import { useI18n } from '../../i18n/i18nContext'
 export function Progress() {
   const { t } = useI18n()
   // `?project=CODE` (used by notifications) preselects a project.
-  const [searchParams] = useSearchParams()
-  const [selectedCode, setSelectedCode] = useState(() => searchParams.get('project') ?? progressProjects[0].code)
-  const project = progressProjects.find((item) => item.code === selectedCode) ?? progressProjects[0]
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [selectedCode, setSelectedCode] = useState(
+    () => searchParams.get('project') ?? progressProjects[0].code,
+  )
+  const requestedProject = searchParams.get('project')
+  const project =
+    progressProjects.find((item) => item.code === (requestedProject ?? selectedCode)) ??
+    progressProjects[0]
+  const selectProject = (code: string) => {
+    setSelectedCode(code)
+    if (searchParams.has('project'))
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          next.delete('project')
+          return next
+        },
+        { replace: true },
+      )
+  }
 
   return (
     <div className="progress-page">
@@ -26,7 +43,11 @@ export function Progress() {
       </header>
 
       <div className="progress-layout">
-        <ProgressProjectList projects={progressProjects} selectedCode={project.code} onSelect={setSelectedCode} />
+        <ProgressProjectList
+          projects={progressProjects}
+          selectedCode={project.code}
+          onSelect={selectProject}
+        />
 
         <div className="progress-main-column">
           <ProgressHeroCard project={project} />
@@ -34,10 +55,13 @@ export function Progress() {
           <MilestoneTracker currentStage={project.milestoneStage} />
         </div>
 
-        <aside className="progress-side-column" aria-label={t('progress.detailsAria', { code: project.code })}>
+        <aside
+          className="progress-side-column"
+          aria-label={t('progress.detailsAria', { code: project.code })}
+        >
           <ProjectStudentsPanel students={project.students} />
           <ProgressEvidencePanel project={project} />
-          <SupervisorNotePanel note={project.note} />
+          <SupervisorNotePanel key={project.code} note={project.note} projectCode={project.code} />
         </aside>
       </div>
     </div>

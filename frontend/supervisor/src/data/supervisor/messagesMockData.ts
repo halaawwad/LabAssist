@@ -9,6 +9,8 @@ export type ChatAttachment = {
   name: string
   /** Human-readable size, e.g. "1.2 MB". */
   size: string
+  /** Bytes selected by the user, for local mock downloads (up to 2 MB). */
+  dataUrl?: string
 }
 
 export type ChatMessage = {
@@ -72,10 +74,34 @@ export const conversations: Conversation[] = [
     starred: true,
     muted: false,
     messages: [
-      { id: 'm1', from: 'Ahmad Khaled', text: 'Good morning Dr., we finished assembling the chassis yesterday.', date: yesterday, time: '09:12' },
-      { id: 'm2', from: 'me', text: 'Great work. Did you test the motor drivers under load?', date: yesterday, time: '09:40' },
-      { id: 'm3', from: 'Sara Ali', text: 'Not yet, the second L298N overheats after a few minutes. We are adding a heatsink.', date: yesterday, time: '10:05' },
-      { id: 'm4', from: 'me', text: 'Good. Also limit the PWM duty cycle while testing, and log the current draw.', date: yesterday, time: '10:18' },
+      {
+        id: 'm1',
+        from: 'Ahmad Khaled',
+        text: 'Good morning Dr., we finished assembling the chassis yesterday.',
+        date: yesterday,
+        time: '09:12',
+      },
+      {
+        id: 'm2',
+        from: 'me',
+        text: 'Great work. Did you test the motor drivers under load?',
+        date: yesterday,
+        time: '09:40',
+      },
+      {
+        id: 'm3',
+        from: 'Sara Ali',
+        text: 'Not yet, the second L298N overheats after a few minutes. We are adding a heatsink.',
+        date: yesterday,
+        time: '10:05',
+      },
+      {
+        id: 'm4',
+        from: 'me',
+        text: 'Good. Also limit the PWM duty cycle while testing, and log the current draw.',
+        date: yesterday,
+        time: '10:18',
+      },
       {
         id: 'm5',
         from: 'Omar Hasan',
@@ -84,7 +110,13 @@ export const conversations: Conversation[] = [
         time: '08:47',
         attachment: { name: 'navigation-test-results.pdf', size: '1.4 MB' },
       },
-      { id: 'm6', from: 'Ahmad Khaled', text: 'Can we book a review meeting before Thursday to go over the results?', date: messagesMockToday, time: '09:30' },
+      {
+        id: 'm6',
+        from: 'Ahmad Khaled',
+        text: 'Can we book a review meeting before Thursday to go over the results?',
+        date: messagesMockToday,
+        time: '09:30',
+      },
     ],
   },
   {
@@ -101,8 +133,20 @@ export const conversations: Conversation[] = [
     starred: false,
     muted: false,
     messages: [
-      { id: 'm1', from: 'Dana Yousef', text: 'Hello Dr., I uploaded the updated BOM with the new pulse sensor.', date: yesterday, time: '14:20' },
-      { id: 'm2', from: 'me', text: 'Thanks Dana, I will review it today.', date: yesterday, time: '15:02' },
+      {
+        id: 'm1',
+        from: 'Dana Yousef',
+        text: 'Hello Dr., I uploaded the updated BOM with the new pulse sensor.',
+        date: yesterday,
+        time: '14:20',
+      },
+      {
+        id: 'm2',
+        from: 'me',
+        text: 'Thanks Dana, I will review it today.',
+        date: yesterday,
+        time: '15:02',
+      },
       {
         id: 'm3',
         from: 'Dana Yousef',
@@ -131,9 +175,27 @@ export const conversations: Conversation[] = [
     starred: true,
     muted: false,
     messages: [
-      { id: 'm1', from: 'Tareq Mansour', text: 'The servo calibration is done for joints 1–3.', date: '2026-10-06', time: '11:00' },
-      { id: 'm2', from: 'me', text: 'Nice. Please share a short video of the full range of motion.', date: '2026-10-06', time: '11:25' },
-      { id: 'm3', from: 'Aya Barakat', text: 'Sure, we will record it in the workshop tomorrow.', date: yesterday, time: '16:40' },
+      {
+        id: 'm1',
+        from: 'Tareq Mansour',
+        text: 'The servo calibration is done for joints 1–3.',
+        date: '2026-10-06',
+        time: '11:00',
+      },
+      {
+        id: 'm2',
+        from: 'me',
+        text: 'Nice. Please share a short video of the full range of motion.',
+        date: '2026-10-06',
+        time: '11:25',
+      },
+      {
+        id: 'm3',
+        from: 'Aya Barakat',
+        text: 'Sure, we will record it in the workshop tomorrow.',
+        date: yesterday,
+        time: '16:40',
+      },
     ],
   },
   {
@@ -154,9 +216,27 @@ export const conversations: Conversation[] = [
     starred: false,
     muted: false,
     messages: [
-      { id: 'm1', from: 'Rana Saleh', text: 'The LDR readings are noisy at noon.', date: messagesMockToday, time: '07:55' },
-      { id: 'm2', from: 'Mohammad Odeh', text: 'We are trying a moving-average filter.', date: messagesMockToday, time: '08:02' },
-      { id: 'm3', from: 'Khaled Amer', text: 'Should we switch to a dedicated light sensor instead?', date: messagesMockToday, time: '08:10' },
+      {
+        id: 'm1',
+        from: 'Rana Saleh',
+        text: 'The LDR readings are noisy at noon.',
+        date: messagesMockToday,
+        time: '07:55',
+      },
+      {
+        id: 'm2',
+        from: 'Mohammad Odeh',
+        text: 'We are trying a moving-average filter.',
+        date: messagesMockToday,
+        time: '08:02',
+      },
+      {
+        id: 'm3',
+        from: 'Khaled Amer',
+        text: 'Should we switch to a dedicated light sensor instead?',
+        date: messagesMockToday,
+        time: '08:10',
+      },
     ],
   },
   {
@@ -173,8 +253,20 @@ export const conversations: Conversation[] = [
     starred: false,
     muted: true,
     messages: [
-      { id: 'm1', from: 'me', text: 'Rami, your weekly report for week 6 is missing.', date: '2026-10-05', time: '10:00' },
-      { id: 'm2', from: 'Rami Jaber', text: 'Sorry Dr., I will submit it tonight.', date: '2026-10-05', time: '12:31' },
+      {
+        id: 'm1',
+        from: 'me',
+        text: 'Rami, your weekly report for week 6 is missing.',
+        date: '2026-10-05',
+        time: '10:00',
+      },
+      {
+        id: 'm2',
+        from: 'Rami Jaber',
+        text: 'Sorry Dr., I will submit it tonight.',
+        date: '2026-10-05',
+        time: '12:31',
+      },
     ],
   },
   {
@@ -194,8 +286,20 @@ export const conversations: Conversation[] = [
     starred: false,
     muted: false,
     messages: [
-      { id: 'm1', from: 'Sami Darwish', text: 'The CO2 sensor is still not responding on I2C.', date: '2026-10-04', time: '13:10' },
-      { id: 'm2', from: 'me', text: 'Run an I2C scanner sketch and check the pull-up resistors.', date: '2026-10-04', time: '13:45' },
+      {
+        id: 'm1',
+        from: 'Sami Darwish',
+        text: 'The CO2 sensor is still not responding on I2C.',
+        date: '2026-10-04',
+        time: '13:10',
+      },
+      {
+        id: 'm2',
+        from: 'me',
+        text: 'Run an I2C scanner sketch and check the pull-up resistors.',
+        date: '2026-10-04',
+        time: '13:45',
+      },
     ],
   },
 ]

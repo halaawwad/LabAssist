@@ -21,9 +21,19 @@ type TaskListProps = {
   onFilterChange: (filter: TaskFilter) => void
   onSortChange: (sort: TaskSort) => void
   onToggleTask: (id: string) => void
+  onOpenTask: (id: string) => void
 }
 
-export function TaskList({ tasks, today, filter, sort, onFilterChange, onSortChange, onToggleTask }: TaskListProps) {
+export function TaskList({
+  tasks,
+  today,
+  filter,
+  sort,
+  onFilterChange,
+  onSortChange,
+  onToggleTask,
+  onOpenTask,
+}: TaskListProps) {
   const { t } = useI18n()
 
   return (
@@ -33,7 +43,12 @@ export function TaskList({ tasks, today, filter, sort, onFilterChange, onSortCha
         <div className="tasks-list-controls">
           <div className="tasks-filters" role="group" aria-label={t('tasks.list.filterAria')}>
             {filters.map((item) => (
-              <button type="button" aria-pressed={filter === item} onClick={() => onFilterChange(item)} key={item}>
+              <button
+                type="button"
+                aria-pressed={filter === item}
+                onClick={() => onFilterChange(item)}
+                key={item}
+              >
                 {t(filterLabelKeys[item])}
               </button>
             ))}
@@ -51,7 +66,13 @@ export function TaskList({ tasks, today, filter, sort, onFilterChange, onSortCha
 
       <ul className="tasks-list">
         {tasks.map((task) => (
-          <TaskRow task={task} today={today} onToggle={onToggleTask} key={task.id} />
+          <TaskRow
+            task={task}
+            today={today}
+            onToggle={onToggleTask}
+            onOpen={onOpenTask}
+            key={task.id}
+          />
         ))}
         {tasks.length === 0 ? <li className="tasks-empty">{t('tasks.list.empty')}</li> : null}
       </ul>
@@ -63,9 +84,10 @@ type TaskRowProps = {
   task: SupervisorTask
   today: string
   onToggle: (id: string) => void
+  onOpen: (id: string) => void
 }
 
-function TaskRow({ task, today, onToggle }: TaskRowProps) {
+function TaskRow({ task, today, onToggle, onOpen }: TaskRowProps) {
   const { t, formatDay } = useI18n()
   const isDone = task.status === 'Completed'
 
@@ -75,7 +97,9 @@ function TaskRow({ task, today, onToggle }: TaskRowProps) {
         className="tasks-check"
         type="button"
         aria-pressed={isDone}
-        aria-label={t(isDone ? 'tasks.list.markPending' : 'tasks.list.markDone', { title: task.title })}
+        aria-label={t(isDone ? 'tasks.list.markPending' : 'tasks.list.markDone', {
+          title: task.title,
+        })}
         onClick={() => onToggle(task.id)}
       >
         {isDone ? <Check size={14} strokeWidth={3} aria-hidden="true" /> : null}
@@ -86,13 +110,22 @@ function TaskRow({ task, today, onToggle }: TaskRowProps) {
           {task.projectCode} · {task.projectName}
         </small>
       </div>
-      <span className={`tasks-priority priority-${task.priority.toLowerCase()}`}>{t(priorityLabelKeys[task.priority])}</span>
+      <span className={`tasks-priority priority-${task.priority.toLowerCase()}`}>
+        {t(priorityLabelKeys[task.priority])}
+      </span>
       <span className="tasks-due">
         <CalendarDays size={16} aria-hidden="true" />
         {formatDay(task.dueDate, today)}
       </span>
-      <span className={`tasks-status status-${task.status.toLowerCase()}`}>{t(taskStatusLabelKeys[task.status])}</span>
-      <button className="tasks-menu" type="button" aria-label={t('tasks.list.more', { title: task.title })}>
+      <span className={`tasks-status status-${task.status.toLowerCase()}`}>
+        {t(taskStatusLabelKeys[task.status])}
+      </span>
+      <button
+        className="tasks-menu"
+        type="button"
+        aria-label={t('tasks.list.more', { title: task.title })}
+        onClick={() => onOpen(task.id)}
+      >
         <Ellipsis size={20} />
       </button>
     </li>
