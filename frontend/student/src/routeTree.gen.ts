@@ -11,6 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CatalogRouteImport } from './routes/catalog'
+import { Route as CatalogPreviewRouteImport } from './routes/catalog-preview'
+import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as LabRouteImport } from './routes/lab'
+import { Route as LabPreviewRouteImport } from './routes/lab-preview'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MeetingsRouteImport } from './routes/meetings'
 import { Route as MessagesRouteImport } from './routes/messages'
@@ -28,6 +32,26 @@ const IndexRoute = IndexRouteImport.update({
 const CatalogRoute = CatalogRouteImport.update({
   id: '/catalog',
   path: '/catalog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CatalogPreviewRoute = CatalogPreviewRouteImport.update({
+  id: '/catalog-preview',
+  path: '/catalog-preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryRoute = InventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabRoute = LabRouteImport.update({
+  id: '/lab',
+  path: '/lab',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabPreviewRoute = LabPreviewRouteImport.update({
+  id: '/lab-preview',
+  path: '/lab-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -74,6 +98,10 @@ const TeamRoute = TeamRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/catalog': typeof CatalogRoute
+  '/catalog-preview': typeof CatalogPreviewRoute
+  '/inventory': typeof InventoryRoute
+  '/lab': typeof LabRoute
+  '/lab-preview': typeof LabPreviewRoute
   '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
   '/messages': typeof MessagesRoute
@@ -86,6 +114,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/catalog': typeof CatalogRoute
+  '/catalog-preview': typeof CatalogPreviewRoute
+  '/inventory': typeof InventoryRoute
+  '/lab': typeof LabRoute
+  '/lab-preview': typeof LabPreviewRoute
   '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
   '/messages': typeof MessagesRoute
@@ -99,6 +131,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/catalog': typeof CatalogRoute
+  '/catalog-preview': typeof CatalogPreviewRoute
+  '/inventory': typeof InventoryRoute
+  '/lab': typeof LabRoute
+  '/lab-preview': typeof LabPreviewRoute
   '/login': typeof LoginRoute
   '/meetings': typeof MeetingsRoute
   '/messages': typeof MessagesRoute
@@ -113,6 +149,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/catalog'
+    | '/catalog-preview'
+    | '/inventory'
+    | '/lab'
+    | '/lab-preview'
     | '/login'
     | '/meetings'
     | '/messages'
@@ -125,6 +165,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/catalog'
+    | '/catalog-preview'
+    | '/inventory'
+    | '/lab'
+    | '/lab-preview'
     | '/login'
     | '/meetings'
     | '/messages'
@@ -137,6 +181,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/catalog'
+    | '/catalog-preview'
+    | '/inventory'
+    | '/lab'
+    | '/lab-preview'
     | '/login'
     | '/meetings'
     | '/messages'
@@ -150,6 +198,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CatalogRoute: typeof CatalogRoute
+  CatalogPreviewRoute: typeof CatalogPreviewRoute
+  InventoryRoute: typeof InventoryRoute
+  LabRoute: typeof LabRoute
+  LabPreviewRoute: typeof LabPreviewRoute
   LoginRoute: typeof LoginRoute
   MeetingsRoute: typeof MeetingsRoute
   MessagesRoute: typeof MessagesRoute
@@ -174,6 +226,34 @@ declare module '@tanstack/react-router' {
       path: '/catalog'
       fullPath: '/catalog'
       preLoaderRoute: typeof CatalogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalog-preview': {
+      id: '/catalog-preview'
+      path: '/catalog-preview'
+      fullPath: '/catalog-preview'
+      preLoaderRoute: typeof CatalogPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory': {
+      id: '/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lab': {
+      id: '/lab'
+      path: '/lab'
+      fullPath: '/lab'
+      preLoaderRoute: typeof LabRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lab-preview': {
+      id: '/lab-preview'
+      path: '/lab-preview'
+      fullPath: '/lab-preview'
+      preLoaderRoute: typeof LabPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -238,6 +318,10 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CatalogRoute: CatalogRoute,
+  CatalogPreviewRoute: CatalogPreviewRoute,
+  InventoryRoute: InventoryRoute,
+  LabRoute: LabRoute,
+  LabPreviewRoute: LabPreviewRoute,
   LoginRoute: LoginRoute,
   MeetingsRoute: MeetingsRoute,
   MessagesRoute: MessagesRoute,
