@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { deadlines, project, teammates, useProjectWorkspace } from "@/lib/projectWorkspace";
 import { useStudentProfile } from "@/lib/studentProfile";
 
-export const Route = createFileRoute("/")({ head: () => ({ meta: [{ title: "HardwareMate | Dashboard" }] }), component: Dashboard });
+export const Route = createFileRoute("/")({ head: () => ({ meta: [{ title: "LabAssist | Dashboard" }] }), component: Dashboard });
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -52,6 +52,6 @@ function Dashboard() {
         <section className="insight-quick-actions" aria-label="Quick actions"><span>Jump into your workspace</span><button onClick={() => navigate({to:"/lab"})}><FolderKanban size={15}/>3D Lab<ArrowUpRight size={12}/></button><button className="tone-orange" onClick={() => navigate({to:"/project",search:{action:"issue"}})}><Plus size={15}/>Add issue</button><button className="tone-blue" onClick={() => openProject("components")}><Wallet size={15}/>View BOM</button><button className="tone-blue" onClick={() => openProject("reports")}><FileText size={15}/>Weekly report</button></section>
       </main>
     </div>
-    <Dialog open={dialog!==null} onOpenChange={open=>!open&&setDialog(null)}><DialogContent className="glass-panel glass-strong"><DialogHeader><DialogTitle>{dialog}</DialogTitle><DialogDescription>Your HardwareMate workspace</DialogDescription></DialogHeader>{dialog==="Your profile"?<div className="flex items-center gap-4"><img src={avatar} alt="NOOR OWASSI" className="size-16 rounded-full"/><div><strong>NOOR OWASSI</strong><p className="text-sm text-muted-foreground">HardwareMate student</p></div></div>:<Button onClick={()=>{setDialog(null);openProject();}}>Open project workspace</Button>}</DialogContent></Dialog>
+    <Dialog open={dialog!==null} onOpenChange={open=>!open&&setDialog(null)}><DialogContent className="glass-panel glass-strong"><DialogHeader><DialogTitle>{dialog}</DialogTitle><DialogDescription>Your LabAssist workspace</DialogDescription></DialogHeader>{dialog==="Your profile"?<div className="flex items-center gap-4"><img src={avatar} alt="NOOR OWASSI" className="size-16 rounded-full"/><div><strong>NOOR OWASSI</strong><p className="text-sm text-muted-foreground">LabAssist student</p></div></div>:<Button onClick={()=>{setDialog(null);openProject();}}>Open project workspace</Button>}</DialogContent></Dialog>
   </div>;
 }

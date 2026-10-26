@@ -203,7 +203,7 @@ export function HardwareLab({addComponent, addRequest}: {addComponent?: string |
         <div className="flex items-center gap-2 pr-3">
           <div className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground"><Cpu className="size-4" /></div>
           <div className="leading-tight">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">HardwareMate · Lab</div>
+            <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">LabAssist · Lab</div>
             <div className="text-xs text-muted-foreground">{P.project.name}</div>
           </div>
         </div>

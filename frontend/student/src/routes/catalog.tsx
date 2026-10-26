@@ -12,7 +12,7 @@ import { addToBom, readBom, componentCatalog, catalogCategories, type CatalogCom
 
 const categoryLabels=["Control Boards","Sensors","Motors & Actuators","Displays","Electronic Parts","Power Drivers","Wireless","Modules"];
 const categoryLabel=(name:string)=>categoryLabels[catalogCategories.indexOf(name)]||name;
-export const Route = createFileRoute("/catalog")({head:()=>({meta:[{title:"Component Catalog | HardwareMate"}]}),component:CatalogPage});
+export const Route = createFileRoute("/catalog")({head:()=>({meta:[{title:"Component Catalog | LabAssist"}]}),component:CatalogPage});
 function CatalogPage() {
   const navigate=useNavigate(); const previews=usePartPreviews();
   const [menu,setMenu]=useState(false), [query,setQuery]=useState(""), [category,setCategory]=useState("All"), [voltage,setVoltage]=useState("All");

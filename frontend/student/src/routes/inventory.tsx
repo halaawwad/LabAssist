@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { stores, storeOffers, workshopStock, stockStatus, storeForOffer, type StockItem } from "@/lib/workshopInventory";
 
-export const Route=createFileRoute("/inventory")({validateSearch:(search:Record<string,unknown>):{tab?:"requests"}=>search["tab"]==="requests"?{tab:"requests"}:{},head:()=>({meta:[{title:"Workshop Inventory | HardwareMate"}]}),component:InventoryPage});
+export const Route=createFileRoute("/inventory")({validateSearch:(search:Record<string,unknown>):{tab?:"requests"}=>search["tab"]==="requests"?{tab:"requests"}:{},head:()=>({meta:[{title:"Workshop Inventory | LabAssist"}]}),component:InventoryPage});
 function InventoryPage(){
  const routeSearch=Route.useSearch(); const navigate=useNavigate(); const {requests}=usePartRequests(); const [stockSource,setStockSource]=useState("All sources");
  const [menu,setMenu]=useState(false),[tab,setTab]=useState(routeSearch.tab==="requests"?"My Requests":"Find Parts"),[query,setQuery]=useState(""),[category,setCategory]=useState("All categories"),[status,setStatus]=useState("All statuses"),[purpose,setPurpose]=useState("All types"),[city,setCity]=useState("All cities"),[map,setMap]=useState<string|null>(null),[compare,setCompare]=useState(false),[request,setRequest]=useState<StockItem|null>(null);

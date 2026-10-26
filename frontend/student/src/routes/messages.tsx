@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { people, useMessages, type ChatAttachment, type ChatPerson, type ChatMessage } from "@/lib/messages";
 import { useStudentProfile } from "@/lib/studentProfile";
-export const Route=createFileRoute("/messages")({validateSearch:(search:Record<string,unknown>):{chat?:string}=>typeof search["chat"]==="string"?{chat:search["chat"]}:{},head:()=>({meta:[{title:"Messages | HardwareMate"}]}),component:MessagesPage});
+export const Route=createFileRoute("/messages")({validateSearch:(search:Record<string,unknown>):{chat?:string}=>typeof search["chat"]==="string"?{chat:search["chat"]}:{},head:()=>({meta:[{title:"Messages | LabAssist"}]}),component:MessagesPage});
 function MessagesPage(){
  const routeSearch=Route.useSearch(); const {settings}=useStudentSettings();
  const navigate=useNavigate(),{chats,setChats}=useMessages(),{profile}=useStudentProfile();

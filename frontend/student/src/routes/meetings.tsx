@@ -9,7 +9,7 @@ import { people, useMessages, type ChatMeeting } from "@/lib/messages";
 import { project, teammates } from "@/lib/projectWorkspace";
 import { useStudentProfile } from "@/lib/studentProfile";
 
-export const Route=createFileRoute("/meetings")({head:()=>({meta:[{title:"Meetings | HardwareMate"}]}),component:MeetingsPage});
+export const Route=createFileRoute("/meetings")({head:()=>({meta:[{title:"Meetings | LabAssist"}]}),component:MeetingsPage});
 const dayKey=(value:string|Date)=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Hebron",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(value));
 const dateLabel=(value:string)=>new Date(value).toLocaleDateString("en-US",{timeZone:"Asia/Hebron",weekday:"short",month:"short",day:"numeric"});
 const timeLabel=(value:string)=>new Date(value).toLocaleTimeString("en-US",{timeZone:"Asia/Hebron",hour:"numeric",minute:"2-digit"});
