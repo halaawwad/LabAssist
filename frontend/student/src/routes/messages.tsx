@@ -32,7 +32,7 @@ function MessagesPage(){
  const readFile=(file:File|undefined)=>{if(!file)return;if(file.size>5*1024*1024){setError("Choose a file under 5 MB.");return;}if(!["image/jpeg","image/png","image/webp","application/pdf","text/plain"].includes(file.type)){setError("Choose a JPG, PNG, WebP, PDF or text file.");return;}const reader=new FileReader();reader.onload=()=>{setAttachment({name:file.name,url:String(reader.result),image:file.type.startsWith("image/")});setError("");};reader.onerror=()=>setError("Could not open this file.");reader.readAsDataURL(file);};
  const send=()=>{if(!text.trim()&&!attachment)return;const message={id:crypto.randomUUID(),text:text.trim(),sender:"you",time:new Date().toLocaleTimeString("en-US",{timeZone:"Asia/Hebron",hour:"2-digit",minute:"2-digit"}),...(attachment?{attachment}: {}),...(reply?{reply:{id:reply.id,sender:reply.sender,text:reply.text||reply.attachment?.name||"Attachment"}}:{})};setChats(current=>current.map(c=>c.id===active?{...c,messages:[...c.messages,message]}:c));setText("");setAttachment(null);setReply(null);requestAnimationFrame(()=>bottom.current?.scrollIntoView({block:"nearest"}));};
  return <div className="messages-background min-h-screen"><div className="insight-shell">{menu&&<button className="fixed inset-0 z-30 bg-foreground/20 lg:hidden" aria-label="Close navigation overlay" onClick={()=>setMenu(false)}/>}
- <WorkspaceSidebar active="Messages" open={menu} onClose={()=>setMenu(false)} onSelect={label=>{if(label==="Dashboard")navigate({to:"/"});else if(label==="My Project")navigate({to:"/project"});else if(label==="Team")navigate({to:"/project",search:{tab:"team"}});else if(label==="Reports")navigate({to:"/project",search:{tab:"reports"}});}} className="lg:sticky lg:top-4 lg:h-[calc(100vh-32px)]"/>
+ <WorkspaceSidebar active="Messages" open={menu} onClose={()=>setMenu(false)} onSelect={label=>{if(label==="Dashboard")navigate({to:"/"});else if(label==="My Project")navigate({to:"/project"});else if(label==="3D Lab")navigate({to:"/lab"});else if(label==="Component Catalog")navigate({to:"/catalog"});else if(label==="Team")navigate({to:"/project",search:{tab:"team"}});else if(label==="Reports")navigate({to:"/project",search:{tab:"reports"}});}} className="lg:sticky lg:top-4 lg:h-[calc(100vh-32px)]"/>
  <main className="insight-main messages-main"><header className="project-page-heading"><div className="flex items-center gap-3"><button className="lg:hidden" aria-label="Open menu" onClick={()=>setMenu(true)}><Menu/></button><div><p className="insight-eyebrow">YOUR WORKSPACE / CONVERSATIONS</p><h1>Good ideas start with a hello.</h1></div></div><Button onClick={()=>{setNewChat(true);setPersonSearch("");}}><Plus size={15}/>New Message</Button></header>
 
  <section className={`messages-workspace ${infoOpen?"has-conversation-info":""} ${mobileChat?"show-conversation":""}`}>
@@ -48,18 +48,3 @@ function MessagesPage(){
  <MessageTools active={active} mode={toolMode} onClose={()=>{setToolMode(null);setForward(null);}} forward={forward} onNavigate={(chat,message)=>{open(chat);if(message)setTimeout(()=>{const element=document.getElementById(`chat-message-${message}`);element?.scrollIntoView({behavior:"smooth",block:"center"});element?.classList.add("message-highlight");setTimeout(()=>element?.classList.remove("message-highlight"),1800);},80);}}/>
  <Dialog open={newChat} onOpenChange={setNewChat}><DialogContent className="messages-person-dialog"><DialogHeader><DialogTitle>Start a conversation</DialogTitle><DialogDescription>Find a student or supervisor, or save a message to yourself.</DialogDescription></DialogHeader><button className="messages-self-choice" onClick={()=>{open("saved");setNewChat(false);}}><img src={profile.photo} alt=""/><span><strong>{profile.name} (You)</strong><small>Only you · Your personal space</small></span><Bookmark size={18}/></button><label className="messages-search"><Search size={16}/><input aria-label="Search people" placeholder="Name, student number or department…" value={personSearch} onChange={e=>setPersonSearch(e.target.value)}/></label><div className="messages-people-filters">{["All","Student","Supervisor"].map(kind=><button key={kind} aria-pressed={personKind===kind} onClick={()=>setPersonKind(kind)}>{kind==="All"?"Everyone":`${kind}s`}</button>)}</div><div className="messages-people-results">{matches.map(p=><button key={p.id} onClick={()=>start(p)}><span className={`messages-avatar kind-${p.kind}`}>{p.initials}</span><span><strong>{p.name}</strong><small>{p.detail}</small></span><b>{p.kind}</b></button>)}{!matches.length&&<p className="messages-no-results">No matching people. Try another name or student number.</p>}</div><p className="messages-directory-note">Sample directory for this local preview.</p></DialogContent></Dialog></div>;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
