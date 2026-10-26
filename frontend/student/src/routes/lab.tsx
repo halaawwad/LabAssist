@@ -7,9 +7,9 @@ export const Route = createFileRoute("/lab")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "3D Virtual Hardware Lab · HardwareMate" },
+      { title: "3D Virtual Hardware Lab · LabAssist" },
       { name: "description", content: "Assemble and wire electronics circuits in 3D, then validate power, ground, pin types and shorts." },
-      { property: "og:title", content: "3D Virtual Hardware Lab · HardwareMate" },
+      { property: "og:title", content: "3D Virtual Hardware Lab · LabAssist" },
       { property: "og:description", content: "Assemble and wire electronics circuits in 3D with instant wiring validation." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

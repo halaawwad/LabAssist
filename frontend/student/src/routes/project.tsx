@@ -18,7 +18,7 @@ type ProjectTab = "overview" | "team" | "components" | "reports";
 type ProjectAction = "issue" | "report" | "bom";
 export const Route = createFileRoute("/project")({
   validateSearch: (search: Record<string, unknown>): { tab?: ProjectTab; action?: ProjectAction } => ({ ...(["overview","team","components","reports"].includes(String(search["tab"])) ? {tab:search["tab"] as ProjectTab}:{}), ...(["issue","report","bom"].includes(String(search["action"])) ? {action:search["action"] as ProjectAction}:{}) }),
-  head: () => ({ meta: [{ title: "My Project | HardwareMate" }] }), component: ProjectPage,
+  head: () => ({ meta: [{ title: "My Project | LabAssist" }] }), component: ProjectPage,
 });
 function ProjectPage() {
   const navigate=useNavigate(), search=Route.useSearch(), workspace=useProjectWorkspace();

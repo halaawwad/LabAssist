@@ -886,7 +886,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, .dashboard-background::-webkit
 .personal-people p span { color:#647382; background:#e8edf1; }
 .personal-notebook { background:linear-gradient(110deg,#f6f0e5,#fffdf8); border-left-color:#bca37c; }
 .personal-profile-background { background-color:#eef0ef; background-blend-mode:normal,luminosity; }
-/* Keep My Profile within HardwareMate's olive palette, with balanced accents. */
+/* Keep My Profile within LabAssist's olive palette, with balanced accents. */
 .personal-profile { --primary:#526443; --mint:#dfe8d9; }
 .personal-profile-background { background-color:#f6f5ef; background-blend-mode:normal,normal; }
 .personal-hero { background:linear-gradient(110deg,#e3ebdc 0%,#f8faf4 48%,#e7edf0 82%,#f4ead9); }

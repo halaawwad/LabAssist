@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { project,teammates,useProjectWorkspace,type TeamTask } from "@/lib/projectWorkspace";
 import { useStudentProfile } from "@/lib/studentProfile";
 import { people,useMessages } from "@/lib/messages";
-export const Route=createFileRoute("/team")({head:()=>({meta:[{title:"Team | HardwareMate"}]}),component:TeamPage});
+export const Route=createFileRoute("/team")({head:()=>({meta:[{title:"Team | LabAssist"}]}),component:TeamPage});
 function TeamPage(){
  const navigate=useNavigate(),workspace=useProjectWorkspace(),{profile}=useStudentProfile(),{chats,setChats}=useMessages();
  const [menu,setMenu]=useState(false),[modal,setModal]=useState<"task"|"all"|"add"|null>(null),[selected,setSelected]=useState<string|null>(null),[filter,setFilter]=useState("all"),[activityOwner,setActivityOwner]=useState("all"),[title,setTitle]=useState(""),[description,setDescription]=useState(""),[owner,setOwner]=useState(0),[due,setDue]=useState("");
