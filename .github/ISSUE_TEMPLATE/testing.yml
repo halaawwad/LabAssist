@@ -1,0 +1,28 @@
+name: Test coverage
+description: Track a missing test scenario or verification task.
+title: "[Testing] "
+body:
+  - type: input
+    id: requirement
+    attributes:
+      label: Requirement / feature
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Test type
+      options: [Unit, Integration, API, Authorization, Concurrency, Mobile E2E, Performance, Accessibility, Manual acceptance]
+    validations:
+      required: true
+  - type: textarea
+    id: scenarios
+    attributes:
+      label: Scenarios, fixtures and expected results
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Completion evidence
+      description: Link the test file and sanitized run results when complete.

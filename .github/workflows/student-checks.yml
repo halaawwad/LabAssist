@@ -1,0 +1,109 @@
+name: Student tests and database
+
+on:
+  push:
+    branches: [main, noor]
+  pull_request:
+    branches: [main, noor]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: student-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  student:
+    name: Student tests and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.3'
+      - name: Prepare standalone student workspace
+        run: |
+          target="$RUNNER_TEMP/labassist-student"
+          mkdir -p "$target"
+          cp -a frontend/student/. "$target/"
+          echo "STUDENT_CHECK_DIR=$target" >> "$GITHUB_ENV"
+      - name: Install locked dependencies
+        run: |
+          cd "$STUDENT_CHECK_DIR"
+          bun install --frozen-lockfile
+      - name: Run student tests
+        run: |
+          cd "$STUDENT_CHECK_DIR"
+          mkdir -p reports
+          bun run test --reporter=default --reporter=junit --outputFile=reports/vitest.xml
+      - name: Build student frontend
+        run: |
+          cd "$STUDENT_CHECK_DIR"
+          bun run build
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-test-results
+          path: ${{ runner.temp }}/labassist-student/reports/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  student-database:
+    name: Student database acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: labassist_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ephemeral-ci-database
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d labassist_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGDATABASE: labassist_ci
+      PGPASSWORD: ephemeral-ci-database
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify PostgreSQL client
+        run: psql --version
+      - name: Check Compose configuration
+        working-directory: backend/database/student-stage1
+        run: |
+          mkdir -p secrets
+          printf '%s' 'ephemeral-ci-compose-only' > secrets/postgres_password.txt
+          docker compose --env-file .env.example config --quiet
+      - name: Create schema and seed
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/student-stage1/sql/01-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/student-stage1/sql/02-demo-seed.sql
+      - name: Verify seed replay
+        run: psql -v ON_ERROR_STOP=1 -f backend/database/student-stage1/sql/02-demo-seed.sql
+      - name: Run acceptance tests on real PostgreSQL
+        run: |
+          mkdir -p reports
+          psql -v ON_ERROR_STOP=1 -f backend/database/student-stage1/tests/acceptance.sql | tee reports/database-acceptance.txt
+      - name: Upload database results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-database-results
+          path: reports/database-acceptance.txt
+          if-no-files-found: ignore
+          retention-days: 14

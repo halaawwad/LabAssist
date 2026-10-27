@@ -1,0 +1,35 @@
+name: Task / feature
+description: Define implementation work and acceptance criteria.
+title: "[Task] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective and scope
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      placeholder: "Issue links and prerequisites"
+  - type: textarea
+    id: checklist
+    attributes:
+      label: Implementation checklist
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Test and validation plan
+    validations:
+      required: true

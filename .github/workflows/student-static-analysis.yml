@@ -1,0 +1,65 @@
+name: Student static analysis
+
+on:
+  push:
+    branches: [main, noor]
+  pull_request:
+    branches: [main, noor]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: student-static-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Student ${{ matrix.check }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [typecheck, lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.3'
+      - name: Prepare standalone student workspace
+        run: |
+          target="$RUNNER_TEMP/labassist-student"
+          mkdir -p "$target"
+          cp -a frontend/student/. "$target/"
+          echo "STUDENT_CHECK_DIR=$target" >> "$GITHUB_ENV"
+      - name: Install locked dependencies
+        run: |
+          cd "$STUDENT_CHECK_DIR"
+          bun install --frozen-lockfile
+      - name: Generate route metadata
+        run: |
+          cd "$STUDENT_CHECK_DIR"
+          # The build generates the TanStack route tree before type analysis.
+          bun run build
+      - name: Run static check
+        run: |
+          cd "$STUDENT_CHECK_DIR"
+          mkdir -p reports
+          if [ '${{ matrix.check }}' = typecheck ]; then
+            bun run typecheck 2>&1 | tee reports/typecheck.txt
+          else
+            bun run lint --format json --output-file reports/eslint.json
+          fi
+      - name: Upload analysis results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-${{ matrix.check }}-results
+          path: ${{ runner.temp }}/labassist-student/reports/
+          if-no-files-found: ignore
+          retention-days: 14
