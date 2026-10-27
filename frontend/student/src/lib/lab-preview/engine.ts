@@ -1,6 +1,13 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { CATALOG_MAP, placedDefinition, PIN_COLORS, isLeaded, pinLocal, type PartDef } from "@/lib/lab/catalog";
+import {
+  CATALOG_MAP,
+  placedDefinition,
+  PIN_COLORS,
+  isLeaded,
+  pinLocal,
+  type PartDef,
+} from "@/lib/lab/catalog";
 import { buildModel } from "@/lib/lab/models";
 import { wireRadius, type CircuitData, type PinRef, type Wire } from "@/lib/lab/types";
 
@@ -33,9 +40,9 @@ const CAM_OFFSET = new THREE.Vector3(14, 18, 14);
 const VIEW = 14;
 
 export class PreviewLabEngine {
-  private playback=false;
-  private pulses=new Map<string,THREE.Mesh>();
-  private glowLights=new Map<string,THREE.PointLight>();
+  private playback = false;
+  private pulses = new Map<string, THREE.Mesh>();
+  private glowLights = new Map<string, THREE.PointLight>();
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera: THREE.OrthographicCamera;
@@ -61,7 +68,10 @@ export class PreviewLabEngine {
   private pinLabelCache = new Map<string, THREE.Texture>();
   private hoverPin: THREE.Mesh | null = null;
 
-  constructor(private el: HTMLElement, private cb: EngineCallbacks) {
+  constructor(
+    private el: HTMLElement,
+    private cb: EngineCallbacks,
+  ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
@@ -113,7 +123,11 @@ export class PreviewLabEngine {
 
     this.handle = new THREE.Mesh(
       new THREE.SphereGeometry(0.16, 16, 12),
-      new THREE.MeshStandardMaterial({ color: "#0d9488", emissive: "#0d9488", emissiveIntensity: 0.4 }),
+      new THREE.MeshStandardMaterial({
+        color: "#0d9488",
+        emissive: "#0d9488",
+        emissiveIntensity: 0.4,
+      }),
     );
     this.handle.visible = false;
     this.scene.add(this.handle);
@@ -134,10 +148,16 @@ export class PreviewLabEngine {
 
     const loop = () => {
       this.raf = requestAnimationFrame(loop);
-      if(this.playback&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
-        const time=performance.now()/1800;
-        for(const wire of this.data.wires){const pulse=this.pulses.get(wire.id),a=this.pinWorld(wire.from),b=this.pinWorld(wire.to);if(pulse&&a&&b)pulse.position.copy(this.curveFor(a,b,wire.ctrl).getPointAt(time%1));}
-        this.dirty=true;
+      if (this.playback && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        const time = performance.now() / 1800;
+        for (const wire of this.data.wires) {
+          const pulse = this.pulses.get(wire.id),
+            a = this.pinWorld(wire.from),
+            b = this.pinWorld(wire.to);
+          if (pulse && a && b)
+            pulse.position.copy(this.curveFor(a, b, wire.ctrl).getPointAt(time % 1));
+        }
+        this.dirty = true;
       }
       if (this.dirty) {
         this.dirty = false;
@@ -175,22 +195,62 @@ export class PreviewLabEngine {
     this.syncWires();
     this.dirty = true;
   }
-  setPlayback(active:boolean,brightness=0,litId?:string){
-    this.playback=active;
-    for(const [id,pulse] of this.pulses)if(!this.data.wires.some(w=>w.id===id)){this.disposeObj(pulse);this.pulses.delete(id);}
-    for(const wire of this.data.wires){let pulse=this.pulses.get(wire.id);if(!pulse){pulse=new THREE.Mesh(new THREE.SphereGeometry(.065,10,8),new THREE.MeshBasicMaterial({color:'#fff5cc',toneMapped:false}));pulse.raycast=()=>{};this.scene.add(pulse);this.pulses.set(wire.id,pulse);}pulse.visible=active&&brightness>.016&&!matchMedia('(prefers-reduced-motion: reduce)').matches;}
-
-    for(const [id,obj] of this.parts){
-      if(!obj.type.startsWith('led-'))continue;
-      const on=active&&id===litId?brightness:0;
-      obj.group.traverse(o=>{if(o instanceof THREE.Mesh){const materials=Array.isArray(o.material)?o.material:[o.material];for(const m of materials){if(m instanceof THREE.MeshPhysicalMaterial&&m.transparent){m.emissive.set(obj.type==='led-green'?'#39ff94':'#ff234b');m.emissiveIntensity=on*2.4;m.toneMapped=on===0;}}}});
-      let light=this.glowLights.get(id);if(!light){light=new THREE.PointLight(obj.type==='led-green'?'#39ff94':'#ff234b',0,4,2);light.position.set(0,.9,0);obj.group.add(light);this.glowLights.set(id,light);}else if(light.parent!==obj.group)obj.group.add(light);
-      light.intensity=on*4;
+  setPlayback(active: boolean, brightness = 0, litId?: string) {
+    this.playback = active;
+    for (const [id, pulse] of this.pulses)
+      if (!this.data.wires.some((w) => w.id === id)) {
+        this.disposeObj(pulse);
+        this.pulses.delete(id);
+      }
+    for (const wire of this.data.wires) {
+      let pulse = this.pulses.get(wire.id);
+      if (!pulse) {
+        pulse = new THREE.Mesh(
+          new THREE.SphereGeometry(0.065, 10, 8),
+          new THREE.MeshBasicMaterial({ color: "#fff5cc", toneMapped: false }),
+        );
+        pulse.raycast = () => {};
+        this.scene.add(pulse);
+        this.pulses.set(wire.id, pulse);
+      }
+      pulse.visible =
+        active && brightness > 0.016 && !matchMedia("(prefers-reduced-motion: reduce)").matches;
     }
-    for(const [id,light] of this.glowLights)if(!this.parts.has(id)){light.removeFromParent();this.glowLights.delete(id);}
-    this.dirty=true;
+
+    for (const [id, obj] of this.parts) {
+      if (!obj.type.startsWith("led-")) continue;
+      const on = active && id === litId ? brightness : 0;
+      obj.group.traverse((o) => {
+        if (o instanceof THREE.Mesh) {
+          const materials = Array.isArray(o.material) ? o.material : [o.material];
+          for (const m of materials) {
+            if (m instanceof THREE.MeshPhysicalMaterial && m.transparent) {
+              m.emissive.set(obj.type === "led-green" ? "#39ff94" : "#ff234b");
+              m.emissiveIntensity = on * 2.4;
+              m.toneMapped = on === 0;
+            }
+          }
+        }
+      });
+      let light = this.glowLights.get(id);
+      if (!light) {
+        light = new THREE.PointLight(obj.type === "led-green" ? "#39ff94" : "#ff234b", 0, 4, 2);
+        light.position.set(0, 0.9, 0);
+        obj.group.add(light);
+        this.glowLights.set(id, light);
+      } else if (light.parent !== obj.group) obj.group.add(light);
+      light.intensity = on * 4;
+    }
+    for (const [id, light] of this.glowLights)
+      if (!this.parts.has(id)) {
+        light.removeFromParent();
+        this.glowLights.delete(id);
+      }
+    this.dirty = true;
   }
-  setDraftWireRadius(value: number) { this.draftWireRadius = value; }
+  setDraftWireRadius(value: number) {
+    this.draftWireRadius = value;
+  }
   setGrid(v: boolean) {
     this.grid.visible = v;
     this.dirty = true;
@@ -243,7 +303,8 @@ export class PreviewLabEngine {
   }
 
   private buildPart(id: string, type: string): PartObj {
-    const placed = this.data.parts.find(p => p.id === id)!; const def = placedDefinition(placed);
+    const placed = this.data.parts.find((p) => p.id === id)!;
+    const def = placedDefinition(placed);
     const group = new THREE.Group();
     group.userData = { partId: id };
     const body = new THREE.Mesh(
@@ -257,31 +318,80 @@ export class PreviewLabEngine {
 
     const pins: THREE.Mesh[] = [];
     const header = new THREE.BoxGeometry(0.045, 0.14, 0.045);
-    const detailedHeader = ["raspberry-pi-4", "esp32", "esp8266", "arduino-nano", "arduino-mega", "dht11", "dht22", "hc-sr04", "pir", "mpu6050", "bmp280", "ir-obstacle", "flame", "mq2", "soil", "water-level", "ldr", "sg90", "mg995", "dc-motor", "stepper", "buzzer", "relay", "relay-2", "relay-8", "water-pump", "oled", "lcd-i2c", "lcd-1602", "seven-seg", "l298n", "tb6600", "uln2003", "esp8266-module", "rfid-rc522", "hc05", "nrf24l01", "breadboard", "breadboard-400"].includes(def.id);
+    const detailedHeader = [
+      "raspberry-pi-4",
+      "esp32",
+      "esp8266",
+      "arduino-nano",
+      "arduino-mega",
+      "dht11",
+      "dht22",
+      "hc-sr04",
+      "pir",
+      "mpu6050",
+      "bmp280",
+      "ir-obstacle",
+      "flame",
+      "mq2",
+      "soil",
+      "water-level",
+      "ldr",
+      "sg90",
+      "mg995",
+      "dc-motor",
+      "stepper",
+      "buzzer",
+      "relay",
+      "relay-2",
+      "relay-8",
+      "water-pump",
+      "oled",
+      "lcd-i2c",
+      "lcd-1602",
+      "seven-seg",
+      "l298n",
+      "tb6600",
+      "uln2003",
+      "esp8266-module",
+      "rfid-rc522",
+      "hc05",
+      "nrf24l01",
+      "breadboard",
+      "breadboard-400",
+    ].includes(def.id);
     const headGeo = new THREE.SphereGeometry(detailedHeader ? 0.045 : 0.07, 14, 10);
     const nameBacking = new THREE.MeshBasicMaterial({ color: "#f7faf9", side: THREE.DoubleSide });
     const rowCount = def.pins.length > 8 ? Math.ceil(def.pins.length / 2) : def.pins.length;
-    const labelWidth = Math.min(0.24, (def.w - 0.3) / Math.max(rowCount - 1, 1) * 0.82);
+    const labelWidth = Math.min(0.24, ((def.w - 0.3) / Math.max(rowCount - 1, 1)) * 0.82);
     const labelDepth = 0.65;
     const uno = def.id === "arduino-uno";
 
     def.pins.forEach((p, i) => {
       const [x, y, z] = pinLocal(def, i);
-      const post = new THREE.Mesh(header, new THREE.MeshStandardMaterial({ color: "#c9a227", metalness: 0.8, roughness: 0.3 }));
+      const post = new THREE.Mesh(
+        header,
+        new THREE.MeshStandardMaterial({ color: "#c9a227", metalness: 0.8, roughness: 0.3 }),
+      );
       post.position.set(x, y + 0.04, z);
       post.raycast = () => {};
       if (uno || detailedHeader) post.visible = false;
       group.add(post);
       const head = new THREE.Mesh(
         headGeo,
-        new THREE.MeshStandardMaterial({ color: PIN_COLORS[p.kind], roughness: 0.35, emissive: PIN_COLORS[p.kind], emissiveIntensity: 0.15 }),
+        new THREE.MeshStandardMaterial({
+          color: PIN_COLORS[p.kind],
+          roughness: 0.35,
+          emissive: PIN_COLORS[p.kind],
+          emissiveIntensity: 0.15,
+        }),
       );
       head.position.set(x, detailedHeader ? y : y + 0.11, z);
       head.userData = { partId: id, pin: i };
       head.castShadow = true;
       if (uno || detailedHeader) {
         // The physical black socket remains visible; this invisible target keeps wiring unchanged.
-        (head as THREE.Mesh<THREE.BufferGeometry, THREE.Material>).material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+        (head as THREE.Mesh<THREE.BufferGeometry, THREE.Material>).material =
+          new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
         head.castShadow = false;
       }
       group.add(head);
@@ -290,7 +400,6 @@ export class PreviewLabEngine {
       // Dense 2x20 GPIO header: physical gold posts stay visible; hover opens
       // the numbered pin information instead of overlapping forty paper labels.
       if (detailedHeader) return;
-
     });
 
     // selection outline
@@ -337,10 +446,12 @@ export class PreviewLabEngine {
     for (const p of this.data.parts) {
       if (!CATALOG_MAP[p.type]) continue;
       let obj = this.parts.get(p.id);
-      const settingsKey = JSON.stringify([p.voltage, p.resistance, p.enabled]); if (!obj || obj.type !== p.type || obj.group.userData["settingsKey"] !== settingsKey) {
+      const settingsKey = JSON.stringify([p.voltage, p.resistance, p.enabled]);
+      if (!obj || obj.type !== p.type || obj.group.userData["settingsKey"] !== settingsKey) {
         if (obj) this.disposeObj(obj.group);
         obj = this.buildPart(p.id, p.type);
-        obj.group.userData["settingsKey"] = settingsKey; this.parts.set(p.id, obj);
+        obj.group.userData["settingsKey"] = settingsKey;
+        this.parts.set(p.id, obj);
       }
       obj.group.position.set(p.x, 0, p.z);
       obj.group.rotation.y = (-p.rot * Math.PI) / 2;
@@ -352,11 +463,20 @@ export class PreviewLabEngine {
     }
   }
 
-  connectionScreenPoint(ref:PinRef){
-    const point=this.pinWorld(ref);if(!point)return null;
-    this.camera.updateMatrixWorld();point.project(this.camera);
-    const width=this.el.clientWidth,height=this.el.clientHeight;
-    return {x:(point.x+1)*width/2,y:(1-point.y)*height/2,width,height,visible:point.z>=-1&&point.z<=1&&Math.abs(point.x)<=1&&Math.abs(point.y)<=1};
+  connectionScreenPoint(ref: PinRef) {
+    const point = this.pinWorld(ref);
+    if (!point) return null;
+    this.camera.updateMatrixWorld();
+    point.project(this.camera);
+    const width = this.el.clientWidth,
+      height = this.el.clientHeight;
+    return {
+      x: ((point.x + 1) * width) / 2,
+      y: ((1 - point.y) * height) / 2,
+      width,
+      height,
+      visible: point.z >= -1 && point.z <= 1 && Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1,
+    };
   }
   private pinWorld(ref: PinRef) {
     const obj = this.parts.get(ref.partId);
@@ -368,10 +488,18 @@ export class PreviewLabEngine {
   private curveFor(a: THREE.Vector3, b: THREE.Vector3, ctrl?: [number, number]) {
     const dist = a.distanceTo(b);
     const lift = Math.min(1.6, 0.35 + dist * 0.12);
-    const mid = ctrl ? new THREE.Vector3(ctrl[0], 0, ctrl[1]) : a.clone().add(b).multiplyScalar(0.5);
+    const mid = ctrl
+      ? new THREE.Vector3(ctrl[0], 0, ctrl[1])
+      : a.clone().add(b).multiplyScalar(0.5);
     mid.y = Math.max(a.y, b.y) + lift;
     return new THREE.CatmullRomCurve3(
-      [a, a.clone().add(new THREE.Vector3(0, lift * 0.5, 0)), mid, b.clone().add(new THREE.Vector3(0, lift * 0.5, 0)), b],
+      [
+        a,
+        a.clone().add(new THREE.Vector3(0, lift * 0.5, 0)),
+        mid,
+        b.clone().add(new THREE.Vector3(0, lift * 0.5, 0)),
+        b,
+      ],
       false,
       "centripetal",
     );
@@ -413,7 +541,12 @@ export class PreviewLabEngine {
     } else {
       const mesh = new THREE.Mesh(
         geo,
-        new THREE.MeshStandardMaterial({ color: w.color, roughness: 0.45, emissive: sel ? "#14b8a6" : "#000000", emissiveIntensity: 0.6 }),
+        new THREE.MeshStandardMaterial({
+          color: w.color,
+          roughness: 0.45,
+          emissive: sel ? "#14b8a6" : "#000000",
+          emissiveIntensity: 0.6,
+        }),
       );
       mesh.castShadow = true;
       mesh.userData = { wireId: w.id };
@@ -449,7 +582,10 @@ export class PreviewLabEngine {
   // ---------- input
   private setNdc(e: { clientX: number; clientY: number }) {
     const r = this.renderer.domElement.getBoundingClientRect();
-    this.ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    this.ndc.set(
+      ((e.clientX - r.left) / r.width) * 2 - 1,
+      -((e.clientY - r.top) / r.height) * 2 + 1,
+    );
     this.ray.setFromCamera(this.ndc, this.camera);
   }
   private groundPoint(e: { clientX: number; clientY: number }) {
@@ -466,19 +602,30 @@ export class PreviewLabEngine {
   }
 
   private down = (e: PointerEvent) => {
-    if(this.playback)return;
+    if (this.playback) return;
     this.setNdc(e);
     this.cb.onPinInfo(null);
     const panBtn = e.button === 1 || e.button === 2;
     if (!panBtn) {
-      if (this.handle.visible && this.ray.intersectObject(this.handle).length && this.selection?.kind === "wire") {
+      if (
+        this.handle.visible &&
+        this.ray.intersectObject(this.handle).length &&
+        this.selection?.kind === "wire"
+      ) {
         this.mode = { m: "ctrl", id: this.selection.id };
         return;
       }
       const pin = this.hitPin();
       if (pin) {
         const ref = pin.userData as PinRef;
-        this.mode = { m: "wire", from: { partId: ref.partId, pin: ref.pin }, start: pin.getWorldPosition(new THREE.Vector3()), sx: e.clientX, sy: e.clientY, moved: false };
+        this.mode = {
+          m: "wire",
+          from: { partId: ref.partId, pin: ref.pin },
+          start: pin.getWorldPosition(new THREE.Vector3()),
+          sx: e.clientX,
+          sy: e.clientY,
+          moved: false,
+        };
         return;
       }
       const bodies = [...this.parts.values()].map((p) => p.body);
@@ -487,7 +634,14 @@ export class PreviewLabEngine {
         const id = bh.object.userData["partId"] as string;
         const gp = this.groundPoint(e)!;
         const obj = this.parts.get(id)!;
-        this.mode = { m: "drag", id, off: new THREE.Vector2(obj.group.position.x - gp.x, obj.group.position.z - gp.z), moved: false, sx: e.clientX, sy: e.clientY };
+        this.mode = {
+          m: "drag",
+          id,
+          off: new THREE.Vector2(obj.group.position.x - gp.x, obj.group.position.z - gp.z),
+          moved: false,
+          sx: e.clientX,
+          sy: e.clientY,
+        };
         this.cb.onSelect({ kind: "part", id });
         return;
       }
@@ -498,7 +652,13 @@ export class PreviewLabEngine {
         return;
       }
     }
-    this.mode = { m: "pan", sx: e.clientX, sy: e.clientY, target: this.target.clone(), moved: false };
+    this.mode = {
+      m: "pan",
+      sx: e.clientX,
+      sy: e.clientY,
+      target: this.target.clone(),
+      moved: false,
+    };
   };
 
   private move = (e: PointerEvent) => {
@@ -521,11 +681,21 @@ export class PreviewLabEngine {
         this.hoverPin = pin;
         this.dirty = true;
       }
-      const overBody = !pin && this.ray.intersectObjects([...this.parts.values()].map((p) => p.body), false).length > 0;
+      const overBody =
+        !pin &&
+        this.ray.intersectObjects(
+          [...this.parts.values()].map((p) => p.body),
+          false,
+        ).length > 0;
       this.renderer.domElement.style.cursor = pin ? "crosshair" : overBody ? "grab" : "default";
       if (pin) {
         const ref = pin.userData as PinRef;
-        this.cb.onPinInfo({ ref: { partId: ref.partId, pin: ref.pin }, x: e.clientX, y: e.clientY, compact: true });
+        this.cb.onPinInfo({
+          ref: { partId: ref.partId, pin: ref.pin },
+          x: e.clientX,
+          y: e.clientY,
+          compact: true,
+        });
       } else {
         this.cb.onPinInfo(null);
       }
@@ -563,9 +733,18 @@ export class PreviewLabEngine {
       this.setNdc(e);
       const over = this.hitPin();
       const end = over ? over.getWorldPosition(new THREE.Vector3()) : gp.setY(0.3);
-      const geo = new THREE.TubeGeometry(this.curveFor(md.start, end), 32, this.draftWireRadius, 8, false);
+      const geo = new THREE.TubeGeometry(
+        this.curveFor(md.start, end),
+        32,
+        this.draftWireRadius,
+        8,
+        false,
+      );
       if (!this.preview) {
-        this.preview = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: "#14b8a6", transparent: true, opacity: 0.75 }));
+        this.preview = new THREE.Mesh(
+          geo,
+          new THREE.MeshStandardMaterial({ color: "#14b8a6", transparent: true, opacity: 0.75 }),
+        );
         this.scene.add(this.preview);
       } else {
         this.preview.geometry.dispose();
@@ -584,7 +763,8 @@ export class PreviewLabEngine {
   private up = (e: PointerEvent) => {
     const md = this.mode;
     this.mode = { m: "idle" };
-    if (md.m === "pan" && !md.moved && e.target === this.renderer.domElement) this.cb.onSelect(null);
+    if (md.m === "pan" && !md.moved && e.target === this.renderer.domElement)
+      this.cb.onSelect(null);
     if (md.m === "drag" && md.moved) {
       const g = this.parts.get(md.id)!.group.position;
       this.cb.onMovePart(md.id, g.x, g.z);
@@ -605,7 +785,8 @@ export class PreviewLabEngine {
         this.cb.onPinInfo({ ref: md.from, x: e.clientX, y: e.clientY });
       } else if (pin) {
         const to = pin.userData as PinRef;
-        if (to.partId !== md.from.partId || to.pin !== md.from.pin) this.cb.onConnect(md.from, { partId: to.partId, pin: to.pin });
+        if (to.partId !== md.from.partId || to.pin !== md.from.pin)
+          this.cb.onConnect(md.from, { partId: to.partId, pin: to.pin });
       }
     }
   };
@@ -621,7 +802,10 @@ export class PreviewLabEngine {
     }
   };
   private drop = (e: DragEvent) => {
-    if(this.playback){e.preventDefault();return;}
+    if (this.playback) {
+      e.preventDefault();
+      return;
+    }
     const type = e.dataTransfer?.getData("application/x-part");
     if (!type) return;
     e.preventDefault();

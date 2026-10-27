@@ -1,37 +1,312 @@
 ﻿import { createContext, useContext, useState, type ReactNode } from "react";
-export type WeeklyStatus="Draft"|"Submitted"|"Reviewed"|"Needs Changes";
-export type WeeklyFields={work:string;progress:number;progressNote:string;tasks:string;hasDelays:boolean;delayReason:string;delayAction:string;problems:string;plan:string};
-export type WeeklyReport={week:string;fields:WeeklyFields;status:WeeklyStatus;savedAt?:string;submittedAt?:string;author?:string;versions:{fields:WeeklyFields;at:string;author:string}[];feedback?:{name:string;date:string;text:string;status:"Reviewed"|"Needs Changes"};sample?:boolean;attachments:{id:string;name:string;url:string;image:boolean}[]};
-export type ReportBlock={id:string;kind:"paragraph"|"heading"|"image"|"table";text:string;url?:string;size?:"small"|"medium"|"large";rows?:string[][]};
-export type ReportSection={id:string;title:string;chapter?:number;optional?:boolean;blocks:ReportBlock[]};
-export type FinalMeta={title:string;specialization:string;department:string;supervisor:string;date:string;students:{name:string;number:string}[]};
-export function thisWeek(){const date=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Hebron",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());const d=new Date(date+"T12:00:00Z");d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return d.toISOString().slice(0,10);}
-export function weekLabel(week:string){const start=new Date(week+"T12:00:00Z"),end=new Date(start);end.setUTCDate(end.getUTCDate()+6);const format=(d:Date)=>d.toLocaleDateString("en-US",{timeZone:"UTC",month:"short",day:"numeric"});return `${format(start)} – ${format(end)}`;}
-export function blankWeekly(week:string,progress:number):WeeklyReport{return {week,status:"Draft",fields:{work:"",progress,progressNote:"",tasks:"",hasDelays:false,delayReason:"",delayAction:"",problems:"",plan:""},versions:[],attachments:[]};}
-export const sectionTemplate:Omit<ReportSection,"blocks">[]=[{id:"dedication",title:"Dedication",optional:true},{id:"acknowledgment",title:"Acknowledgment"},{id:"disclaimer",title:"Disclaimer"},{id:"nomenclature",title:"Nomenclature / List of Symbols",optional:true},{id:"abbreviations",title:"List of Abbreviations"},{id:"abstract",title:"Abstract"},{id:"introduction",title:"Introduction",chapter:1},{id:"background",title:"Theoretical Background and Previous Work",chapter:2},{id:"methodology",title:"Methodology",chapter:3},{id:"results",title:"Results and Analysis",chapter:4},{id:"discussion",title:"Discussion",chapter:5},{id:"conclusions",title:"Conclusions and Recommendations",chapter:6},{id:"references",title:"References"},{id:"appendices",title:"Appendices",optional:true}];
-export function disclaimerText(department:string){return `This report was written by student(s) at the (${department||"[Department]"}) Engineering Department, Faculty of Engineering, An-Najah National University. It has not been altered or corrected, other than editorial corrections, as a result of assessment and it may contain language as well as content errors. The views expressed in it together with any outcomes and recommendations are solely those of the student(s). An-Najah National University accepts no responsibility or liability for the consequences of this report being used for a purpose other than the purpose for which it was commissioned.`;}
-export function sampleWeeklyReport():WeeklyReport {
- const start=new Date(thisWeek()+"T12:00:00Z");start.setUTCDate(start.getUTCDate()-7);const week=start.toISOString().slice(0,10);
- const submitted=new Date(start);submitted.setUTCDate(submitted.getUTCDate()+6);submitted.setUTCHours(13,30,0,0);
- const reviewed=new Date(submitted);reviewed.setUTCDate(reviewed.getUTCDate()+1);
- const fields:WeeklyFields={
-  work:"We assembled the first prototype and connected the motor driver, ultrasonic sensor, and controller. The team completed bench tests for forward movement, turning, and obstacle detection. We also updated the circuit diagram and recorded the initial test results.",
-  progress:61,progressNote:"The main hardware assembly and individual component tests are complete. Integrated navigation testing is the next milestone; reliable obstacle avoidance still needs verification.",
-  tasks:"Noor — Completed the sensor wiring and checked the pin connections.\nOmar — Tested the motor driver and basic movement commands.\nLina — Updated the circuit diagram and documented five bench tests.",
-  hasDelays:true,delayReason:"The replacement ultrasonic sensor arrived one day late, so the integrated obstacle test was postponed.",delayAction:"We borrowed a workshop sensor for the bench tests and moved the integrated test to the beginning of next week.",
-  problems:"Distance readings fluctuated near angled surfaces. We added a median filter and will compare readings at different distances before choosing the stopping threshold.",
-  plan:"1. Test obstacle avoidance at 10, 20, and 30 cm — Noor and Omar.\n2. Measure motor current under normal operation — Omar.\n3. Record results, photos, and remaining risks — Lina.\n4. Review the integrated prototype together before the supervisor meeting."
- };
- const at=submitted.toISOString();return {week,fields,status:"Reviewed",sample:true,author:"Noor Owassi · on behalf of the team",savedAt:at,submittedAt:at,versions:[{fields:{...fields},at,author:"Noor Owassi"}],attachments:[],feedback:{name:"Dr. Lina Hassan (example supervisor)",date:reviewed.toLocaleDateString("en-US",{timeZone:"UTC",month:"short",day:"numeric",year:"numeric"}),status:"Reviewed",text:"Good progress on assembly and individual component testing. For the next report, include a small results table with the tested distances, measured readings, and success rate. Explain how the stopping threshold was selected, and document the power measurements before the integrated demonstration."}};
+export type WeeklyStatus = "Draft" | "Submitted" | "Reviewed" | "Needs Changes";
+export type WeeklyFields = {
+  work: string;
+  progress: number;
+  progressNote: string;
+  tasks: string;
+  hasDelays: boolean;
+  delayReason: string;
+  delayAction: string;
+  problems: string;
+  plan: string;
+};
+export type WeeklyReport = {
+  week: string;
+  fields: WeeklyFields;
+  status: WeeklyStatus;
+  savedAt?: string;
+  submittedAt?: string;
+  author?: string;
+  versions: { fields: WeeklyFields; at: string; author: string }[];
+  feedback?: { name: string; date: string; text: string; status: "Reviewed" | "Needs Changes" };
+  sample?: boolean;
+  attachments: { id: string; name: string; url: string; image: boolean }[];
+};
+export type ReportBlock = {
+  id: string;
+  kind: "paragraph" | "heading" | "image" | "table";
+  text: string;
+  url?: string;
+  size?: "small" | "medium" | "large";
+  rows?: string[][];
+};
+export type ReportSection = {
+  id: string;
+  title: string;
+  chapter?: number;
+  optional?: boolean;
+  blocks: ReportBlock[];
+};
+export type FinalMeta = {
+  title: string;
+  specialization: string;
+  department: string;
+  supervisor: string;
+  date: string;
+  students: { name: string; number: string }[];
+};
+export function thisWeek() {
+  const date = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Hebron",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const d = new Date(date + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
 }
-function useReportsState(){const [weekly,setWeekly]=useState<Record<string,WeeklyReport>>(()=>{const sample=sampleWeeklyReport();return {[sample.week]:sample};});const [meta,setMeta]=useState<FinalMeta>({title:"Smart Car",specialization:"",department:"",supervisor:"",date:"",students:[{name:"NOOR OWASSI",number:""},{name:"Omar Khalil",number:""},{name:"Lina Nasser",number:""}]});const [sections,setSections]=useState<ReportSection[]>(sectionTemplate.map(s=>({...s,blocks:[]})));const [finalSavedAt,setFinalSavedAt]=useState("");return {weekly,setWeekly,meta,setMeta,sections,setSections,finalSavedAt,setFinalSavedAt};}
-const Context=createContext<ReturnType<typeof useReportsState>|null>(null);
-export function ReportsProvider({children}:{children:ReactNode}){const state=useReportsState();return <Context.Provider value={state}>{children}</Context.Provider>}
-export function useReports(){const state=useContext(Context);if(!state)throw Error("ReportsProvider required");return state;}
-export type ReportCheck={id:string;title:string;state:"present"|"review"|"missing";detail:string;section:string};
-export function checkFinal(meta:FinalMeta,sections:ReportSection[]):ReportCheck[]{const text=(id:string)=>sections.find(s=>s.id===id)?.blocks.map(b=>b.text).join("\n").trim()||"";const checks:ReportCheck[]=[];checks.push({id:"cover",title:"Cover information",state:meta.title.trim()&&meta.specialization.trim()&&meta.department.trim()&&meta.supervisor.trim()&&meta.date.trim()&&meta.students.every(s=>s.name.trim()&&s.number.trim())?"present":"missing",detail:"Title, specialization, department, students, IDs, supervisor and date.",section:"cover"});for(const s of sections.filter(s=>!s.optional&&s.id!=="disclaimer")){const value=text(s.id);checks.push({id:s.id,title:s.title,state:value?"review":"missing",detail:value?"Content is present; quality and completeness still need review.":"Add your own content to this required section.",section:s.id});}checks.push({id:"disclaimer",title:"University disclaimer",state:meta.department.trim()?"present":"missing",detail:meta.department.trim()?"Generated from the statement in your supplied Word form.":"Set your engineering department in the cover details.",section:"disclaimer"});const methods=text("methodology");for(const item of [{id:"standards",title:"Standards & specifications",test:/standard|specification|IEEE|ISO|IEC|code/i},{id:"constraints",title:"Engineering design constraints",test:/constraint|budget|cost|environment|sustainab|safety|ethic|manufactur/i}])checks.push({id:item.id,title:item.title,state:item.test.test(methods)?"review":"missing",detail:item.test.test(methods)?"Relevant terms found. Explain how they apply and provide evidence; this is not a compliance judgment.":"Document applicable standards and project-specific constraints in Methodology.",section:"methodology"});const abs=text("abstract");if(abs)checks.push({id:"abstract-style",title:"Abstract citation scan",state:/\[\d+\]|figure\s+\d|table\s+\d|chapter\s+\d/i.test(abs)?"review":"present",detail:"Check for reference, figure or table citations, undefined symbols and writing style. Its one-page limit is checked after PDF layout.",section:"abstract"});const media=sections.flatMap(s=>s.blocks.filter(b=>b.kind==="image"||b.kind==="table").map(b=>({b,s})));checks.push({id:"captions",title:"Figure & table captions",state:media.every(({b})=>b.text.trim())?"present":"missing",detail:media.length?`${media.length} figures/tables; all need a descriptive caption.`:"Captions and lists update automatically when you add figures or tables.",section:media.find(({b})=>!b.text.trim())?.s.id||"methodology"});return checks;}
+export function weekLabel(week: string) {
+  const start = new Date(week + "T12:00:00Z"),
+    end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+  const format = (d: Date) =>
+    d.toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" });
+  return `${format(start)} – ${format(end)}`;
+}
+export function blankWeekly(week: string, progress: number): WeeklyReport {
+  return {
+    week,
+    status: "Draft",
+    fields: {
+      work: "",
+      progress,
+      progressNote: "",
+      tasks: "",
+      hasDelays: false,
+      delayReason: "",
+      delayAction: "",
+      problems: "",
+      plan: "",
+    },
+    versions: [],
+    attachments: [],
+  };
+}
+export const sectionTemplate: Omit<ReportSection, "blocks">[] = [
+  { id: "dedication", title: "Dedication", optional: true },
+  { id: "acknowledgment", title: "Acknowledgment" },
+  { id: "disclaimer", title: "Disclaimer" },
+  { id: "nomenclature", title: "Nomenclature / List of Symbols", optional: true },
+  { id: "abbreviations", title: "List of Abbreviations" },
+  { id: "abstract", title: "Abstract" },
+  { id: "introduction", title: "Introduction", chapter: 1 },
+  { id: "background", title: "Theoretical Background and Previous Work", chapter: 2 },
+  { id: "methodology", title: "Methodology", chapter: 3 },
+  { id: "results", title: "Results and Analysis", chapter: 4 },
+  { id: "discussion", title: "Discussion", chapter: 5 },
+  { id: "conclusions", title: "Conclusions and Recommendations", chapter: 6 },
+  { id: "references", title: "References" },
+  { id: "appendices", title: "Appendices", optional: true },
+];
+export function disclaimerText(department: string) {
+  return `This report was written by student(s) at the (${department || "[Department]"}) Engineering Department, Faculty of Engineering, An-Najah National University. It has not been altered or corrected, other than editorial corrections, as a result of assessment and it may contain language as well as content errors. The views expressed in it together with any outcomes and recommendations are solely those of the student(s). An-Najah National University accepts no responsibility or liability for the consequences of this report being used for a purpose other than the purpose for which it was commissioned.`;
+}
+export function sampleWeeklyReport(): WeeklyReport {
+  const start = new Date(thisWeek() + "T12:00:00Z");
+  start.setUTCDate(start.getUTCDate() - 7);
+  const week = start.toISOString().slice(0, 10);
+  const submitted = new Date(start);
+  submitted.setUTCDate(submitted.getUTCDate() + 6);
+  submitted.setUTCHours(13, 30, 0, 0);
+  const reviewed = new Date(submitted);
+  reviewed.setUTCDate(reviewed.getUTCDate() + 1);
+  const fields: WeeklyFields = {
+    work: "We assembled the first prototype and connected the motor driver, ultrasonic sensor, and controller. The team completed bench tests for forward movement, turning, and obstacle detection. We also updated the circuit diagram and recorded the initial test results.",
+    progress: 61,
+    progressNote:
+      "The main hardware assembly and individual component tests are complete. Integrated navigation testing is the next milestone; reliable obstacle avoidance still needs verification.",
+    tasks:
+      "Noor — Completed the sensor wiring and checked the pin connections.\nOmar — Tested the motor driver and basic movement commands.\nLina — Updated the circuit diagram and documented five bench tests.",
+    hasDelays: true,
+    delayReason:
+      "The replacement ultrasonic sensor arrived one day late, so the integrated obstacle test was postponed.",
+    delayAction:
+      "We borrowed a workshop sensor for the bench tests and moved the integrated test to the beginning of next week.",
+    problems:
+      "Distance readings fluctuated near angled surfaces. We added a median filter and will compare readings at different distances before choosing the stopping threshold.",
+    plan: "1. Test obstacle avoidance at 10, 20, and 30 cm — Noor and Omar.\n2. Measure motor current under normal operation — Omar.\n3. Record results, photos, and remaining risks — Lina.\n4. Review the integrated prototype together before the supervisor meeting.",
+  };
+  const at = submitted.toISOString();
+  return {
+    week,
+    fields,
+    status: "Reviewed",
+    sample: true,
+    author: "Noor Owassi · on behalf of the team",
+    savedAt: at,
+    submittedAt: at,
+    versions: [{ fields: { ...fields }, at, author: "Noor Owassi" }],
+    attachments: [],
+    feedback: {
+      name: "Dr. Lina Hassan (example supervisor)",
+      date: reviewed.toLocaleDateString("en-US", {
+        timeZone: "UTC",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      status: "Reviewed",
+      text: "Good progress on assembly and individual component testing. For the next report, include a small results table with the tested distances, measured readings, and success rate. Explain how the stopping threshold was selected, and document the power measurements before the integrated demonstration.",
+    },
+  };
+}
+function useReportsState() {
+  const [weekly, setWeekly] = useState<Record<string, WeeklyReport>>(() => {
+    const sample = sampleWeeklyReport();
+    return { [sample.week]: sample };
+  });
+  const [meta, setMeta] = useState<FinalMeta>({
+    title: "Smart Car",
+    specialization: "",
+    department: "",
+    supervisor: "",
+    date: "",
+    students: [
+      { name: "NOOR OWASSI", number: "" },
+      { name: "Omar Khalil", number: "" },
+      { name: "Lina Nasser", number: "" },
+    ],
+  });
+  const [sections, setSections] = useState<ReportSection[]>(
+    sectionTemplate.map((s) => ({ ...s, blocks: [] })),
+  );
+  const [finalSavedAt, setFinalSavedAt] = useState("");
+  return { weekly, setWeekly, meta, setMeta, sections, setSections, finalSavedAt, setFinalSavedAt };
+}
+const Context = createContext<ReturnType<typeof useReportsState> | null>(null);
+export function ReportsProvider({ children }: { children: ReactNode }) {
+  const state = useReportsState();
+  return <Context.Provider value={state}>{children}</Context.Provider>;
+}
+export function useReports() {
+  const state = useContext(Context);
+  if (!state) throw Error("ReportsProvider required");
+  return state;
+}
+export type ReportCheck = {
+  id: string;
+  title: string;
+  state: "present" | "review" | "missing";
+  detail: string;
+  section: string;
+};
+export function checkFinal(meta: FinalMeta, sections: ReportSection[]): ReportCheck[] {
+  const text = (id: string) =>
+    sections
+      .find((s) => s.id === id)
+      ?.blocks.map((b) => b.text)
+      .join("\n")
+      .trim() || "";
+  const checks: ReportCheck[] = [];
+  checks.push({
+    id: "cover",
+    title: "Cover information",
+    state:
+      meta.title.trim() &&
+      meta.specialization.trim() &&
+      meta.department.trim() &&
+      meta.supervisor.trim() &&
+      meta.date.trim() &&
+      meta.students.every((s) => s.name.trim() && s.number.trim())
+        ? "present"
+        : "missing",
+    detail: "Title, specialization, department, students, IDs, supervisor and date.",
+    section: "cover",
+  });
+  for (const s of sections.filter((s) => !s.optional && s.id !== "disclaimer")) {
+    const value = text(s.id);
+    checks.push({
+      id: s.id,
+      title: s.title,
+      state: value ? "review" : "missing",
+      detail: value
+        ? "Content is present; quality and completeness still need review."
+        : "Add your own content to this required section.",
+      section: s.id,
+    });
+  }
+  checks.push({
+    id: "disclaimer",
+    title: "University disclaimer",
+    state: meta.department.trim() ? "present" : "missing",
+    detail: meta.department.trim()
+      ? "Generated from the statement in your supplied Word form."
+      : "Set your engineering department in the cover details.",
+    section: "disclaimer",
+  });
+  const methods = text("methodology");
+  for (const item of [
+    {
+      id: "standards",
+      title: "Standards & specifications",
+      test: /standard|specification|IEEE|ISO|IEC|code/i,
+    },
+    {
+      id: "constraints",
+      title: "Engineering design constraints",
+      test: /constraint|budget|cost|environment|sustainab|safety|ethic|manufactur/i,
+    },
+  ])
+    checks.push({
+      id: item.id,
+      title: item.title,
+      state: item.test.test(methods) ? "review" : "missing",
+      detail: item.test.test(methods)
+        ? "Relevant terms found. Explain how they apply and provide evidence; this is not a compliance judgment."
+        : "Document applicable standards and project-specific constraints in Methodology.",
+      section: "methodology",
+    });
+  const abs = text("abstract");
+  if (abs)
+    checks.push({
+      id: "abstract-style",
+      title: "Abstract citation scan",
+      state: /\[\d+\]|figure\s+\d|table\s+\d|chapter\s+\d/i.test(abs) ? "review" : "present",
+      detail:
+        "Check for reference, figure or table citations, undefined symbols and writing style. Its one-page limit is checked after PDF layout.",
+      section: "abstract",
+    });
+  const media = sections.flatMap((s) =>
+    s.blocks.filter((b) => b.kind === "image" || b.kind === "table").map((b) => ({ b, s })),
+  );
+  checks.push({
+    id: "captions",
+    title: "Figure & table captions",
+    state: media.every(({ b }) => b.text.trim()) ? "present" : "missing",
+    detail: media.length
+      ? `${media.length} figures/tables; all need a descriptive caption.`
+      : "Captions and lists update automatically when you add figures or tables.",
+    section: media.find(({ b }) => !b.text.trim())?.s.id || "methodology",
+  });
+  return checks;
+}
 
-
-export function reportFolio(physical:number,bodyStart:number){if(physical===1)return "";if(physical>=bodyStart)return String(physical-bodyStart+1);let value=physical-1,result="";for(const [number,symbol] of [[1000,"m"],[900,"cm"],[500,"d"],[400,"cd"],[100,"c"],[90,"xc"],[50,"l"],[40,"xl"],[10,"x"],[9,"ix"],[5,"v"],[4,"iv"],[1,"i"]] as [number,string][]){while(value>=number){result+=symbol;value-=number;}}return result;}
-
-
+export function reportFolio(physical: number, bodyStart: number) {
+  if (physical === 1) return "";
+  if (physical >= bodyStart) return String(physical - bodyStart + 1);
+  let value = physical - 1,
+    result = "";
+  for (const [number, symbol] of [
+    [1000, "m"],
+    [900, "cm"],
+    [500, "d"],
+    [400, "cd"],
+    [100, "c"],
+    [90, "xc"],
+    [50, "l"],
+    [40, "xl"],
+    [10, "x"],
+    [9, "ix"],
+    [5, "v"],
+    [4, "iv"],
+    [1, "i"],
+  ] as [number, string][]) {
+    while (value >= number) {
+      result += symbol;
+      value -= number;
+    }
+  }
+  return result;
+}

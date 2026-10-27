@@ -40,7 +40,7 @@ function initial(): Project {
   return { name: "Smart Greenhouse", circuits: [c], activeId: c.id };
 }
 
-const clone = <T,>(v: T): T => structuredClone(v);
+const clone = <T>(v: T): T => structuredClone(v);
 
 export function useProject() {
   const [project, setProject] = useState<Project>(initial);
@@ -52,7 +52,10 @@ export function useProject() {
   const active = project.circuits.find((c) => c.id === project.activeId) ?? project.circuits[0]!;
 
   const patchActive = useCallback((fn: (c: Circuit) => Circuit) => {
-    setProject((p) => ({ ...p, circuits: p.circuits.map((c) => (c.id === p.activeId ? fn(c) : c)) }));
+    setProject((p) => ({
+      ...p,
+      circuits: p.circuits.map((c) => (c.id === p.activeId ? fn(c) : c)),
+    }));
   }, []);
 
   /** Apply an undoable edit to the active circuit's data. */
@@ -119,7 +122,10 @@ export function useProject() {
     resetHistory();
   };
   const renameCircuit = (id: string, name: string) => {
-    setProject((p) => ({ ...p, circuits: p.circuits.map((c) => (c.id === id ? { ...c, name } : c)) }));
+    setProject((p) => ({
+      ...p,
+      circuits: p.circuits.map((c) => (c.id === id ? { ...c, name } : c)),
+    }));
     setDirty(true);
   };
   const deleteCircuit = (id: string) => {

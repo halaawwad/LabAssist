@@ -13,6 +13,10 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src"), "pdf-buffer": require.resolve("buffer/"), "pdf-events": require.resolve("events/") },
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "pdf-buffer": require.resolve("buffer/"),
+      "pdf-events": require.resolve("events/"),
+    },
   },
 });

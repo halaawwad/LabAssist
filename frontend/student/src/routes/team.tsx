@@ -2,35 +2,625 @@ import { TeamPersonalProgress } from "@/components/TeamPersonalProgress";
 import { TeamConnectionVisual } from "@/components/TeamConnectionVisual";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, ArrowUpRight, CalendarDays, Check, CircleAlert, Clock3, HandHelping, ListTodo, Menu, MessageCircle, Plus, Sparkles, Users } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  CalendarDays,
+  Check,
+  CircleAlert,
+  Clock3,
+  HandHelping,
+  ListTodo,
+  Menu,
+  MessageCircle,
+  Plus,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
 import { ProgressRing } from "@/components/ProjectVisuals";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { project,teammates,useProjectWorkspace,type TeamTask } from "@/lib/projectWorkspace";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { project, teammates, useProjectWorkspace, type TeamTask } from "@/lib/projectWorkspace";
 import { useStudentProfile } from "@/lib/studentProfile";
-import { people,useMessages } from "@/lib/messages";
-export const Route=createFileRoute("/team")({head:()=>({meta:[{title:"Team | LabAssist"}]}),component:TeamPage});
-function TeamPage(){
- const navigate=useNavigate(),workspace=useProjectWorkspace(),{profile}=useStudentProfile(),{chats,setChats}=useMessages();
- const [menu,setMenu]=useState(false),[modal,setModal]=useState<"task"|"all"|"add"|null>(null),[selected,setSelected]=useState<string|null>(null),[filter,setFilter]=useState("all"),[activityOwner,setActivityOwner]=useState("all"),[title,setTitle]=useState(""),[description,setDescription]=useState(""),[owner,setOwner]=useState(0),[due,setDue]=useState("");
- const today=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Hebron",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
- const members=teammates.map((p,index)=>{const assigned=workspace.teamTasks.filter(t=>t.owner===index),done=p.done+assigned.filter(t=>workspace.completed.includes(t.id)).length,total=p.done+p.remaining+Math.max(0,assigned.length-2),inProgress=assigned.filter(t=>t.inProgress&&!workspace.completed.includes(t.id)).length;return {...p,index,name:index===0?profile.name:p.name,done,total,inProgress,remaining:total-done-inProgress,progress:Math.round(done/total*100),assigned};});
- const average=Math.round(members.reduce((sum,m)=>sum+m.progress,0)/members.length),openCount=members.reduce((sum,m)=>sum+m.total-m.done,0),late=workspace.teamTasks.filter(t=>!workspace.completed.includes(t.id)&&t.due<today),help=workspace.teamTasks.filter(t=>t.help&&!workspace.completed.includes(t.id)),task=workspace.teamTasks.find(t=>t.id===selected);
- const showTask=(t:TeamTask)=>{setSelected(t.id);setModal("task");};
- const status=(t:TeamTask)=>workspace.completed.includes(t.id)?"Completed":t.inProgress?"In Progress":"To Do";
- const updateStatus=(t:TeamTask,value:string)=>{const wasDone=workspace.completed.includes(t.id);if((value==="Completed")!==wasDone)workspace.toggleTask(t.id);workspace.setTeamTasks(list=>list.map(item=>item.id===t.id?{...item,inProgress:value==="In Progress",help:value==="Completed"?false:item.help}:item));workspace.logTeamActivity(t.owner,`${value=== "Completed"?"Completed":"Updated"} “${t.title}”`);};
- const toggleHelp=(t:TeamTask)=>{workspace.setTeamTasks(list=>list.map(item=>item.id===t.id?{...item,help:!item.help}:item));workspace.logTeamActivity(t.owner,`${t.help?"Resolved the help request for":"Asked for a hand with"} “${t.title}”`);};
- const messageMember=(index:number)=>{if(index===0){navigate({to:"/messages",search:{chat:"saved"}});return;}const p=people.find(person=>person.name===teammates[index]!.name)!;if(!chats.some(c=>c.id===p.id))setChats(list=>[...list,{...p,unread:0,messages:[]}]);navigate({to:"/messages",search:{chat:p.id}});};
- return <div className="team-background min-h-screen"><div className="insight-shell">{menu&&<button className="fixed inset-0 z-30 bg-foreground/20 lg:hidden" aria-label="Close navigation overlay" onClick={()=>setMenu(false)}/>}<WorkspaceSidebar active="Team" open={menu} onClose={()=>setMenu(false)} onSelect={label=>{if(label==="Dashboard")navigate({to:"/"});else if(label==="My Project")navigate({to:"/project"});else if(label==="3D Lab")navigate({to:"/lab"});else if(label==="Component Catalog")navigate({to:"/catalog"});else if(label==="Reports")navigate({to:"/project",search:{tab:"reports"}});}} className="lg:sticky lg:top-4 lg:h-[calc(100vh-32px)]"/>
- <main className="insight-main team-main"><header className="project-page-heading"><div className="flex items-center gap-3"><button className="lg:hidden" aria-label="Open menu" onClick={()=>setMenu(true)}><Menu/></button><div><p className="insight-eyebrow">YOUR WORKSPACE / TOGETHER</p><h1>Team</h1></div></div><div className="team-header-actions"><Button variant="secondary" onClick={()=>navigate({to:"/messages",search:{chat:"team"}})}><MessageCircle size={15}/>Team Chat</Button><Button onClick={()=>{setTitle("");setDescription("");setDue(today);setModal("add");}}><Plus size={15}/>Add Task</Button></div></header>
- <section className="team-hero"><div><span className="team-project-tag"><Users size={13}/>{project.name} · {members.length} students</span><h2>Different strengths.<br/><em>One shared goal.</em></h2><p>A little progress from each of you moves the whole idea forward.</p><div className="team-hero-faces">{members.map(m=><span key={m.name} className={`team-face member-${m.index}`}>{m.index===0?<img src={profile.photo} alt=""/>:m.initials}</span>)}<span>Building together</span></div></div><TeamConnectionVisual members={members} average={average} photo={profile.photo}/></section>
- <div className="team-summary"><div><span className="team-summary-icon"><ListTodo size={19}/></span><p><strong>{openCount}</strong><span>Open team tasks</span></p></div><div className="team-summary-late"><span className="team-summary-icon"><Clock3 size={19}/></span><p><strong>{late.length}</strong><span>Overdue daily tasks</span></p></div><div className="team-summary-help"><span className="team-summary-icon"><HandHelping size={19}/></span><p><strong>{help.length}</strong><span>Could use a hand</span></p></div><button onClick={()=>{setFilter("all");setModal("all");}}>View All Tasks<ArrowUpRight size={16}/></button></div>
- <div className="team-section-label"><h2>The people behind the progress</h2><span>Equal teammates. Shared responsibility.</span></div><div className="team-member-grid">{members.map(m=><article key={m.index} className={`team-member-card member-${m.index}`}><div className="team-member-heading"><span className="team-member-photo">{m.index===0?<img src={profile.photo} alt={`${m.name} profile photo`}/>:<><Users size={30}/><small>{m.initials}</small></>}</span><div><h2>{m.name}</h2><p>{m.index===0?(profile.major||"Add your major in My Profile"):m.index===1?"Computer Engineering":"Electrical Engineering"}</p>{m.index===0&&profile.studentNumber&&<small>{profile.studentNumber}</small>}</div><button aria-label={`Message ${m.name}`} onClick={()=>messageMember(m.index)}><MessageCircle size={16}/></button></div><div className="team-person-progress"><TeamPersonalProgress value={m.progress} label={`${m.name} personal progress`}/><div><strong>Personal progress</strong><p>{m.done} of {m.total} tasks complete</p><span>Every small step counts.</span></div></div><div className="team-person-counts"><div><strong>{m.done}</strong><span>Completed</span></div><div><strong>{m.inProgress}</strong><span>In progress</span></div><div><strong>{m.remaining}</strong><span>Remaining</span></div></div><div className="team-today-heading"><h3>Today's Tasks</h3><span>{m.assigned.filter(t=>workspace.completed.includes(t.id)).length}/{m.assigned.length}</span></div><div className="team-today-list">{m.assigned.map(t=><div key={t.id} className={workspace.completed.includes(t.id)?"team-task-done":""}><button className="team-task-check" aria-label={`Complete ${t.title}`} aria-pressed={workspace.completed.includes(t.id)} onClick={()=>updateStatus(t,workspace.completed.includes(t.id)?"To Do":"Completed")}>{workspace.completed.includes(t.id)&&<Check size={12}/>}</button><button className="team-task-title" onClick={()=>showTask(t)}><strong>{t.title}</strong><span>{t.help?<><HandHelping size={10}/>Needs a hand</>:!workspace.completed.includes(t.id)&&t.due<today?<><CircleAlert size={10}/>Overdue · {t.due.slice(5)}</>:status(t)}</span></button></div>)}</div><footer><span className="team-activity-dot"/><p>{workspace.teamActivity.find(a=>a.owner===m.index)?.text||"Ready for the next step"}<small>{workspace.teamActivity.find(a=>a.owner===m.index)?.time}</small></p></footer></article>)}</div>
- <div className="team-bottom-grid"><section className="team-next-step"><span className="team-small-kicker"><Sparkles size={13}/>OUR NEXT SMALL WIN</span><h2>Bring the pieces together.</h2><p>Review the wiring, compare sensor readings, and agree on the next prototype test.</p><div><CalendarDays size={16}/><span>Next review · Oct 14, 2026</span></div>{help.length>0&&<button onClick={()=>{setFilter("help");setModal("all");}}><HandHelping size={15}/>{help.length} task{help.length>1?"s":""} waiting for a hand<ArrowRight size={13}/></button>}{late.length>0&&<button onClick={()=>{setFilter("late");setModal("all");}}><Clock3 size={15}/>Check overdue tasks<ArrowRight size={13}/></button>}<Button variant="secondary" onClick={()=>navigate({to:"/messages",search:{chat:"team"}})}>Talk it through<ArrowRight size={14}/></Button></section><section className="team-activity-panel"><div className="insight-section-heading"><div><p className="insight-eyebrow">THE LITTLE STEPS ADD UP</p><h2>Latest activity</h2></div><select aria-label="Filter team activity" value={activityOwner} onChange={e=>setActivityOwner(e.target.value)}><option value="all">Everyone</option>{members.map(m=><option key={m.index} value={m.index}>{m.name.split(" ")[0]}</option>)}</select></div><div className="team-activity-timeline">{workspace.teamActivity.filter(a=>activityOwner==="all"||String(a.owner)===activityOwner).slice(0,6).map(a=><div key={a.id} className={`member-${a.owner}`}><span className="team-timeline-marker"/><p><strong>{members[a.owner]?.name}</strong><span>{a.text}</span></p><time>{a.time}</time></div>)}</div></section></div><p className="team-session-note">Local workspace preview · Task changes and activity stay during this session.</p>
- </main></div><Dialog open={modal!==null} onOpenChange={open=>!open&&setModal(null)}><DialogContent className="team-dialog"><DialogHeader><DialogTitle>{modal==="add"?"Add a team task":modal==="all"?"Team tasks":task?.title||"Task details"}</DialogTitle><DialogDescription>{modal==="add"?"Everyone can contribute. Assign the next step to any teammate.":modal==="all"?"Your current daily checklist. Summary totals also include other project tasks.":"Update the status or let the team know you need a hand."}</DialogDescription></DialogHeader>
- {modal==="add"&&<form className="team-task-form" onSubmit={e=>{e.preventDefault();if(!title.trim())return;workspace.setTeamTasks(list=>[...list,{id:crypto.randomUUID(),title:title.trim(),description:description.trim(),owner,due,inProgress:false,help:false}]);workspace.logTeamActivity(owner,`Added “${title.trim()}”`);setModal(null);}}><label htmlFor="team-task-name">Task title<input id="team-task-name" value={title} onChange={e=>setTitle(e.target.value)} required maxLength={150}/></label><label htmlFor="team-task-description">Description<textarea id="team-task-description" value={description} onChange={e=>setDescription(e.target.value)} maxLength={1200}/></label><div><label htmlFor="team-task-owner">Assigned to<select id="team-task-owner" value={owner} onChange={e=>setOwner(Number(e.target.value))}>{members.map(m=><option key={m.index} value={m.index}>{m.name}</option>)}</select></label><label htmlFor="team-task-due">Due date<input id="team-task-due" type="date" value={due} onChange={e=>setDue(e.target.value)} required/></label></div><div className="profile-edit-footer"><Button type="button" variant="secondary" onClick={()=>setModal(null)}>Cancel</Button><Button type="submit" disabled={!title.trim()}>Add Task</Button></div></form>}
- {modal==="task"&&task&&<div className="team-task-detail"><p>{task.description||"No additional description."}</p><div className="team-task-meta"><span>{members[task.owner]?.name}</span><span><CalendarDays size={13}/>{task.due}</span></div><label htmlFor="team-task-status">Status<select id="team-task-status" value={status(task)} onChange={e=>updateStatus(task,e.target.value)}>{["To Do","In Progress","Completed"].map(s=><option key={s}>{s}</option>)}</select></label><button className={`team-help-toggle ${task.help?"is-requested":""}`} aria-pressed={task.help} disabled={workspace.completed.includes(task.id)} onClick={()=>toggleHelp(task)}><HandHelping size={18}/>{task.help?"Help requested · Mark resolved":"I could use a hand with this"}</button><Button variant="secondary" onClick={()=>messageMember(task.owner)}>Message teammate<MessageCircle size={14}/></Button></div>}
- {modal==="all"&&<><div className="messages-people-filters">{[{id:"all",label:"All"},{id:"open",label:"Open"},{id:"late",label:"Overdue"},{id:"help",label:"Needs help"}].map(f=><button key={f.id} aria-pressed={filter===f.id} onClick={()=>setFilter(f.id)}>{f.label}</button>)}</div><div className="team-all-tasks">{workspace.teamTasks.filter(t=>filter==="all"||filter==="open"&&!workspace.completed.includes(t.id)||filter==="late"&&!workspace.completed.includes(t.id)&&t.due<today||filter==="help"&&t.help&&!workspace.completed.includes(t.id)).map(t=><button key={t.id} onClick={()=>showTask(t)}><span><strong>{t.title}</strong><small>{members[t.owner]?.name} · Due {t.due}</small></span><b>{status(t)}</b><ArrowRight size={14}/></button>)}{!workspace.teamTasks.some(t=>filter==="all"||filter==="open"&&!workspace.completed.includes(t.id)||filter==="late"&&!workspace.completed.includes(t.id)&&t.due<today||filter==="help"&&t.help&&!workspace.completed.includes(t.id))&&<p className="messages-no-results">No tasks in this view.</p>}</div></>}
- </DialogContent></Dialog></div>;
+import { people, useMessages } from "@/lib/messages";
+export const Route = createFileRoute("/team")({
+  head: () => ({ meta: [{ title: "Team | LabAssist" }] }),
+  component: TeamPage,
+});
+function TeamPage() {
+  const navigate = useNavigate(),
+    workspace = useProjectWorkspace(),
+    { profile } = useStudentProfile(),
+    { chats, setChats } = useMessages();
+  const [menu, setMenu] = useState(false),
+    [modal, setModal] = useState<"task" | "all" | "add" | null>(null),
+    [selected, setSelected] = useState<string | null>(null),
+    [filter, setFilter] = useState("all"),
+    [activityOwner, setActivityOwner] = useState("all"),
+    [title, setTitle] = useState(""),
+    [description, setDescription] = useState(""),
+    [owner, setOwner] = useState(0),
+    [due, setDue] = useState("");
+  const today = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Hebron",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const members = teammates.map((p, index) => {
+    const assigned = workspace.teamTasks.filter((t) => t.owner === index),
+      done = p.done + assigned.filter((t) => workspace.completed.includes(t.id)).length,
+      total = p.done + p.remaining + Math.max(0, assigned.length - 2),
+      inProgress = assigned.filter(
+        (t) => t.inProgress && !workspace.completed.includes(t.id),
+      ).length;
+    return {
+      ...p,
+      index,
+      name: index === 0 ? profile.name : p.name,
+      done,
+      total,
+      inProgress,
+      remaining: total - done - inProgress,
+      progress: Math.round((done / total) * 100),
+      assigned,
+    };
+  });
+  const average = Math.round(members.reduce((sum, m) => sum + m.progress, 0) / members.length),
+    openCount = members.reduce((sum, m) => sum + m.total - m.done, 0),
+    late = workspace.teamTasks.filter((t) => !workspace.completed.includes(t.id) && t.due < today),
+    help = workspace.teamTasks.filter((t) => t.help && !workspace.completed.includes(t.id)),
+    task = workspace.teamTasks.find((t) => t.id === selected);
+  const showTask = (t: TeamTask) => {
+    setSelected(t.id);
+    setModal("task");
+  };
+  const status = (t: TeamTask) =>
+    workspace.completed.includes(t.id) ? "Completed" : t.inProgress ? "In Progress" : "To Do";
+  const updateStatus = (t: TeamTask, value: string) => {
+    const wasDone = workspace.completed.includes(t.id);
+    if ((value === "Completed") !== wasDone) workspace.toggleTask(t.id);
+    workspace.setTeamTasks((list) =>
+      list.map((item) =>
+        item.id === t.id
+          ? {
+              ...item,
+              inProgress: value === "In Progress",
+              help: value === "Completed" ? false : item.help,
+            }
+          : item,
+      ),
+    );
+    workspace.logTeamActivity(
+      t.owner,
+      `${value === "Completed" ? "Completed" : "Updated"} “${t.title}”`,
+    );
+  };
+  const toggleHelp = (t: TeamTask) => {
+    workspace.setTeamTasks((list) =>
+      list.map((item) => (item.id === t.id ? { ...item, help: !item.help } : item)),
+    );
+    workspace.logTeamActivity(
+      t.owner,
+      `${t.help ? "Resolved the help request for" : "Asked for a hand with"} “${t.title}”`,
+    );
+  };
+  const messageMember = (index: number) => {
+    if (index === 0) {
+      navigate({ to: "/messages", search: { chat: "saved" } });
+      return;
+    }
+    const p = people.find((person) => person.name === teammates[index]!.name)!;
+    if (!chats.some((c) => c.id === p.id))
+      setChats((list) => [...list, { ...p, unread: 0, messages: [] }]);
+    navigate({ to: "/messages", search: { chat: p.id } });
+  };
+  return (
+    <div className="team-background min-h-screen">
+      <div className="insight-shell">
+        {menu && (
+          <button
+            className="fixed inset-0 z-30 bg-foreground/20 lg:hidden"
+            aria-label="Close navigation overlay"
+            onClick={() => setMenu(false)}
+          />
+        )}
+        <WorkspaceSidebar
+          active="Team"
+          open={menu}
+          onClose={() => setMenu(false)}
+          onSelect={(label) => {
+            if (label === "Dashboard") navigate({ to: "/" });
+            else if (label === "My Project") navigate({ to: "/project" });
+            else if (label === "3D Lab") navigate({ to: "/lab" });
+            else if (label === "Component Catalog") navigate({ to: "/catalog" });
+            else if (label === "Reports") navigate({ to: "/project", search: { tab: "reports" } });
+          }}
+          className="lg:sticky lg:top-4 lg:h-[calc(100vh-32px)]"
+        />
+        <main className="insight-main team-main">
+          <header className="project-page-heading">
+            <div className="flex items-center gap-3">
+              <button className="lg:hidden" aria-label="Open menu" onClick={() => setMenu(true)}>
+                <Menu />
+              </button>
+              <div>
+                <p className="insight-eyebrow">YOUR WORKSPACE / TOGETHER</p>
+                <h1>Team</h1>
+              </div>
+            </div>
+            <div className="team-header-actions">
+              <Button
+                variant="secondary"
+                onClick={() => navigate({ to: "/messages", search: { chat: "team" } })}
+              >
+                <MessageCircle size={15} />
+                Team Chat
+              </Button>
+              <Button
+                onClick={() => {
+                  setTitle("");
+                  setDescription("");
+                  setDue(today);
+                  setModal("add");
+                }}
+              >
+                <Plus size={15} />
+                Add Task
+              </Button>
+            </div>
+          </header>
+          <section className="team-hero">
+            <div>
+              <span className="team-project-tag">
+                <Users size={13} />
+                {project.name} · {members.length} students
+              </span>
+              <h2>
+                Different strengths.
+                <br />
+                <em>One shared goal.</em>
+              </h2>
+              <p>A little progress from each of you moves the whole idea forward.</p>
+              <div className="team-hero-faces">
+                {members.map((m) => (
+                  <span key={m.name} className={`team-face member-${m.index}`}>
+                    {m.index === 0 ? <img src={profile.photo} alt="" /> : m.initials}
+                  </span>
+                ))}
+                <span>Building together</span>
+              </div>
+            </div>
+            <TeamConnectionVisual members={members} average={average} photo={profile.photo} />
+          </section>
+          <div className="team-summary">
+            <div>
+              <span className="team-summary-icon">
+                <ListTodo size={19} />
+              </span>
+              <p>
+                <strong>{openCount}</strong>
+                <span>Open team tasks</span>
+              </p>
+            </div>
+            <div className="team-summary-late">
+              <span className="team-summary-icon">
+                <Clock3 size={19} />
+              </span>
+              <p>
+                <strong>{late.length}</strong>
+                <span>Overdue daily tasks</span>
+              </p>
+            </div>
+            <div className="team-summary-help">
+              <span className="team-summary-icon">
+                <HandHelping size={19} />
+              </span>
+              <p>
+                <strong>{help.length}</strong>
+                <span>Could use a hand</span>
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setFilter("all");
+                setModal("all");
+              }}
+            >
+              View All Tasks
+              <ArrowUpRight size={16} />
+            </button>
+          </div>
+          <div className="team-section-label">
+            <h2>The people behind the progress</h2>
+            <span>Equal teammates. Shared responsibility.</span>
+          </div>
+          <div className="team-member-grid">
+            {members.map((m) => (
+              <article key={m.index} className={`team-member-card member-${m.index}`}>
+                <div className="team-member-heading">
+                  <span className="team-member-photo">
+                    {m.index === 0 ? (
+                      <img src={profile.photo} alt={`${m.name} profile photo`} />
+                    ) : (
+                      <>
+                        <Users size={30} />
+                        <small>{m.initials}</small>
+                      </>
+                    )}
+                  </span>
+                  <div>
+                    <h2>{m.name}</h2>
+                    <p>
+                      {m.index === 0
+                        ? profile.major || "Add your major in My Profile"
+                        : m.index === 1
+                          ? "Computer Engineering"
+                          : "Electrical Engineering"}
+                    </p>
+                    {m.index === 0 && profile.studentNumber && (
+                      <small>{profile.studentNumber}</small>
+                    )}
+                  </div>
+                  <button aria-label={`Message ${m.name}`} onClick={() => messageMember(m.index)}>
+                    <MessageCircle size={16} />
+                  </button>
+                </div>
+                <div className="team-person-progress">
+                  <TeamPersonalProgress value={m.progress} label={`${m.name} personal progress`} />
+                  <div>
+                    <strong>Personal progress</strong>
+                    <p>
+                      {m.done} of {m.total} tasks complete
+                    </p>
+                    <span>Every small step counts.</span>
+                  </div>
+                </div>
+                <div className="team-person-counts">
+                  <div>
+                    <strong>{m.done}</strong>
+                    <span>Completed</span>
+                  </div>
+                  <div>
+                    <strong>{m.inProgress}</strong>
+                    <span>In progress</span>
+                  </div>
+                  <div>
+                    <strong>{m.remaining}</strong>
+                    <span>Remaining</span>
+                  </div>
+                </div>
+                <div className="team-today-heading">
+                  <h3>Today's Tasks</h3>
+                  <span>
+                    {m.assigned.filter((t) => workspace.completed.includes(t.id)).length}/
+                    {m.assigned.length}
+                  </span>
+                </div>
+                <div className="team-today-list">
+                  {m.assigned.map((t) => (
+                    <div
+                      key={t.id}
+                      className={workspace.completed.includes(t.id) ? "team-task-done" : ""}
+                    >
+                      <button
+                        className="team-task-check"
+                        aria-label={`Complete ${t.title}`}
+                        aria-pressed={workspace.completed.includes(t.id)}
+                        onClick={() =>
+                          updateStatus(
+                            t,
+                            workspace.completed.includes(t.id) ? "To Do" : "Completed",
+                          )
+                        }
+                      >
+                        {workspace.completed.includes(t.id) && <Check size={12} />}
+                      </button>
+                      <button className="team-task-title" onClick={() => showTask(t)}>
+                        <strong>{t.title}</strong>
+                        <span>
+                          {t.help ? (
+                            <>
+                              <HandHelping size={10} />
+                              Needs a hand
+                            </>
+                          ) : !workspace.completed.includes(t.id) && t.due < today ? (
+                            <>
+                              <CircleAlert size={10} />
+                              Overdue · {t.due.slice(5)}
+                            </>
+                          ) : (
+                            status(t)
+                          )}
+                        </span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <footer>
+                  <span className="team-activity-dot" />
+                  <p>
+                    {workspace.teamActivity.find((a) => a.owner === m.index)?.text ||
+                      "Ready for the next step"}
+                    <small>{workspace.teamActivity.find((a) => a.owner === m.index)?.time}</small>
+                  </p>
+                </footer>
+              </article>
+            ))}
+          </div>
+          <div className="team-bottom-grid">
+            <section className="team-next-step">
+              <span className="team-small-kicker">
+                <Sparkles size={13} />
+                OUR NEXT SMALL WIN
+              </span>
+              <h2>Bring the pieces together.</h2>
+              <p>
+                Review the wiring, compare sensor readings, and agree on the next prototype test.
+              </p>
+              <div>
+                <CalendarDays size={16} />
+                <span>Next review · Oct 14, 2026</span>
+              </div>
+              {help.length > 0 && (
+                <button
+                  onClick={() => {
+                    setFilter("help");
+                    setModal("all");
+                  }}
+                >
+                  <HandHelping size={15} />
+                  {help.length} task{help.length > 1 ? "s" : ""} waiting for a hand
+                  <ArrowRight size={13} />
+                </button>
+              )}
+              {late.length > 0 && (
+                <button
+                  onClick={() => {
+                    setFilter("late");
+                    setModal("all");
+                  }}
+                >
+                  <Clock3 size={15} />
+                  Check overdue tasks
+                  <ArrowRight size={13} />
+                </button>
+              )}
+              <Button
+                variant="secondary"
+                onClick={() => navigate({ to: "/messages", search: { chat: "team" } })}
+              >
+                Talk it through
+                <ArrowRight size={14} />
+              </Button>
+            </section>
+            <section className="team-activity-panel">
+              <div className="insight-section-heading">
+                <div>
+                  <p className="insight-eyebrow">THE LITTLE STEPS ADD UP</p>
+                  <h2>Latest activity</h2>
+                </div>
+                <select
+                  aria-label="Filter team activity"
+                  value={activityOwner}
+                  onChange={(e) => setActivityOwner(e.target.value)}
+                >
+                  <option value="all">Everyone</option>
+                  {members.map((m) => (
+                    <option key={m.index} value={m.index}>
+                      {m.name.split(" ")[0]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="team-activity-timeline">
+                {workspace.teamActivity
+                  .filter((a) => activityOwner === "all" || String(a.owner) === activityOwner)
+                  .slice(0, 6)
+                  .map((a) => (
+                    <div key={a.id} className={`member-${a.owner}`}>
+                      <span className="team-timeline-marker" />
+                      <p>
+                        <strong>{members[a.owner]?.name}</strong>
+                        <span>{a.text}</span>
+                      </p>
+                      <time>{a.time}</time>
+                    </div>
+                  ))}
+              </div>
+            </section>
+          </div>
+          <p className="team-session-note">
+            Local workspace preview · Task changes and activity stay during this session.
+          </p>
+        </main>
+      </div>
+      <Dialog open={modal !== null} onOpenChange={(open) => !open && setModal(null)}>
+        <DialogContent className="team-dialog">
+          <DialogHeader>
+            <DialogTitle>
+              {modal === "add"
+                ? "Add a team task"
+                : modal === "all"
+                  ? "Team tasks"
+                  : task?.title || "Task details"}
+            </DialogTitle>
+            <DialogDescription>
+              {modal === "add"
+                ? "Everyone can contribute. Assign the next step to any teammate."
+                : modal === "all"
+                  ? "Your current daily checklist. Summary totals also include other project tasks."
+                  : "Update the status or let the team know you need a hand."}
+            </DialogDescription>
+          </DialogHeader>
+          {modal === "add" && (
+            <form
+              className="team-task-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!title.trim()) return;
+                workspace.setTeamTasks((list) => [
+                  ...list,
+                  {
+                    id: crypto.randomUUID(),
+                    title: title.trim(),
+                    description: description.trim(),
+                    owner,
+                    due,
+                    inProgress: false,
+                    help: false,
+                  },
+                ]);
+                workspace.logTeamActivity(owner, `Added “${title.trim()}”`);
+                setModal(null);
+              }}
+            >
+              <label htmlFor="team-task-name">
+                Task title
+                <input
+                  id="team-task-name"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                  maxLength={150}
+                />
+              </label>
+              <label htmlFor="team-task-description">
+                Description
+                <textarea
+                  id="team-task-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  maxLength={1200}
+                />
+              </label>
+              <div>
+                <label htmlFor="team-task-owner">
+                  Assigned to
+                  <select
+                    id="team-task-owner"
+                    value={owner}
+                    onChange={(e) => setOwner(Number(e.target.value))}
+                  >
+                    {members.map((m) => (
+                      <option key={m.index} value={m.index}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label htmlFor="team-task-due">
+                  Due date
+                  <input
+                    id="team-task-due"
+                    type="date"
+                    value={due}
+                    onChange={(e) => setDue(e.target.value)}
+                    required
+                  />
+                </label>
+              </div>
+              <div className="profile-edit-footer">
+                <Button type="button" variant="secondary" onClick={() => setModal(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={!title.trim()}>
+                  Add Task
+                </Button>
+              </div>
+            </form>
+          )}
+          {modal === "task" && task && (
+            <div className="team-task-detail">
+              <p>{task.description || "No additional description."}</p>
+              <div className="team-task-meta">
+                <span>{members[task.owner]?.name}</span>
+                <span>
+                  <CalendarDays size={13} />
+                  {task.due}
+                </span>
+              </div>
+              <label htmlFor="team-task-status">
+                Status
+                <select
+                  id="team-task-status"
+                  value={status(task)}
+                  onChange={(e) => updateStatus(task, e.target.value)}
+                >
+                  {["To Do", "In Progress", "Completed"].map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </label>
+              <button
+                className={`team-help-toggle ${task.help ? "is-requested" : ""}`}
+                aria-pressed={task.help}
+                disabled={workspace.completed.includes(task.id)}
+                onClick={() => toggleHelp(task)}
+              >
+                <HandHelping size={18} />
+                {task.help ? "Help requested · Mark resolved" : "I could use a hand with this"}
+              </button>
+              <Button variant="secondary" onClick={() => messageMember(task.owner)}>
+                Message teammate
+                <MessageCircle size={14} />
+              </Button>
+            </div>
+          )}
+          {modal === "all" && (
+            <>
+              <div className="messages-people-filters">
+                {[
+                  { id: "all", label: "All" },
+                  { id: "open", label: "Open" },
+                  { id: "late", label: "Overdue" },
+                  { id: "help", label: "Needs help" },
+                ].map((f) => (
+                  <button key={f.id} aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <div className="team-all-tasks">
+                {workspace.teamTasks
+                  .filter(
+                    (t) =>
+                      filter === "all" ||
+                      (filter === "open" && !workspace.completed.includes(t.id)) ||
+                      (filter === "late" && !workspace.completed.includes(t.id) && t.due < today) ||
+                      (filter === "help" && t.help && !workspace.completed.includes(t.id)),
+                  )
+                  .map((t) => (
+                    <button key={t.id} onClick={() => showTask(t)}>
+                      <span>
+                        <strong>{t.title}</strong>
+                        <small>
+                          {members[t.owner]?.name} · Due {t.due}
+                        </small>
+                      </span>
+                      <b>{status(t)}</b>
+                      <ArrowRight size={14} />
+                    </button>
+                  ))}
+                {!workspace.teamTasks.some(
+                  (t) =>
+                    filter === "all" ||
+                    (filter === "open" && !workspace.completed.includes(t.id)) ||
+                    (filter === "late" && !workspace.completed.includes(t.id) && t.due < today) ||
+                    (filter === "help" && t.help && !workspace.completed.includes(t.id)),
+                ) && <p className="messages-no-results">No tasks in this view.</p>}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
