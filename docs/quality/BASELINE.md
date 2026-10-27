@@ -47,3 +47,5 @@ The lint job remains failing; it is not marked successful with `continue-on-erro
 - Vitest: 73 tests passed across 18 files.
 - Code-rule fixes preserve existing rendering, keyboard shortcuts and storage fallback behavior.
 - XML control-character filtering is retained with a targeted rule explanation.
+- Student-local Prettier configuration matches the repository configuration so isolated CI uses the same formatting rules.
+- TypeScript and production build passed locally.
