@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a reproducible problem.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Student frontend, Supervisor frontend, Workshop frontend, Database, Backend, Mobile, CI]
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open ...\n2. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment / commit
+      placeholder: "OS, device/browser, branch and commit"
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Add screenshots or sanitized logs. Do not include passwords, tokens or personal data.
