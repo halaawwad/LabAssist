@@ -1,25 +1,530 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Check, CheckCircle2, Clock3, FileText, MapPin, Package, Pencil, Search, Send, X } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  MapPin,
+  Package,
+  Pencil,
+  Search,
+  Send,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { usePartRequests, type PartRequest, type RequestStatus } from "@/lib/partRequests";
 import { workshopStock, type StockItem } from "@/lib/workshopInventory";
 
-const stateClass=(value:string)=>value.toLowerCase().replaceAll(" ","-");
-const date=(value:string)=>new Date(value).toLocaleDateString("en-US",{timeZone:"Asia/Hebron",month:"short",day:"numeric"});
-const editable=(request:PartRequest)=>!request.sample&&(request.status==="Draft"||request.status==="Pending");
-export function InventoryRequests({part,onClose,showList,onBrowse,onSaved,query,onQuery}:{part:StockItem|null;onClose:()=>void;showList:boolean;onBrowse:()=>void;onSaved:()=>void;query:string;onQuery:(value:string)=>void}){
- const {requests,setRequests}=usePartRequests();const [filter,setFilter]=useState("All"),[editor,setEditor]=useState<StockItem|null>(null),[editing,setEditing]=useState<string|null>(null),[quantity,setQuantity]=useState(1),[purpose,setPurpose]=useState(""),[error,setError]=useState(""),[selected,setSelected]=useState<string|null>(null),[cancel,setCancel]=useState<string|null>(null),[notice,setNotice]=useState(""),[receipt,setReceipt]=useState<PartRequest|null>(null);
- useEffect(()=>{if(part){setEditor(part);setEditing(null);setQuantity(1);setPurpose("");setError("");}},[part]);
- const close=()=>{setEditor(null);setEditing(null);setError("");onClose();};
- const openEdit=(request:PartRequest)=>{if(!editable(request))return;setEditor(workshopStock.find(item=>item.id===request.partId)!);setEditing(request.id);setQuantity(request.quantity);setPurpose(request.purpose);setError("");setSelected(null);};
- const save=(status:"Draft"|"Pending")=>{if(!editor)return;const original=requests.find(r=>r.id===editing);if(original&&!editable(original))return;if(!Number.isInteger(quantity)||quantity<1||quantity>editor.quantity){setError(`Choose a whole quantity between 1 and ${editor.quantity}.`);return;}if(!purpose.trim()){setError("Add a short description of what you need this part for.");return;}const at=new Date().toISOString();const next:PartRequest={id:original?.id||crypto.randomUUID(),partId:editor.id,quantity,purpose:purpose.trim(),status,createdAt:original?.createdAt||at,updatedAt:at,...(status==="Pending"?{submittedAt:original?.submittedAt||at}:{})};setRequests(items=>original?items.map(item=>item.id===original.id?next:item):[next,...items]);setNotice(status==="Draft"?"Request saved as a draft.":original?.status==="Pending"?"Request updated in this preview.":"Request added to Pending in this preview.");close();setFilter(status);onSaved();if(status==="Pending")setReceipt(next);};
- const active=requests.find(item=>item.id===selected),activePart=workshopStock.find(item=>item.id===active?.partId);
- const visible=requests.filter(item=>(filter==="All"||filter==="Active"&&["Pending","Approved","Ready for Pickup"].includes(item.status)||filter===item.status)&&`${workshopStock.find(p=>p.id===item.partId)?.name} ${workshopStock.find(p=>p.id===item.partId)?.arabic} ${item.purpose}`.toLowerCase().includes(query.trim().toLowerCase()));
- const actual=requests.filter(item=>!item.sample);
- return <>{showList&&<section className="inventory-my-requests"><header><div><span>FROM YOUR REQUEST TO YOUR WORKBENCH</span><h2>My Requests</h2><p>Workshop stock and student resale, followed in one place.</p></div><Button variant="secondary" onClick={onBrowse}><Package size={14}/>Browse parts</Button></header><div className="part-request-summary"><button onClick={()=>setFilter("Draft")}><FileText size={18}/><b>{actual.filter(r=>r.status==="Draft").length}</b><span>Your drafts</span></button><button onClick={()=>setFilter("Active")}><Clock3 size={18}/><b>{actual.filter(r=>["Pending","Approved","Ready for Pickup"].includes(r.status)).length}</b><span>Your active requests</span></button><div><CheckCircle2 size={18}/><strong>Follow the handover</strong><span>Approval → Ready → Pickup</span></div></div><div className="part-request-preview-note">Session preview · Requests are not sent yet. Cards marked Example demonstrate assistant responses.</div>{notice&&<p role="status" className="part-request-notice"><Check size={14}/>{notice}</p>}<div className="part-request-toolbar"><select aria-label="Request status" value={filter} onChange={e=>setFilter(e.target.value)}>{["All","Active","Draft","Pending","Approved","Ready for Pickup","Completed","Rejected","Cancelled"].map(value=><option key={value}>{value}</option>)}</select></div><div className="part-request-list">{visible.map(item=>{const component=workshopStock.find(p=>p.id===item.partId)!;return <article className={`part-request-card request-${stateClass(item.status)}`} key={item.id}><span className="part-request-icon"><Package size={23}/></span><div className="part-request-copy"><div><span className={`part-request-status status-${stateClass(item.status)}`}>{item.status}</span>{item.sample&&<small className="part-request-example">Example</small>}<small>{component.source||"Workshop"}</small></div><h3>{component.name}</h3><p>{item.purpose}</p><span className="part-request-meta">Qty {item.quantity} · {component.condition} · {item.submittedAt?"Requested":"Saved"} {date(item.submittedAt||item.createdAt)}</span>{item.note&&<blockquote>{item.note}</blockquote>}</div><div className="part-request-side"><strong>{component.price!==undefined?`₪${(component.price*item.quantity).toFixed(2)}`:"For workshop use"}</strong><small>{component.price!==undefined?"Estimated · sample price":"Return after use"}</small><button onClick={()=>setSelected(item.id)}>View details <ArrowRight size={13}/></button>{editable(item)&&<button onClick={()=>openEdit(item)}><Pencil size={11}/>{item.status==="Draft"?"Continue draft":"Edit request"}</button>}</div></article>})}{!visible.length&&<div className="inventory-empty"><Package size={32}/><h3>No requests here yet</h3><p>Choose a workshop part to start a request, or try another filter.</p><button onClick={()=>{onQuery("");setFilter("All");}}>Show all requests</button></div>}</div></section>}
- <Dialog open={!!receipt} onOpenChange={open=>!open&&setReceipt(null)}><DialogContent className="part-request-receipt"><DialogHeader><DialogTitle>Request summary</DialogTitle><DialogDescription>Saved as Pending in this local preview.</DialogDescription></DialogHeader>{receipt&&(()=>{const item=workshopStock.find(part=>part.id===receipt.partId)!;return <><span className="request-receipt-check"><CheckCircle2 size={32}/></span><h3>{item.name}</h3><p>{item.source||"Workshop"} · {item.condition}</p><dl><div><dt>Quantity</dt><dd>{receipt.quantity}</dd></div><div><dt>Unit price</dt><dd>{item.price===undefined?"Workshop use":`₪${item.price.toFixed(2)}`}</dd></div><div><dt>Estimated total</dt><dd>{item.price===undefined?"Workshop use":`₪${(item.price*receipt.quantity).toFixed(2)}`}</dd></div></dl><small>Sample prices · No request has been sent to the workshop.</small><Button onClick={()=>{setFilter("All");setSelected(receipt.id);setReceipt(null);}}>Track request <ArrowRight size={14}/></Button></>})()}</DialogContent></Dialog>
- <Dialog open={!!editor} onOpenChange={open=>!open&&close()}><DialogContent className="part-request-editor"><DialogHeader><DialogTitle>{editing?"Edit part request":"Request a part"}</DialogTitle><DialogDescription>{editor?.name} · {editor?.source||"Workshop"} · {editor?.condition}</DialogDescription></DialogHeader>{editor&&<form onSubmit={event=>{event.preventDefault();save("Pending");}}><div className="part-request-selected"><Package size={22}/><div><strong>{editor.name}</strong><span><MapPin size={11}/>{editor.location} · {editor.quantity} available</span></div></div><label>Quantity<input type="number" min={1} max={editor.quantity} step={1} required value={quantity} onChange={event=>setQuantity(Number(event.target.value))}/></label><label>What will you use it for?<textarea required maxLength={1000} value={purpose} onChange={event=>setPurpose(event.target.value)} placeholder="For example: testing obstacle detection on our prototype…"/></label>{editor.source&&<p className="part-request-resale-note">Student resale · The assistant coordinates inspection, availability and handover.</p>}{editor.price!==undefined&&<div className="part-request-total"><span>Estimated total <small>Sample price · final amount confirmed by assistant</small></span><b>₪{(editor.price*(Number.isFinite(quantity)?quantity:0)).toFixed(2)}</b></div>}{error&&<p role="alert" className="part-request-error">{error}</p>}<small className="part-request-preview-note">Local preview · No request is sent to the workshop.</small><footer><Button type="button" variant="ghost" onClick={close}>Cancel</Button>{requests.find(r=>r.id===editing)?.status!=="Pending"&&<Button type="button" variant="secondary" onClick={()=>save("Draft")}>Save draft</Button>}<Button type="submit"><Send size={13}/>{requests.find(r=>r.id===editing)?.status==="Pending"?"Update request":"Send request"}</Button></footer></form>}</DialogContent></Dialog>
- <Dialog open={!!active} onOpenChange={open=>!open&&setSelected(null)}><DialogContent className="part-request-detail"><DialogHeader><DialogTitle>{activePart?.name}</DialogTitle><DialogDescription>{activePart?.source||"Workshop"} · {active?.sample?"Example request":"Your request"}</DialogDescription></DialogHeader>{active&&activePart&&<><span className={`part-request-status status-${stateClass(active.status)}`}>{active.status}</span><div className="part-request-steps">{["Pending","Approved","Ready for Pickup","Completed"].map((step,index)=>{const current=["Pending","Approved","Ready for Pickup","Completed"].indexOf(active.status);return <span className={index<=current?"step-reached":""} key={step}><i>{index<current?<Check size={10}/>:index+1}</i>{step}</span>})}</div><dl><div><dt>Quantity</dt><dd>{active.quantity}</dd></div><div><dt>Condition</dt><dd>{activePart.condition}</dd></div><div><dt>Workshop location</dt><dd>{activePart.location}</dd></div><div><dt>Last updated</dt><dd>{date(active.updatedAt)}</dd></div></dl><section><h3>Purpose</h3><p>{active.purpose}</p></section>{active.note&&<section className="part-request-assistant-note"><h3>Workshop assistant</h3><p>{active.note}</p></section>}{active.status==="Draft"&&<p className="part-request-preview-note">This draft has not been sent.</p>}{editable(active)&&<div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={()=>openEdit(active)}><Pencil size={13}/>{active.status==="Draft"?"Continue draft":"Edit request"}</Button><Button variant="ghost" onClick={()=>setCancel(active.id)}><X size={13}/>Cancel request</Button></div>}</>}</DialogContent></Dialog>
- <Dialog open={!!cancel} onOpenChange={open=>!open&&setCancel(null)}><DialogContent><DialogHeader><DialogTitle>Cancel this request?</DialogTitle><DialogDescription>The request will stay in your history as Cancelled.</DialogDescription></DialogHeader><div className="flex justify-end gap-2"><Button variant="ghost" onClick={()=>setCancel(null)}>Keep request</Button><Button onClick={()=>{setRequests(items=>items.map(item=>item.id===cancel&&editable(item)?{...item,status:"Cancelled" as RequestStatus,updatedAt:new Date().toISOString()}:item));setCancel(null);setSelected(null);setNotice("Request cancelled.");}}>Confirm cancellation</Button></div></DialogContent></Dialog></>;
+const stateClass = (value: string) => value.toLowerCase().replaceAll(" ", "-");
+const date = (value: string) =>
+  new Date(value).toLocaleDateString("en-US", {
+    timeZone: "Asia/Hebron",
+    month: "short",
+    day: "numeric",
+  });
+const editable = (request: PartRequest) =>
+  !request.sample && (request.status === "Draft" || request.status === "Pending");
+export function InventoryRequests({
+  part,
+  onClose,
+  showList,
+  onBrowse,
+  onSaved,
+  query,
+  onQuery,
+}: {
+  part: StockItem | null;
+  onClose: () => void;
+  showList: boolean;
+  onBrowse: () => void;
+  onSaved: () => void;
+  query: string;
+  onQuery: (value: string) => void;
+}) {
+  const { requests, setRequests } = usePartRequests();
+  const [filter, setFilter] = useState("All"),
+    [editor, setEditor] = useState<StockItem | null>(null),
+    [editing, setEditing] = useState<string | null>(null),
+    [quantity, setQuantity] = useState(1),
+    [purpose, setPurpose] = useState(""),
+    [error, setError] = useState(""),
+    [selected, setSelected] = useState<string | null>(null),
+    [cancel, setCancel] = useState<string | null>(null),
+    [notice, setNotice] = useState(""),
+    [receipt, setReceipt] = useState<PartRequest | null>(null);
+  useEffect(() => {
+    if (part) {
+      setEditor(part);
+      setEditing(null);
+      setQuantity(1);
+      setPurpose("");
+      setError("");
+    }
+  }, [part]);
+  const close = () => {
+    setEditor(null);
+    setEditing(null);
+    setError("");
+    onClose();
+  };
+  const openEdit = (request: PartRequest) => {
+    if (!editable(request)) return;
+    setEditor(workshopStock.find((item) => item.id === request.partId)!);
+    setEditing(request.id);
+    setQuantity(request.quantity);
+    setPurpose(request.purpose);
+    setError("");
+    setSelected(null);
+  };
+  const save = (status: "Draft" | "Pending") => {
+    if (!editor) return;
+    const original = requests.find((r) => r.id === editing);
+    if (original && !editable(original)) return;
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > editor.quantity) {
+      setError(`Choose a whole quantity between 1 and ${editor.quantity}.`);
+      return;
+    }
+    if (!purpose.trim()) {
+      setError("Add a short description of what you need this part for.");
+      return;
+    }
+    const at = new Date().toISOString();
+    const next: PartRequest = {
+      id: original?.id || crypto.randomUUID(),
+      partId: editor.id,
+      quantity,
+      purpose: purpose.trim(),
+      status,
+      createdAt: original?.createdAt || at,
+      updatedAt: at,
+      ...(status === "Pending" ? { submittedAt: original?.submittedAt || at } : {}),
+    };
+    setRequests((items) =>
+      original ? items.map((item) => (item.id === original.id ? next : item)) : [next, ...items],
+    );
+    setNotice(
+      status === "Draft"
+        ? "Request saved as a draft."
+        : original?.status === "Pending"
+          ? "Request updated in this preview."
+          : "Request added to Pending in this preview.",
+    );
+    close();
+    setFilter(status);
+    onSaved();
+    if (status === "Pending") setReceipt(next);
+  };
+  const active = requests.find((item) => item.id === selected),
+    activePart = workshopStock.find((item) => item.id === active?.partId);
+  const visible = requests.filter(
+    (item) =>
+      (filter === "All" ||
+        (filter === "Active" &&
+          ["Pending", "Approved", "Ready for Pickup"].includes(item.status)) ||
+        filter === item.status) &&
+      `${workshopStock.find((p) => p.id === item.partId)?.name} ${workshopStock.find((p) => p.id === item.partId)?.arabic} ${item.purpose}`
+        .toLowerCase()
+        .includes(query.trim().toLowerCase()),
+  );
+  const actual = requests.filter((item) => !item.sample);
+  return (
+    <>
+      {showList && (
+        <section className="inventory-my-requests">
+          <header>
+            <div>
+              <span>FROM YOUR REQUEST TO YOUR WORKBENCH</span>
+              <h2>My Requests</h2>
+              <p>Workshop stock and student resale, followed in one place.</p>
+            </div>
+            <Button variant="secondary" onClick={onBrowse}>
+              <Package size={14} />
+              Browse parts
+            </Button>
+          </header>
+          <div className="part-request-summary">
+            <button onClick={() => setFilter("Draft")}>
+              <FileText size={18} />
+              <b>{actual.filter((r) => r.status === "Draft").length}</b>
+              <span>Your drafts</span>
+            </button>
+            <button onClick={() => setFilter("Active")}>
+              <Clock3 size={18} />
+              <b>
+                {
+                  actual.filter((r) =>
+                    ["Pending", "Approved", "Ready for Pickup"].includes(r.status),
+                  ).length
+                }
+              </b>
+              <span>Your active requests</span>
+            </button>
+            <div>
+              <CheckCircle2 size={18} />
+              <strong>Follow the handover</strong>
+              <span>Approval → Ready → Pickup</span>
+            </div>
+          </div>
+          <div className="part-request-preview-note">
+            Session preview · Requests are not sent yet. Cards marked Example demonstrate assistant
+            responses.
+          </div>
+          {notice && (
+            <p role="status" className="part-request-notice">
+              <Check size={14} />
+              {notice}
+            </p>
+          )}
+          <div className="part-request-toolbar">
+            <select
+              aria-label="Request status"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            >
+              {[
+                "All",
+                "Active",
+                "Draft",
+                "Pending",
+                "Approved",
+                "Ready for Pickup",
+                "Completed",
+                "Rejected",
+                "Cancelled",
+              ].map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </div>
+          <div className="part-request-list">
+            {visible.map((item) => {
+              const component = workshopStock.find((p) => p.id === item.partId)!;
+              return (
+                <article
+                  className={`part-request-card request-${stateClass(item.status)}`}
+                  key={item.id}
+                >
+                  <span className="part-request-icon">
+                    <Package size={23} />
+                  </span>
+                  <div className="part-request-copy">
+                    <div>
+                      <span className={`part-request-status status-${stateClass(item.status)}`}>
+                        {item.status}
+                      </span>
+                      {item.sample && <small className="part-request-example">Example</small>}
+                      <small>{component.source || "Workshop"}</small>
+                    </div>
+                    <h3>{component.name}</h3>
+                    <p>{item.purpose}</p>
+                    <span className="part-request-meta">
+                      Qty {item.quantity} · {component.condition} ·{" "}
+                      {item.submittedAt ? "Requested" : "Saved"}{" "}
+                      {date(item.submittedAt || item.createdAt)}
+                    </span>
+                    {item.note && <blockquote>{item.note}</blockquote>}
+                  </div>
+                  <div className="part-request-side">
+                    <strong>
+                      {component.price !== undefined
+                        ? `₪${(component.price * item.quantity).toFixed(2)}`
+                        : "For workshop use"}
+                    </strong>
+                    <small>
+                      {component.price !== undefined
+                        ? "Estimated · sample price"
+                        : "Return after use"}
+                    </small>
+                    <button onClick={() => setSelected(item.id)}>
+                      View details <ArrowRight size={13} />
+                    </button>
+                    {editable(item) && (
+                      <button onClick={() => openEdit(item)}>
+                        <Pencil size={11} />
+                        {item.status === "Draft" ? "Continue draft" : "Edit request"}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+            {!visible.length && (
+              <div className="inventory-empty">
+                <Package size={32} />
+                <h3>No requests here yet</h3>
+                <p>Choose a workshop part to start a request, or try another filter.</p>
+                <button
+                  onClick={() => {
+                    onQuery("");
+                    setFilter("All");
+                  }}
+                >
+                  Show all requests
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+      <Dialog open={!!receipt} onOpenChange={(open) => !open && setReceipt(null)}>
+        <DialogContent className="part-request-receipt">
+          <DialogHeader>
+            <DialogTitle>Request summary</DialogTitle>
+            <DialogDescription>Saved as Pending in this local preview.</DialogDescription>
+          </DialogHeader>
+          {receipt &&
+            (() => {
+              const item = workshopStock.find((part) => part.id === receipt.partId)!;
+              return (
+                <>
+                  <span className="request-receipt-check">
+                    <CheckCircle2 size={32} />
+                  </span>
+                  <h3>{item.name}</h3>
+                  <p>
+                    {item.source || "Workshop"} · {item.condition}
+                  </p>
+                  <dl>
+                    <div>
+                      <dt>Quantity</dt>
+                      <dd>{receipt.quantity}</dd>
+                    </div>
+                    <div>
+                      <dt>Unit price</dt>
+                      <dd>
+                        {item.price === undefined ? "Workshop use" : `₪${item.price.toFixed(2)}`}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Estimated total</dt>
+                      <dd>
+                        {item.price === undefined
+                          ? "Workshop use"
+                          : `₪${(item.price * receipt.quantity).toFixed(2)}`}
+                      </dd>
+                    </div>
+                  </dl>
+                  <small>Sample prices · No request has been sent to the workshop.</small>
+                  <Button
+                    onClick={() => {
+                      setFilter("All");
+                      setSelected(receipt.id);
+                      setReceipt(null);
+                    }}
+                  >
+                    Track request <ArrowRight size={14} />
+                  </Button>
+                </>
+              );
+            })()}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!editor} onOpenChange={(open) => !open && close()}>
+        <DialogContent className="part-request-editor">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit part request" : "Request a part"}</DialogTitle>
+            <DialogDescription>
+              {editor?.name} · {editor?.source || "Workshop"} · {editor?.condition}
+            </DialogDescription>
+          </DialogHeader>
+          {editor && (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                save("Pending");
+              }}
+            >
+              <div className="part-request-selected">
+                <Package size={22} />
+                <div>
+                  <strong>{editor.name}</strong>
+                  <span>
+                    <MapPin size={11} />
+                    {editor.location} · {editor.quantity} available
+                  </span>
+                </div>
+              </div>
+              <label>
+                Quantity
+                <input
+                  type="number"
+                  min={1}
+                  max={editor.quantity}
+                  step={1}
+                  required
+                  value={quantity}
+                  onChange={(event) => setQuantity(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                What will you use it for?
+                <textarea
+                  required
+                  maxLength={1000}
+                  value={purpose}
+                  onChange={(event) => setPurpose(event.target.value)}
+                  placeholder="For example: testing obstacle detection on our prototype…"
+                />
+              </label>
+              {editor.source && (
+                <p className="part-request-resale-note">
+                  Student resale · The assistant coordinates inspection, availability and handover.
+                </p>
+              )}
+              {editor.price !== undefined && (
+                <div className="part-request-total">
+                  <span>
+                    Estimated total{" "}
+                    <small>Sample price · final amount confirmed by assistant</small>
+                  </span>
+                  <b>₪{(editor.price * (Number.isFinite(quantity) ? quantity : 0)).toFixed(2)}</b>
+                </div>
+              )}
+              {error && (
+                <p role="alert" className="part-request-error">
+                  {error}
+                </p>
+              )}
+              <small className="part-request-preview-note">
+                Local preview · No request is sent to the workshop.
+              </small>
+              <footer>
+                <Button type="button" variant="ghost" onClick={close}>
+                  Cancel
+                </Button>
+                {requests.find((r) => r.id === editing)?.status !== "Pending" && (
+                  <Button type="button" variant="secondary" onClick={() => save("Draft")}>
+                    Save draft
+                  </Button>
+                )}
+                <Button type="submit">
+                  <Send size={13} />
+                  {requests.find((r) => r.id === editing)?.status === "Pending"
+                    ? "Update request"
+                    : "Send request"}
+                </Button>
+              </footer>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!active} onOpenChange={(open) => !open && setSelected(null)}>
+        <DialogContent className="part-request-detail">
+          <DialogHeader>
+            <DialogTitle>{activePart?.name}</DialogTitle>
+            <DialogDescription>
+              {activePart?.source || "Workshop"} ·{" "}
+              {active?.sample ? "Example request" : "Your request"}
+            </DialogDescription>
+          </DialogHeader>
+          {active && activePart && (
+            <>
+              <span className={`part-request-status status-${stateClass(active.status)}`}>
+                {active.status}
+              </span>
+              <div className="part-request-steps">
+                {["Pending", "Approved", "Ready for Pickup", "Completed"].map((step, index) => {
+                  const current = ["Pending", "Approved", "Ready for Pickup", "Completed"].indexOf(
+                    active.status,
+                  );
+                  return (
+                    <span className={index <= current ? "step-reached" : ""} key={step}>
+                      <i>{index < current ? <Check size={10} /> : index + 1}</i>
+                      {step}
+                    </span>
+                  );
+                })}
+              </div>
+              <dl>
+                <div>
+                  <dt>Quantity</dt>
+                  <dd>{active.quantity}</dd>
+                </div>
+                <div>
+                  <dt>Condition</dt>
+                  <dd>{activePart.condition}</dd>
+                </div>
+                <div>
+                  <dt>Workshop location</dt>
+                  <dd>{activePart.location}</dd>
+                </div>
+                <div>
+                  <dt>Last updated</dt>
+                  <dd>{date(active.updatedAt)}</dd>
+                </div>
+              </dl>
+              <section>
+                <h3>Purpose</h3>
+                <p>{active.purpose}</p>
+              </section>
+              {active.note && (
+                <section className="part-request-assistant-note">
+                  <h3>Workshop assistant</h3>
+                  <p>{active.note}</p>
+                </section>
+              )}
+              {active.status === "Draft" && (
+                <p className="part-request-preview-note">This draft has not been sent.</p>
+              )}
+              {editable(active) && (
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="secondary" onClick={() => openEdit(active)}>
+                    <Pencil size={13} />
+                    {active.status === "Draft" ? "Continue draft" : "Edit request"}
+                  </Button>
+                  <Button variant="ghost" onClick={() => setCancel(active.id)}>
+                    <X size={13} />
+                    Cancel request
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!cancel} onOpenChange={(open) => !open && setCancel(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel this request?</DialogTitle>
+            <DialogDescription>
+              The request will stay in your history as Cancelled.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setCancel(null)}>
+              Keep request
+            </Button>
+            <Button
+              onClick={() => {
+                setRequests((items) =>
+                  items.map((item) =>
+                    item.id === cancel && editable(item)
+                      ? {
+                          ...item,
+                          status: "Cancelled" as RequestStatus,
+                          updatedAt: new Date().toISOString(),
+                        }
+                      : item,
+                  ),
+                );
+                setCancel(null);
+                setSelected(null);
+                setNotice("Request cancelled.");
+              }}
+            >
+              Confirm cancellation
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }

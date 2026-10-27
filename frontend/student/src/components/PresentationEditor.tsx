@@ -1,58 +1,1235 @@
-import {PresentationCanvas} from './PresentationCanvas';
-import {PresentationObjectTools} from './PresentationObjectTools';
-import {canvasHeight,slideScene,patchSlideObject,storePresentation,loadPresentation,type ObjectPatch,type CanvasObject} from '@/lib/presentationScene';
-import {templates} from '@/lib/presentationTemplates';
-import {useEffect,useRef,useState,type CSSProperties} from 'react';
-import {ArrowDown,ArrowLeft,ArrowRight,ArrowUp,Check,CheckCircle2,ChevronLeft,ChevronRight,Copy,Download,ImagePlus,LayoutTemplate,Lightbulb,LoaderCircle,Minimize2,MonitorPlay,Plus,Save,Send,Sparkles,Trash2,X} from 'lucide-react';
-import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription} from '@/components/ui/dialog';
-import {deckPalette,DECK_STORAGE,layouts,newSlide,readDeck,slideId,slideTips,starterDeck,themes,validDeck,type Deck,type Slide} from '@/lib/presentations';
-import {project} from '@/lib/projectWorkspace';
+import { PresentationCanvas } from "./PresentationCanvas";
+import { PresentationObjectTools } from "./PresentationObjectTools";
+import {
+  canvasHeight,
+  slideScene,
+  patchSlideObject,
+  storePresentation,
+  loadPresentation,
+  type ObjectPatch,
+  type CanvasObject,
+} from "@/lib/presentationScene";
+import { templates } from "@/lib/presentationTemplates";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Download,
+  ImagePlus,
+  LayoutTemplate,
+  Lightbulb,
+  LoaderCircle,
+  Minimize2,
+  MonitorPlay,
+  Plus,
+  Save,
+  Send,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  deckPalette,
+  DECK_STORAGE,
+  layouts,
+  newSlide,
+  readDeck,
+  slideId,
+  slideTips,
+  starterDeck,
+  themes,
+  validDeck,
+  type Deck,
+  type Slide,
+} from "@/lib/presentations";
+import { project } from "@/lib/projectWorkspace";
 
-export function SlideCanvas({slide,theme,template,accent,index=0,total=1,projectTitle='',mini=false,deck}:{slide:Slide;theme:string;template?:string|undefined;accent?:string|undefined;index?:number;total?:number;projectTitle?:string;mini?:boolean;deck?:Deck}){return <PresentationCanvas deck={deck??{title:projectTitle,theme,template,accent,slides:Array.from({length:total},()=>slide),status:'Draft'}} slide={slide} index={index} mini={mini}/>;}
+export function SlideCanvas({
+  slide,
+  theme,
+  template,
+  accent,
+  index = 0,
+  total = 1,
+  projectTitle = "",
+  mini = false,
+  deck,
+}: {
+  slide: Slide;
+  theme: string;
+  template?: string | undefined;
+  accent?: string | undefined;
+  index?: number;
+  total?: number;
+  projectTitle?: string;
+  mini?: boolean;
+  deck?: Deck;
+}) {
+  return (
+    <PresentationCanvas
+      deck={
+        deck ?? {
+          title: projectTitle,
+          theme,
+          template,
+          accent,
+          slides: Array.from({ length: total }, () => slide),
+          status: "Draft",
+        }
+      }
+      slide={slide}
+      index={index}
+      mini={mini}
+    />
+  );
+}
 
-export function PresentationEditor(){
- const [deck,setDeck]=useState<Deck>(()=>starterDeck(project.name)),[selected,setSelected]=useState(0),[gallery,setGallery]=useState(false),[templateCategory,setTemplateCategory]=useState('All'),[templateSearch,setTemplateSearch]=useState(''),[review,setReview]=useState(false),[present,setPresent]=useState(false),[playIndex,setPlayIndex]=useState(0),[notice,setNotice]=useState(''),[busy,setBusy]=useState(''),[saved,setSaved]=useState(false),[tipsLanguage,setTipsLanguage]=useState<'en'|'ar'>('en'),[selectedObject,setSelectedObject]=useState<string|null>(null),[pendingImport,setPendingImport]=useState<Deck|null>(null),[initialized,setInitialized]=useState(false);
- useEffect(()=>{let cancelled=false;const fallback=readDeck(project.name);setDeck(fallback);loadPresentation().then(value=>{if(!cancelled&&value&&validDeck(value)&&(!fallback.savedAt||(value.savedAt??'')>=fallback.savedAt))setDeck(value);}).catch(()=>{}).finally(()=>{if(!cancelled)setInitialized(true);});return()=>{cancelled=true;};},[]);
- const ownsFullscreen=useRef(false);
- const undo=useRef<Deck[]>([]),redo=useRef<Deck[]>([]),pptxInput=useRef<HTMLInputElement>(null);
- useEffect(()=>setSelectedObject(null),[selected]);
- const input=useRef<HTMLInputElement>(null),importInput=useRef<HTMLInputElement>(null),titleInput=useRef<HTMLInputElement>(null),notesInput=useRef<HTMLTextAreaElement>(null);const slide=deck.slides[selected]??deck.slides[0]!,locked=deck.status==='Submitted',tips=slideTips(slide,deck),words=slide.body.trim().split(/\s+/).filter(Boolean).length;
- const updateDeck=(fn:(d:Deck)=>Deck)=>{undo.current=[...undo.current.slice(-29),deck];redo.current=[];setDeck(fn({...deck,status:'Draft',submittedAt:undefined}));setSaved(false);};
- const timeTravel=(direction:'undo'|'redo')=>{const from=direction==='undo'?undo:redo,to=direction==='undo'?redo:undo;const previous=from.current.pop();if(!previous)return;to.current.push(deck);setDeck(previous);setSelected(i=>Math.min(i,previous.slides.length-1));setSelectedObject(null);setSaved(false);};
- const object=slideScene(deck,slide,selected).objects.find(o=>o.id===selectedObject);
- const changeObject=(id:string,patch:ObjectPatch)=>{if(locked)return;updateDeck(d=>({...d,slides:d.slides.map(s=>s.id===slide.id?patchSlideObject(s,id,patch):s)}));};
- const addObject=(o:CanvasObject)=>{update({objects:[...(slide.objects??[]),o]});setSelectedObject(o.id);};
- const copyObject=()=>{if(!object)return;const {source,...copy}=object;addObject({...copy,id:slideId(),x:Math.min(960-object.w,object.x+18),y:Math.min(canvasHeight(deck)-object.h,object.y+18),locked:false,z:(object.z??10)+1});};
- const importFile=async(file?:File)=>{if(!file||locked)return;setBusy('import');try{const {importPowerPoint}=await import('@/lib/presentationImport');const next=await importPowerPoint(new Uint8Array(await file.arrayBuffer()),file.name);if(!validDeck(next))throw Error('The presentation could not be read safely.');setPendingImport(next);}catch(e){setNotice(e instanceof Error?e.message:'Could not open this PowerPoint.');}finally{setBusy('');}};
- const update=(patch:Partial<Slide>)=>{if(locked)return;updateDeck(d=>({...d,slides:d.slides.map(s=>{if(s.id!==slide.id)return s;const positions={...s.positions};for(const key of ['title','body','kicker','caption'])if(key in patch&&positions[key]){positions[key]={...positions[key]};delete positions[key]!.text;}return {...s,...patch,positions};})}));};
- const persist=async(next:Deck)=>{try{await storePresentation(next);try{if(!next.imported)localStorage.setItem(DECK_STORAGE,JSON.stringify(next));else localStorage.removeItem(DECK_STORAGE);}catch{}setSaved(true);return true;}catch{try{localStorage.setItem(DECK_STORAGE,JSON.stringify(next));setSaved(true);return true;}catch{setNotice('Could not save this draft. Download an editable backup to keep your work.');return false;}}};
- const save=async()=>{const next={...deck,savedAt:new Date().toISOString()};if(await persist(next)){setDeck(next);setNotice('Draft saved, including your element positions and original PowerPoint.');}};
- const add=(layout=slide.layout)=>{if(locked||deck.slides.length>=40)return;const next=deck.imported?{...newSlide(layout),background:slide.background,objects:[{id:slideId(),kind:'text' as const,x:60,y:70,w:700,h:100,text:'Your next idea',size:40,color:'#263c46',font:'Arial'}]}:newSlide(layout);updateDeck(d=>({...d,slides:[...d.slides.slice(0,selected+1),next,...d.slides.slice(selected+1)]}));setSelected(selected+1);};
- const move=(direction:number)=>{const target=selected+direction;if(locked||target<0||target>=deck.slides.length)return;updateDeck(d=>{const slides=[...d.slides];[slides[selected],slides[target]]=[slides[target]!,slides[selected]!];return {...d,slides};});setSelected(target);};
- const remove=()=>{if(locked||deck.slides.length<=1)return;updateDeck(d=>({...d,slides:d.slides.filter(s=>s.id!==slide.id)}));setSelected(Math.max(0,selected-1));};
- const download=(blob:Blob,name:string)=>{const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),15000);};
- const exportFile=async(kind:'pptx'|'pdf')=>{if(busy)return;setBusy(kind);try{const {exportDeckPdf,exportDeckPptx}=await import('@/lib/presentationExport');const blob=await (kind==='pptx'?exportDeckPptx(deck):exportDeckPdf(deck));download(blob,`${(deck.title||'Presentation').replace(/[^\p{L}\p{N} _-]/gu,'').slice(0,80)}.${kind}`);setNotice(`${kind==='pptx'?'Editable PowerPoint':'PDF'} downloaded.`);}catch(e){setNotice(`Export failed: ${e instanceof Error?e.message:'Please try again.'}`);}finally{setBusy('');}};
- const upload=(file?:File)=>{if(!file||locked)return;if(!['image/png','image/jpeg'].includes(file.type)||file.size>5*1024*1024){setNotice('Choose a JPG or PNG image up to 5 MB.');return;}const reader=new FileReader();reader.onload=()=>{const image=new Image();image.onload=()=>{const canvas=document.createElement('canvas'),scale=Math.min(1,1400/Math.max(image.width,image.height));canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);canvas.getContext('2d')!.drawImage(image,0,0,canvas.width,canvas.height);const src=canvas.toDataURL('image/jpeg',.86);if(!slide.image&&!deck.imported){update({image:src});setSelectedObject('image');}else addObject({id:slideId(),kind:'image',x:260,y:Math.min(150,canvasHeight(deck)-220),w:320,h:Math.min(300,320*canvas.height/canvas.width),src,fit:'contain',z:50});};image.onerror=()=>setNotice('This image could not be opened.');image.src=String(reader.result);};reader.readAsDataURL(file);};
- const closePresentation=()=>{setPresent(false);if(ownsFullscreen.current){ownsFullscreen.current=false;if(document.fullscreenElement)void document.exitFullscreen().catch(()=>{});}};
- useEffect(()=>{const changed=()=>{if(ownsFullscreen.current&&!document.fullscreenElement){ownsFullscreen.current=false;setPresent(false);}};document.addEventListener('fullscreenchange',changed);return()=>document.removeEventListener('fullscreenchange',changed);},[]);
- useEffect(()=>{if(!present)return;const listener=(e:KeyboardEvent)=>{if(['ArrowRight','ArrowLeft','Escape',' '].includes(e.key)){e.preventDefault();if(e.key==='Escape')closePresentation();else setPlayIndex(i=>Math.max(0,Math.min(deck.slides.length-1,i+(e.key==='ArrowLeft'?-1:1))));}};addEventListener('keydown',listener);return()=>removeEventListener('keydown',listener);},[present,deck.slides.length]);
- const startPresentation=()=>{setPlayIndex(selected);setPresent(true);if(!document.fullscreenElement&&document.documentElement.requestFullscreen){ownsFullscreen.current=true;void document.documentElement.requestFullscreen().catch(()=>{ownsFullscreen.current=false;});}};
- const submit=async()=>{const next:Deck={...deck,status:'Submitted',submittedAt:new Date().toISOString(),savedAt:new Date().toISOString()};if(await persist(next)){setDeck(next);setReview(false);setNotice('Presentation submission saved on this device.');}};
- const ready=deck.title.trim()&&deck.slides.length>=3&&deck.slides.every(s=>deck.imported?s.objects?.some(o=>o.kind==='text'&&o.text?.trim()):s.title.trim());
- const arabic:Record<string,[string,string]>={title:['خلّي للسلايد فكرة واضحة','أضيفي عنوان قصير يحكي شو أهم فكرة.'],'title-long':['اختصري العنوان شوي','خلي الشرح بالتفاصيل أو ملاحظات المتحدث.'],text:['النص كثير على سلايد واحد',`${words} كلمة. جرّبي تخففي النص لحوالي 30–60 كلمة وتنقلي التفاصيل للملاحظات.`],lines:['قسّمي الفكرة','أكثر من خمس نقاط بصير صعب قراءتها؛ ممكن تضيفي سلايد ثانية.'],image:['ورّينا الدليل','أضيفي صورة للمشروع أو مخطط أو نتائج حقيقية، مع الوحدات والمصدر إذا لزم.'],caption:['الصورة بدها شرح','أضيفي وصف قصير للصورة ومصدرها إذا احتاجت.'],units:['وضّحي النتيجة بالأرقام','اكتبي ظروف التجربة ووحدة القياس والمقارنة، باستخدام نتائجكم الفعلية.'],notes:['التفاصيل خليها لحكيك','استخدمي ملاحظات المتحدث للشرح اللي بدك تحكيه، بدل تحطيه كله على السلايد.'],results:['العرض بده نتائج','أضيفي سلايد Results قبل الخاتمة.'],ready:['السلايد واضحة ومرتبة','تأكدي إن الصورة مقروءة، وتدرّبي على الانتقال للسلايد اللي بعدها.']};
- if(!initialized)return <div className="deck-loading" role="status"><LoaderCircle className="deck-spin" size={20}/>Opening your presentation…</div>;
- return <div className="presentation-studio"><header className="deck-studio-heading"><div><span><i/>PRESENTATION STUDIO</span><h2>Your work. <em>Worth showing.</em></h2><p>A little structure. Your own story.</p></div><button className="deck-template-button" onClick={()=>setGallery(true)} disabled={locked||!!deck.imported}><LayoutTemplate size={17}/>Explore templates<ArrowRight size={14}/></button></header>
-  <input ref={pptxInput} type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden onChange={e=>{importFile(e.target.files?.[0]);e.target.value='';}}/><div className="deck-toolbar"><label><span>DECK TITLE</span><input aria-label="Presentation title" maxLength={90} value={deck.title} disabled={locked} onChange={e=>updateDeck(d=>({...d,title:e.target.value}))}/></label><span className={`deck-status ${locked?'is-submitted':''}`}><i/>{locked?'Submitted':saved?'Saved draft':'Draft'}</span><div><button disabled={locked||!!busy} onClick={()=>pptxInput.current?.click()}><Download size={14}/>{busy==='import'?'Opening…':'Open PowerPoint'}</button><button onClick={save} disabled={locked}><Save size={14}/>Save draft</button><button onClick={startPresentation}><MonitorPlay size={15}/>Present</button><button disabled={!!busy} onClick={()=>exportFile('pptx')}>{busy==='pptx'?<LoaderCircle size={14} className="deck-spin"/>:<Download size={14}/>}PowerPoint</button><button disabled={!!busy} onClick={()=>exportFile('pdf')}>{busy==='pdf'?<LoaderCircle size={14} className="deck-spin"/>:<Download size={14}/>}PDF</button>{locked?<button className="deck-submit" onClick={()=>{updateDeck(d=>({...d}));setNotice('Submission reopened for editing. Save or submit again when ready.');}}><ArrowLeft size={14}/>Edit submission</button>:<button className="deck-submit" onClick={()=>setReview(true)}><Send size={14}/>Review & submit</button>}</div></div>
-  <div className="deck-appearance"><span><LayoutTemplate size={16}/><b>{deck.imported?deck.imported.name:templates.find(t=>t.id===(deck.template??'circuit'))?.name}</b><button disabled={locked||!!deck.imported} onClick={()=>setGallery(true)}>Change design</button></span>{!deck.imported?<div className="deck-palette-picker" aria-label="Presentation colors"><span>COLORS</span>{themes.map(t=><button key={t.id} title={t.name} aria-label={'Use '+t.name+' colors'} aria-pressed={deck.theme===t.id} disabled={locked} onClick={()=>updateDeck(d=>({...d,theme:t.id,accent:undefined}))} style={{'--swatch':t.accent} as CSSProperties}>{deck.theme===t.id&&<Check size={12}/>}</button>)}<label title="Choose an accent color">Custom accent<input aria-label="Custom accent color" type="color" disabled={locked} value={deckPalette(deck).accent} onChange={e=>updateDeck(d=>({...d,accent:e.target.value}))}/></label></div>:<span className="deck-import-label">Original PowerPoint design · preserved</span>}</div>
-  {notice&&<div className="deck-notice" role="status"><CheckCircle2 size={15}/><span>{notice}</span><button aria-label="Dismiss presentation notice" onClick={()=>setNotice('')}><X size={14}/></button></div>}
-  <div className="deck-workspace"><aside className="deck-filmstrip"><div><span>THE STORY</span><b>{deck.slides.length} slides</b></div><div className="deck-slide-list">{deck.slides.map((s,i)=><button className={i===selected?'selected':''} key={s.id} aria-label={`Select slide ${i+1}: ${s.title||'Untitled'}`} aria-pressed={i===selected} onClick={()=>setSelected(i)}><span>{String(i+1).padStart(2,'0')}</span><div><SlideCanvas slide={s} deck={deck} theme={deck.theme} template={deck.template} accent={deck.accent} index={i} total={deck.slides.length} mini/><small>{s.title||'Untitled slide'}</small></div></button>)}</div><button className="deck-add-slide" disabled={locked||deck.slides.length>=40} onClick={()=>add('bullets')}><Plus size={15}/>Add slide</button></aside>
-   <main className="deck-editing"><div className="deck-canvas-toolbar"><span>SLIDE {String(selected+1).padStart(2,'0')} <i/> {layouts.find(l=>l.id===slide.layout)?.name}</span><div><button aria-label="Move slide up" disabled={locked||selected===0} onClick={()=>move(-1)}><ArrowUp size={14}/></button><button aria-label="Move slide down" disabled={locked||selected===deck.slides.length-1} onClick={()=>move(1)}><ArrowDown size={14}/></button><button aria-label="Duplicate slide" disabled={locked||deck.slides.length>=40} onClick={()=>{updateDeck(d=>({...d,slides:[...d.slides.slice(0,selected+1),{...slide,id:slideId()},...d.slides.slice(selected+1)]}));setSelected(selected+1);}}><Copy size={14}/></button><button aria-label="Delete slide" disabled={locked||deck.slides.length===1} onClick={remove}><Trash2 size={14}/></button></div></div><div className="deck-free-toolbar"><button disabled={locked} onClick={()=>addObject({id:slideId(),kind:'text',x:100,y:100,w:350,h:100,text:'Your text here',size:28,font:'Arial',color:deckPalette(deck).ink,z:50})}><Plus size={14}/>Add text</button><button disabled={locked} onClick={()=>input.current?.click()}><ImagePlus size={14}/>Add image</button><button disabled={locked||!undo.current.length} onClick={()=>timeTravel('undo')}>Undo</button><button disabled={locked||!redo.current.length} onClick={()=>timeTravel('redo')}>Redo</button><span>Drag to place · corners to resize</span></div><div className="deck-main-canvas"><PresentationCanvas deck={deck} slide={slide} index={selected} editable={!locked} selectedId={selectedObject} onSelect={setSelectedObject} onChange={changeObject}/></div><PresentationObjectTools object={object} locked={locked} canReset={!!object?.source||!slide.objects?.some(o=>o.id===object?.id)} onChange={patch=>{if(object)changeObject(object.id,patch);}} onCopy={copyObject} onDelete={()=>{if(object){changeObject(object.id,{hidden:true});setSelectedObject(null);}}} onReset={()=>{if(!object)return;if(object.source){const original={...JSON.parse(object.source.baseline),source:object.source};update({objects:slide.objects?.map(o=>o.id===object.id?original:o)});return;}if(slide.objects?.some(o=>o.id===object.id))return;const positions={...slide.positions};delete positions[object.id];update({positions});}}/><div className="deck-layout-picker" aria-label="Slide layouts" hidden={!!deck.imported}>{layouts.map(l=><button key={l.id} aria-pressed={slide.layout===l.id} disabled={locked} onClick={()=>update({layout:l.id})}><span className={`deck-layout-icon icon-${l.id}`}><i/><i/><i/></span>{l.name}</button>)}</div>
-    <div className="deck-writing"><div hidden={!!deck.imported}><div className="deck-writing-top"><label>Section label<input aria-label="Slide section label" maxLength={70} disabled={locked} value={slide.kicker} onChange={e=>update({kicker:e.target.value})}/></label><label>Slide heading<input ref={titleInput} aria-label="Slide heading" maxLength={110} dir="auto" disabled={locked} value={slide.title} onChange={e=>update({title:e.target.value})} placeholder="One idea, clearly said."/></label></div><label>Main content <span>{words} words · one point per line</span><textarea aria-label="Slide content" dir="auto" maxLength={1200} disabled={locked} value={slide.body} onChange={e=>update({body:e.target.value})} placeholder="Write your key points here…"/></label></div><div className="deck-media-row"><input ref={input} type="file" accept="image/png,image/jpeg" hidden onChange={e=>{upload(e.target.files?.[0]);e.target.value='';}}/><button disabled={locked} onClick={()=>input.current?.click()}><ImagePlus size={17}/>Add image<small>Prototype, diagram or result</small></button>{slide.image&&<button className="deck-remove-image" disabled={locked} aria-label="Remove slide image" onClick={()=>update({image:undefined,caption:''})}><Trash2 size={14}/></button>}<label>Caption / source<input aria-label="Image caption" disabled={locked} maxLength={160} dir="auto" value={slide.caption} onChange={e=>update({caption:e.target.value})} placeholder="What does this image show?"/></label></div><label className="deck-notes-label">Speaker notes <small>For your voice, not the screen.</small><textarea ref={notesInput} aria-label="Speaker notes" dir="auto" maxLength={3000} disabled={locked} value={slide.notes} onChange={e=>update({notes:e.target.value})} placeholder="What will you say when this slide appears?"/></label></div>
-   </main><aside className="deck-coach"><div className="deck-coach-heading"><span><Sparkles size={19}/></span><div><small>A SECOND PAIR OF EYES</small><h3>A little guidance.</h3></div></div><p>Make the slide clearer, while keeping the story yours.</p><div className="deck-coach-language"><button aria-pressed={tipsLanguage==='en'} onClick={()=>setTipsLanguage('en')}>EN</button><button aria-pressed={tipsLanguage==='ar'} onClick={()=>setTipsLanguage('ar')}>عربي</button><small>Layout checks</small></div><div className="deck-tips">{tips.map(t=><article key={t.id} className={t.level} dir={tipsLanguage==='ar'?'rtl':'ltr'}><Lightbulb size={15}/><h4>{tipsLanguage==='ar'?arabic[t.id]?.[0]||t.title:t.title}</h4><p>{tipsLanguage==='ar'?arabic[t.id]?.[1]||t.detail:t.detail}</p>{t.id==='notes'&&<button disabled={locked} onClick={()=>notesInput.current?.focus()}>{tipsLanguage==='ar'?'أضيفي ملاحظات':'Add speaker notes'}<ArrowRight size={12}/></button>}{t.id==='image'&&<button disabled={locked} onClick={()=>input.current?.click()}>{tipsLanguage==='ar'?'أضيفي صورة':'Add an image'}<ImagePlus size={12}/></button>}{t.id==='title'&&<button disabled={locked} onClick={()=>titleInput.current?.focus()}>Write a heading<ArrowRight size={12}/></button>}</article>)}</div><div className="deck-story-map"><span>A CLEAR STORY ARC</span><p>Problem <ChevronRight size={10}/> Design <ChevronRight size={10}/> Evidence <ChevronRight size={10}/> Next steps</p></div><div className="deck-backup"><button onClick={()=>download(new Blob([JSON.stringify(deck)],{type:'application/json'}),'presentation-backup.json')}><Download size={12}/>Download editable backup</button><input ref={importInput} hidden type="file" accept="application/json,.json" onChange={async e=>{const file=e.target.files?.[0];if(!file||locked)return;try{if(file.size>50*1024*1024)throw Error();const next=JSON.parse(await file.text());if(!validDeck(next))throw Error();const loaded=next;setDeck({...loaded,status:'Draft',submittedAt:undefined});setSelected(0);setSaved(false);setNotice('Backup restored. Save your draft to keep it.');}catch{setNotice('That backup could not be restored. Choose a valid presentation backup.');}e.target.value='';}}/><button disabled={locked} onClick={()=>importInput.current?.click()}>Restore a backup</button></div></aside>
-  </div>
-  <Dialog open={!!pendingImport} onOpenChange={open=>{if(!open)setPendingImport(null);}}><DialogContent className="deck-import-dialog"><DialogHeader><DialogTitle>Open your PowerPoint.</DialogTitle><DialogDescription>{pendingImport?.imported?.name} · {pendingImport?.slides.length} slides. Keep the original design, images and slide size.</DialogDescription></DialogHeader>{pendingImport&&<PresentationCanvas deck={pendingImport} slide={pendingImport.slides[0]!} mini/>}<p>Opening this replaces the current canvas. Download your current backup first if you want to keep both.</p>{!!pendingImport?.imported?.warnings.length&&<div className="deck-import-notes"><b>Preview compatibility</b><p>Some elements have a simplified preview. Their untouched originals stay in the PowerPoint download. PDF uses the preview.</p><ul>{pendingImport.imported.warnings.map(w=><li key={w}>{w}</li>)}</ul></div>}<div className="deck-import-actions"><button onClick={()=>download(new Blob([JSON.stringify(deck)],{type:'application/json'}),'presentation-backup.json')}>Back up current deck</button><button onClick={()=>setPendingImport(null)}>Cancel</button><button onClick={()=>{if(pendingImport){updateDeck(()=>pendingImport);setSelected(0);setSelectedObject(null);setPendingImport(null);setNotice('PowerPoint opened with its original design. Select text or photos to edit them.');}}}>Open presentation</button></div></DialogContent></Dialog>
-  <Dialog open={gallery} onOpenChange={setGallery}><DialogContent className="deck-template-dialog"><DialogHeader><DialogTitle>A design for every story.</DialogTitle><DialogDescription>20 distinct designs. Choose a structure here, then make the colors your own. Your content stays.</DialogDescription></DialogHeader><div className="deck-gallery-tools"><input aria-label="Search templates" placeholder="Find a template…" value={templateSearch} onChange={e=>setTemplateSearch(e.target.value)}/><span>{templates.length} designs · 5 slide layouts each</span></div><div className="deck-category-tabs">{['All','Minimal','Modern','Editorial','Creative','Photo','Formal','Electronics'].map(c=><button key={c} aria-pressed={templateCategory===c} onClick={()=>setTemplateCategory(c)}>{c}</button>)}</div><div className="deck-template-grid">{templates.filter(t=>(templateCategory==='All'||t.category===templateCategory)&&(t.name+' '+t.description).toLowerCase().includes(templateSearch.toLowerCase())).map((t)=><button key={t.id} aria-label={'Apply '+t.name} aria-pressed={(deck.template??'circuit')===t.id} onClick={()=>{updateDeck(d=>({...d,template:t.id}));setGallery(false);setNotice(`${t.name} applied. Your writing and colors are unchanged.`);}}><SlideCanvas slide={{...starterDeck(project.name).slides[0]!,title:t.name,body:'A clear idea. A new perspective.'}} theme={deck.theme} template={t.id} accent={deck.accent} mini/><div><small>{t.category}</small><h3>{t.name}{(deck.template??'circuit')===t.id&&<Check size={15}/>}</h3><p>{t.description}</p><span>{(deck.template??'circuit')===t.id?'Current design':'Use this design'}<ArrowRight size={13}/></span></div></button>)}</div>{!templates.some(t=>(templateCategory==='All'||t.category===templateCategory)&&(t.name+' '+t.description).toLowerCase().includes(templateSearch.toLowerCase()))&&<p className="deck-gallery-empty">No designs match. Try another search or category.</p>}</DialogContent></Dialog>
-  <Dialog open={review} onOpenChange={setReview}><DialogContent className="deck-review-dialog"><DialogHeader><DialogTitle>One last look.</DialogTitle><DialogDescription>Check your slides before recording this submission on this device.</DialogDescription></DialogHeader><SlideCanvas slide={deck.slides[0]!} deck={deck} theme={deck.theme} template={deck.template} accent={deck.accent} total={deck.slides.length} projectTitle={deck.title}/><div className="deck-review-summary"><span><b>{deck.slides.length}</b> slides</span><span><b>{deck.slides.reduce((count,s)=>count+slideScene(deck,s).objects.filter(o=>o.kind==='image').length,0)}</b> images</span><span><b>{deck.slides.filter(s=>s.notes.trim()).length}</b> with notes</span></div>{!ready&&<p className="deck-review-error">Add a deck title, at least 3 slides, and a heading on every slide.</p>}<div className="deck-review-actions"><button onClick={()=>{setReview(false);startPresentation();}}><MonitorPlay size={15}/>Preview full deck</button><button disabled={!ready} className="deck-submit" onClick={submit}><Send size={15}/>Submit presentation</button></div></DialogContent></Dialog>
-  <Dialog open={present} onOpenChange={open=>{if(!open)closePresentation();}}><DialogContent className="deck-player"><button className="deck-minimize" aria-label="Minimize presentation" title="Back to editor" onClick={closePresentation}><Minimize2 size={20}/><span>Back to editor</span></button><DialogTitle className="sr-only">{deck.title} presentation</DialogTitle><DialogDescription className="sr-only">Use left and right arrows to change slides. Escape closes the presentation.</DialogDescription><SlideCanvas slide={deck.slides[playIndex]??deck.slides[0]!} deck={deck} theme={deck.theme} template={deck.template} accent={deck.accent} index={playIndex} total={deck.slides.length} projectTitle={deck.title}/><div className="deck-player-controls"><button aria-label="Previous slide" disabled={playIndex===0} onClick={()=>setPlayIndex(i=>i-1)}><ChevronLeft size={21}/></button><span>{playIndex+1} / {deck.slides.length}</span><button aria-label="Next slide" disabled={playIndex===deck.slides.length-1} onClick={()=>setPlayIndex(i=>i+1)}><ChevronRight size={21}/></button></div></DialogContent></Dialog>
- </div>;
+export function PresentationEditor() {
+  const [deck, setDeck] = useState<Deck>(() => starterDeck(project.name)),
+    [selected, setSelected] = useState(0),
+    [gallery, setGallery] = useState(false),
+    [templateCategory, setTemplateCategory] = useState("All"),
+    [templateSearch, setTemplateSearch] = useState(""),
+    [review, setReview] = useState(false),
+    [present, setPresent] = useState(false),
+    [playIndex, setPlayIndex] = useState(0),
+    [notice, setNotice] = useState(""),
+    [busy, setBusy] = useState(""),
+    [saved, setSaved] = useState(false),
+    [tipsLanguage, setTipsLanguage] = useState<"en" | "ar">("en"),
+    [selectedObject, setSelectedObject] = useState<string | null>(null),
+    [pendingImport, setPendingImport] = useState<Deck | null>(null),
+    [initialized, setInitialized] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const fallback = readDeck(project.name);
+    setDeck(fallback);
+    loadPresentation()
+      .then((value) => {
+        if (
+          !cancelled &&
+          value &&
+          validDeck(value) &&
+          (!fallback.savedAt || (value.savedAt ?? "") >= fallback.savedAt)
+        )
+          setDeck(value);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setInitialized(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const ownsFullscreen = useRef(false);
+  const undo = useRef<Deck[]>([]),
+    redo = useRef<Deck[]>([]),
+    pptxInput = useRef<HTMLInputElement>(null);
+  useEffect(() => setSelectedObject(null), [selected]);
+  const input = useRef<HTMLInputElement>(null),
+    importInput = useRef<HTMLInputElement>(null),
+    titleInput = useRef<HTMLInputElement>(null),
+    notesInput = useRef<HTMLTextAreaElement>(null);
+  const slide = deck.slides[selected] ?? deck.slides[0]!,
+    locked = deck.status === "Submitted",
+    tips = slideTips(slide, deck),
+    words = slide.body.trim().split(/\s+/).filter(Boolean).length;
+  const updateDeck = (fn: (d: Deck) => Deck) => {
+    undo.current = [...undo.current.slice(-29), deck];
+    redo.current = [];
+    setDeck(fn({ ...deck, status: "Draft", submittedAt: undefined }));
+    setSaved(false);
+  };
+  const timeTravel = (direction: "undo" | "redo") => {
+    const from = direction === "undo" ? undo : redo,
+      to = direction === "undo" ? redo : undo;
+    const previous = from.current.pop();
+    if (!previous) return;
+    to.current.push(deck);
+    setDeck(previous);
+    setSelected((i) => Math.min(i, previous.slides.length - 1));
+    setSelectedObject(null);
+    setSaved(false);
+  };
+  const object = slideScene(deck, slide, selected).objects.find((o) => o.id === selectedObject);
+  const changeObject = (id: string, patch: ObjectPatch) => {
+    if (locked) return;
+    updateDeck((d) => ({
+      ...d,
+      slides: d.slides.map((s) => (s.id === slide.id ? patchSlideObject(s, id, patch) : s)),
+    }));
+  };
+  const addObject = (o: CanvasObject) => {
+    update({ objects: [...(slide.objects ?? []), o] });
+    setSelectedObject(o.id);
+  };
+  const copyObject = () => {
+    if (!object) return;
+    const { source, ...copy } = object;
+    addObject({
+      ...copy,
+      id: slideId(),
+      x: Math.min(960 - object.w, object.x + 18),
+      y: Math.min(canvasHeight(deck) - object.h, object.y + 18),
+      locked: false,
+      z: (object.z ?? 10) + 1,
+    });
+  };
+  const importFile = async (file?: File) => {
+    if (!file || locked) return;
+    setBusy("import");
+    try {
+      const { importPowerPoint } = await import("@/lib/presentationImport");
+      const next = await importPowerPoint(new Uint8Array(await file.arrayBuffer()), file.name);
+      if (!validDeck(next)) throw Error("The presentation could not be read safely.");
+      setPendingImport(next);
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not open this PowerPoint.");
+    } finally {
+      setBusy("");
+    }
+  };
+  const update = (patch: Partial<Slide>) => {
+    if (locked) return;
+    updateDeck((d) => ({
+      ...d,
+      slides: d.slides.map((s) => {
+        if (s.id !== slide.id) return s;
+        const positions = { ...s.positions };
+        for (const key of ["title", "body", "kicker", "caption"])
+          if (key in patch && positions[key]) {
+            positions[key] = { ...positions[key] };
+            delete positions[key]!.text;
+          }
+        return { ...s, ...patch, positions };
+      }),
+    }));
+  };
+  const persist = async (next: Deck) => {
+    try {
+      await storePresentation(next);
+      try {
+        if (!next.imported) localStorage.setItem(DECK_STORAGE, JSON.stringify(next));
+        else localStorage.removeItem(DECK_STORAGE);
+      } catch {
+        /* IndexedDB already saved the deck; localStorage is only a fallback cache. */
+      }
+      setSaved(true);
+      return true;
+    } catch {
+      try {
+        localStorage.setItem(DECK_STORAGE, JSON.stringify(next));
+        setSaved(true);
+        return true;
+      } catch {
+        setNotice("Could not save this draft. Download an editable backup to keep your work.");
+        return false;
+      }
+    }
+  };
+  const save = async () => {
+    const next = { ...deck, savedAt: new Date().toISOString() };
+    if (await persist(next)) {
+      setDeck(next);
+      setNotice("Draft saved, including your element positions and original PowerPoint.");
+    }
+  };
+  const add = (layout = slide.layout) => {
+    if (locked || deck.slides.length >= 40) return;
+    const next = deck.imported
+      ? {
+          ...newSlide(layout),
+          background: slide.background,
+          objects: [
+            {
+              id: slideId(),
+              kind: "text" as const,
+              x: 60,
+              y: 70,
+              w: 700,
+              h: 100,
+              text: "Your next idea",
+              size: 40,
+              color: "#263c46",
+              font: "Arial",
+            },
+          ],
+        }
+      : newSlide(layout);
+    updateDeck((d) => ({
+      ...d,
+      slides: [...d.slides.slice(0, selected + 1), next, ...d.slides.slice(selected + 1)],
+    }));
+    setSelected(selected + 1);
+  };
+  const move = (direction: number) => {
+    const target = selected + direction;
+    if (locked || target < 0 || target >= deck.slides.length) return;
+    updateDeck((d) => {
+      const slides = [...d.slides];
+      [slides[selected], slides[target]] = [slides[target]!, slides[selected]!];
+      return { ...d, slides };
+    });
+    setSelected(target);
+  };
+  const remove = () => {
+    if (locked || deck.slides.length <= 1) return;
+    updateDeck((d) => ({ ...d, slides: d.slides.filter((s) => s.id !== slide.id) }));
+    setSelected(Math.max(0, selected - 1));
+  };
+  const download = (blob: Blob, name: string) => {
+    const url = URL.createObjectURL(blob),
+      a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+  };
+  const exportFile = async (kind: "pptx" | "pdf") => {
+    if (busy) return;
+    setBusy(kind);
+    try {
+      const { exportDeckPdf, exportDeckPptx } = await import("@/lib/presentationExport");
+      const blob = await (kind === "pptx" ? exportDeckPptx(deck) : exportDeckPdf(deck));
+      download(
+        blob,
+        `${(deck.title || "Presentation").replace(/[^\p{L}\p{N} _-]/gu, "").slice(0, 80)}.${kind}`,
+      );
+      setNotice(`${kind === "pptx" ? "Editable PowerPoint" : "PDF"} downloaded.`);
+    } catch (e) {
+      setNotice(`Export failed: ${e instanceof Error ? e.message : "Please try again."}`);
+    } finally {
+      setBusy("");
+    }
+  };
+  const upload = (file?: File) => {
+    if (!file || locked) return;
+    if (!["image/png", "image/jpeg"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setNotice("Choose a JPG or PNG image up to 5 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const canvas = document.createElement("canvas"),
+          scale = Math.min(1, 1400 / Math.max(image.width, image.height));
+        canvas.width = Math.round(image.width * scale);
+        canvas.height = Math.round(image.height * scale);
+        canvas.getContext("2d")!.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const src = canvas.toDataURL("image/jpeg", 0.86);
+        if (!slide.image && !deck.imported) {
+          update({ image: src });
+          setSelectedObject("image");
+        } else
+          addObject({
+            id: slideId(),
+            kind: "image",
+            x: 260,
+            y: Math.min(150, canvasHeight(deck) - 220),
+            w: 320,
+            h: Math.min(300, (320 * canvas.height) / canvas.width),
+            src,
+            fit: "contain",
+            z: 50,
+          });
+      };
+      image.onerror = () => setNotice("This image could not be opened.");
+      image.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+  const closePresentation = () => {
+    setPresent(false);
+    if (ownsFullscreen.current) {
+      ownsFullscreen.current = false;
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    }
+  };
+  useEffect(() => {
+    const changed = () => {
+      if (ownsFullscreen.current && !document.fullscreenElement) {
+        ownsFullscreen.current = false;
+        setPresent(false);
+      }
+    };
+    document.addEventListener("fullscreenchange", changed);
+    return () => document.removeEventListener("fullscreenchange", changed);
+  }, []);
+  useEffect(() => {
+    if (!present) return;
+    const listener = (e: KeyboardEvent) => {
+      if (["ArrowRight", "ArrowLeft", "Escape", " "].includes(e.key)) {
+        e.preventDefault();
+        if (e.key === "Escape") closePresentation();
+        else
+          setPlayIndex((i) =>
+            Math.max(0, Math.min(deck.slides.length - 1, i + (e.key === "ArrowLeft" ? -1 : 1))),
+          );
+      }
+    };
+    addEventListener("keydown", listener);
+    return () => removeEventListener("keydown", listener);
+  }, [present, deck.slides.length]);
+  const startPresentation = () => {
+    setPlayIndex(selected);
+    setPresent(true);
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      ownsFullscreen.current = true;
+      void document.documentElement.requestFullscreen().catch(() => {
+        ownsFullscreen.current = false;
+      });
+    }
+  };
+  const submit = async () => {
+    const next: Deck = {
+      ...deck,
+      status: "Submitted",
+      submittedAt: new Date().toISOString(),
+      savedAt: new Date().toISOString(),
+    };
+    if (await persist(next)) {
+      setDeck(next);
+      setReview(false);
+      setNotice("Presentation submission saved on this device.");
+    }
+  };
+  const ready =
+    deck.title.trim() &&
+    deck.slides.length >= 3 &&
+    deck.slides.every((s) =>
+      deck.imported ? s.objects?.some((o) => o.kind === "text" && o.text?.trim()) : s.title.trim(),
+    );
+  const arabic: Record<string, [string, string]> = {
+    title: ["خلّي للسلايد فكرة واضحة", "أضيفي عنوان قصير يحكي شو أهم فكرة."],
+    "title-long": ["اختصري العنوان شوي", "خلي الشرح بالتفاصيل أو ملاحظات المتحدث."],
+    text: [
+      "النص كثير على سلايد واحد",
+      `${words} كلمة. جرّبي تخففي النص لحوالي 30–60 كلمة وتنقلي التفاصيل للملاحظات.`,
+    ],
+    lines: ["قسّمي الفكرة", "أكثر من خمس نقاط بصير صعب قراءتها؛ ممكن تضيفي سلايد ثانية."],
+    image: [
+      "ورّينا الدليل",
+      "أضيفي صورة للمشروع أو مخطط أو نتائج حقيقية، مع الوحدات والمصدر إذا لزم.",
+    ],
+    caption: ["الصورة بدها شرح", "أضيفي وصف قصير للصورة ومصدرها إذا احتاجت."],
+    units: [
+      "وضّحي النتيجة بالأرقام",
+      "اكتبي ظروف التجربة ووحدة القياس والمقارنة، باستخدام نتائجكم الفعلية.",
+    ],
+    notes: [
+      "التفاصيل خليها لحكيك",
+      "استخدمي ملاحظات المتحدث للشرح اللي بدك تحكيه، بدل تحطيه كله على السلايد.",
+    ],
+    results: ["العرض بده نتائج", "أضيفي سلايد Results قبل الخاتمة."],
+    ready: [
+      "السلايد واضحة ومرتبة",
+      "تأكدي إن الصورة مقروءة، وتدرّبي على الانتقال للسلايد اللي بعدها.",
+    ],
+  };
+  if (!initialized)
+    return (
+      <div className="deck-loading" role="status">
+        <LoaderCircle className="deck-spin" size={20} />
+        Opening your presentation…
+      </div>
+    );
+  return (
+    <div className="presentation-studio">
+      <header className="deck-studio-heading">
+        <div>
+          <span>
+            <i />
+            PRESENTATION STUDIO
+          </span>
+          <h2>
+            Your work. <em>Worth showing.</em>
+          </h2>
+          <p>A little structure. Your own story.</p>
+        </div>
+        <button
+          className="deck-template-button"
+          onClick={() => setGallery(true)}
+          disabled={locked || !!deck.imported}
+        >
+          <LayoutTemplate size={17} />
+          Explore templates
+          <ArrowRight size={14} />
+        </button>
+      </header>
+      <input
+        ref={pptxInput}
+        type="file"
+        accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        hidden
+        onChange={(e) => {
+          importFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      <div className="deck-toolbar">
+        <label>
+          <span>DECK TITLE</span>
+          <input
+            aria-label="Presentation title"
+            maxLength={90}
+            value={deck.title}
+            disabled={locked}
+            onChange={(e) => updateDeck((d) => ({ ...d, title: e.target.value }))}
+          />
+        </label>
+        <span className={`deck-status ${locked ? "is-submitted" : ""}`}>
+          <i />
+          {locked ? "Submitted" : saved ? "Saved draft" : "Draft"}
+        </span>
+        <div>
+          <button disabled={locked || !!busy} onClick={() => pptxInput.current?.click()}>
+            <Download size={14} />
+            {busy === "import" ? "Opening…" : "Open PowerPoint"}
+          </button>
+          <button onClick={save} disabled={locked}>
+            <Save size={14} />
+            Save draft
+          </button>
+          <button onClick={startPresentation}>
+            <MonitorPlay size={15} />
+            Present
+          </button>
+          <button disabled={!!busy} onClick={() => exportFile("pptx")}>
+            {busy === "pptx" ? (
+              <LoaderCircle size={14} className="deck-spin" />
+            ) : (
+              <Download size={14} />
+            )}
+            PowerPoint
+          </button>
+          <button disabled={!!busy} onClick={() => exportFile("pdf")}>
+            {busy === "pdf" ? (
+              <LoaderCircle size={14} className="deck-spin" />
+            ) : (
+              <Download size={14} />
+            )}
+            PDF
+          </button>
+          {locked ? (
+            <button
+              className="deck-submit"
+              onClick={() => {
+                updateDeck((d) => ({ ...d }));
+                setNotice("Submission reopened for editing. Save or submit again when ready.");
+              }}
+            >
+              <ArrowLeft size={14} />
+              Edit submission
+            </button>
+          ) : (
+            <button className="deck-submit" onClick={() => setReview(true)}>
+              <Send size={14} />
+              Review & submit
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="deck-appearance">
+        <span>
+          <LayoutTemplate size={16} />
+          <b>
+            {deck.imported
+              ? deck.imported.name
+              : templates.find((t) => t.id === (deck.template ?? "circuit"))?.name}
+          </b>
+          <button disabled={locked || !!deck.imported} onClick={() => setGallery(true)}>
+            Change design
+          </button>
+        </span>
+        {!deck.imported ? (
+          <div className="deck-palette-picker" aria-label="Presentation colors">
+            <span>COLORS</span>
+            {themes.map((t) => (
+              <button
+                key={t.id}
+                title={t.name}
+                aria-label={"Use " + t.name + " colors"}
+                aria-pressed={deck.theme === t.id}
+                disabled={locked}
+                onClick={() => updateDeck((d) => ({ ...d, theme: t.id, accent: undefined }))}
+                style={{ "--swatch": t.accent } as CSSProperties}
+              >
+                {deck.theme === t.id && <Check size={12} />}
+              </button>
+            ))}
+            <label title="Choose an accent color">
+              Custom accent
+              <input
+                aria-label="Custom accent color"
+                type="color"
+                disabled={locked}
+                value={deckPalette(deck).accent}
+                onChange={(e) => updateDeck((d) => ({ ...d, accent: e.target.value }))}
+              />
+            </label>
+          </div>
+        ) : (
+          <span className="deck-import-label">Original PowerPoint design · preserved</span>
+        )}
+      </div>
+      {notice && (
+        <div className="deck-notice" role="status">
+          <CheckCircle2 size={15} />
+          <span>{notice}</span>
+          <button aria-label="Dismiss presentation notice" onClick={() => setNotice("")}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
+      <div className="deck-workspace">
+        <aside className="deck-filmstrip">
+          <div>
+            <span>THE STORY</span>
+            <b>{deck.slides.length} slides</b>
+          </div>
+          <div className="deck-slide-list">
+            {deck.slides.map((s, i) => (
+              <button
+                className={i === selected ? "selected" : ""}
+                key={s.id}
+                aria-label={`Select slide ${i + 1}: ${s.title || "Untitled"}`}
+                aria-pressed={i === selected}
+                onClick={() => setSelected(i)}
+              >
+                <span>{String(i + 1).padStart(2, "0")}</span>
+                <div>
+                  <SlideCanvas
+                    slide={s}
+                    deck={deck}
+                    theme={deck.theme}
+                    template={deck.template}
+                    accent={deck.accent}
+                    index={i}
+                    total={deck.slides.length}
+                    mini
+                  />
+                  <small>{s.title || "Untitled slide"}</small>
+                </div>
+              </button>
+            ))}
+          </div>
+          <button
+            className="deck-add-slide"
+            disabled={locked || deck.slides.length >= 40}
+            onClick={() => add("bullets")}
+          >
+            <Plus size={15} />
+            Add slide
+          </button>
+        </aside>
+        <main className="deck-editing">
+          <div className="deck-canvas-toolbar">
+            <span>
+              SLIDE {String(selected + 1).padStart(2, "0")} <i />{" "}
+              {layouts.find((l) => l.id === slide.layout)?.name}
+            </span>
+            <div>
+              <button
+                aria-label="Move slide up"
+                disabled={locked || selected === 0}
+                onClick={() => move(-1)}
+              >
+                <ArrowUp size={14} />
+              </button>
+              <button
+                aria-label="Move slide down"
+                disabled={locked || selected === deck.slides.length - 1}
+                onClick={() => move(1)}
+              >
+                <ArrowDown size={14} />
+              </button>
+              <button
+                aria-label="Duplicate slide"
+                disabled={locked || deck.slides.length >= 40}
+                onClick={() => {
+                  updateDeck((d) => ({
+                    ...d,
+                    slides: [
+                      ...d.slides.slice(0, selected + 1),
+                      { ...slide, id: slideId() },
+                      ...d.slides.slice(selected + 1),
+                    ],
+                  }));
+                  setSelected(selected + 1);
+                }}
+              >
+                <Copy size={14} />
+              </button>
+              <button
+                aria-label="Delete slide"
+                disabled={locked || deck.slides.length === 1}
+                onClick={remove}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+          <div className="deck-free-toolbar">
+            <button
+              disabled={locked}
+              onClick={() =>
+                addObject({
+                  id: slideId(),
+                  kind: "text",
+                  x: 100,
+                  y: 100,
+                  w: 350,
+                  h: 100,
+                  text: "Your text here",
+                  size: 28,
+                  font: "Arial",
+                  color: deckPalette(deck).ink,
+                  z: 50,
+                })
+              }
+            >
+              <Plus size={14} />
+              Add text
+            </button>
+            <button disabled={locked} onClick={() => input.current?.click()}>
+              <ImagePlus size={14} />
+              Add image
+            </button>
+            <button disabled={locked || !undo.current.length} onClick={() => timeTravel("undo")}>
+              Undo
+            </button>
+            <button disabled={locked || !redo.current.length} onClick={() => timeTravel("redo")}>
+              Redo
+            </button>
+            <span>Drag to place · corners to resize</span>
+          </div>
+          <div className="deck-main-canvas">
+            <PresentationCanvas
+              deck={deck}
+              slide={slide}
+              index={selected}
+              editable={!locked}
+              selectedId={selectedObject}
+              onSelect={setSelectedObject}
+              onChange={changeObject}
+            />
+          </div>
+          <PresentationObjectTools
+            object={object}
+            locked={locked}
+            canReset={!!object?.source || !slide.objects?.some((o) => o.id === object?.id)}
+            onChange={(patch) => {
+              if (object) changeObject(object.id, patch);
+            }}
+            onCopy={copyObject}
+            onDelete={() => {
+              if (object) {
+                changeObject(object.id, { hidden: true });
+                setSelectedObject(null);
+              }
+            }}
+            onReset={() => {
+              if (!object) return;
+              if (object.source) {
+                const original = { ...JSON.parse(object.source.baseline), source: object.source };
+                update({ objects: slide.objects?.map((o) => (o.id === object.id ? original : o)) });
+                return;
+              }
+              if (slide.objects?.some((o) => o.id === object.id)) return;
+              const positions = { ...slide.positions };
+              delete positions[object.id];
+              update({ positions });
+            }}
+          />
+          <div className="deck-layout-picker" aria-label="Slide layouts" hidden={!!deck.imported}>
+            {layouts.map((l) => (
+              <button
+                key={l.id}
+                aria-pressed={slide.layout === l.id}
+                disabled={locked}
+                onClick={() => update({ layout: l.id })}
+              >
+                <span className={`deck-layout-icon icon-${l.id}`}>
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                {l.name}
+              </button>
+            ))}
+          </div>
+          <div className="deck-writing">
+            <div hidden={!!deck.imported}>
+              <div className="deck-writing-top">
+                <label>
+                  Section label
+                  <input
+                    aria-label="Slide section label"
+                    maxLength={70}
+                    disabled={locked}
+                    value={slide.kicker}
+                    onChange={(e) => update({ kicker: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Slide heading
+                  <input
+                    ref={titleInput}
+                    aria-label="Slide heading"
+                    maxLength={110}
+                    dir="auto"
+                    disabled={locked}
+                    value={slide.title}
+                    onChange={(e) => update({ title: e.target.value })}
+                    placeholder="One idea, clearly said."
+                  />
+                </label>
+              </div>
+              <label>
+                Main content <span>{words} words · one point per line</span>
+                <textarea
+                  aria-label="Slide content"
+                  dir="auto"
+                  maxLength={1200}
+                  disabled={locked}
+                  value={slide.body}
+                  onChange={(e) => update({ body: e.target.value })}
+                  placeholder="Write your key points here…"
+                />
+              </label>
+            </div>
+            <div className="deck-media-row">
+              <input
+                ref={input}
+                type="file"
+                accept="image/png,image/jpeg"
+                hidden
+                onChange={(e) => {
+                  upload(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              <button disabled={locked} onClick={() => input.current?.click()}>
+                <ImagePlus size={17} />
+                Add image<small>Prototype, diagram or result</small>
+              </button>
+              {slide.image && (
+                <button
+                  className="deck-remove-image"
+                  disabled={locked}
+                  aria-label="Remove slide image"
+                  onClick={() => update({ image: undefined, caption: "" })}
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+              <label>
+                Caption / source
+                <input
+                  aria-label="Image caption"
+                  disabled={locked}
+                  maxLength={160}
+                  dir="auto"
+                  value={slide.caption}
+                  onChange={(e) => update({ caption: e.target.value })}
+                  placeholder="What does this image show?"
+                />
+              </label>
+            </div>
+            <label className="deck-notes-label">
+              Speaker notes <small>For your voice, not the screen.</small>
+              <textarea
+                ref={notesInput}
+                aria-label="Speaker notes"
+                dir="auto"
+                maxLength={3000}
+                disabled={locked}
+                value={slide.notes}
+                onChange={(e) => update({ notes: e.target.value })}
+                placeholder="What will you say when this slide appears?"
+              />
+            </label>
+          </div>
+        </main>
+        <aside className="deck-coach">
+          <div className="deck-coach-heading">
+            <span>
+              <Sparkles size={19} />
+            </span>
+            <div>
+              <small>A SECOND PAIR OF EYES</small>
+              <h3>A little guidance.</h3>
+            </div>
+          </div>
+          <p>Make the slide clearer, while keeping the story yours.</p>
+          <div className="deck-coach-language">
+            <button aria-pressed={tipsLanguage === "en"} onClick={() => setTipsLanguage("en")}>
+              EN
+            </button>
+            <button aria-pressed={tipsLanguage === "ar"} onClick={() => setTipsLanguage("ar")}>
+              عربي
+            </button>
+            <small>Layout checks</small>
+          </div>
+          <div className="deck-tips">
+            {tips.map((t) => (
+              <article key={t.id} className={t.level} dir={tipsLanguage === "ar" ? "rtl" : "ltr"}>
+                <Lightbulb size={15} />
+                <h4>{tipsLanguage === "ar" ? arabic[t.id]?.[0] || t.title : t.title}</h4>
+                <p>{tipsLanguage === "ar" ? arabic[t.id]?.[1] || t.detail : t.detail}</p>
+                {t.id === "notes" && (
+                  <button disabled={locked} onClick={() => notesInput.current?.focus()}>
+                    {tipsLanguage === "ar" ? "أضيفي ملاحظات" : "Add speaker notes"}
+                    <ArrowRight size={12} />
+                  </button>
+                )}
+                {t.id === "image" && (
+                  <button disabled={locked} onClick={() => input.current?.click()}>
+                    {tipsLanguage === "ar" ? "أضيفي صورة" : "Add an image"}
+                    <ImagePlus size={12} />
+                  </button>
+                )}
+                {t.id === "title" && (
+                  <button disabled={locked} onClick={() => titleInput.current?.focus()}>
+                    Write a heading
+                    <ArrowRight size={12} />
+                  </button>
+                )}
+              </article>
+            ))}
+          </div>
+          <div className="deck-story-map">
+            <span>A CLEAR STORY ARC</span>
+            <p>
+              Problem <ChevronRight size={10} /> Design <ChevronRight size={10} /> Evidence{" "}
+              <ChevronRight size={10} /> Next steps
+            </p>
+          </div>
+          <div className="deck-backup">
+            <button
+              onClick={() =>
+                download(
+                  new Blob([JSON.stringify(deck)], { type: "application/json" }),
+                  "presentation-backup.json",
+                )
+              }
+            >
+              <Download size={12} />
+              Download editable backup
+            </button>
+            <input
+              ref={importInput}
+              hidden
+              type="file"
+              accept="application/json,.json"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file || locked) return;
+                try {
+                  if (file.size > 50 * 1024 * 1024) throw Error();
+                  const next = JSON.parse(await file.text());
+                  if (!validDeck(next)) throw Error();
+                  const loaded = next;
+                  setDeck({ ...loaded, status: "Draft", submittedAt: undefined });
+                  setSelected(0);
+                  setSaved(false);
+                  setNotice("Backup restored. Save your draft to keep it.");
+                } catch {
+                  setNotice(
+                    "That backup could not be restored. Choose a valid presentation backup.",
+                  );
+                }
+                e.target.value = "";
+              }}
+            />
+            <button disabled={locked} onClick={() => importInput.current?.click()}>
+              Restore a backup
+            </button>
+          </div>
+        </aside>
+      </div>
+      <Dialog
+        open={!!pendingImport}
+        onOpenChange={(open) => {
+          if (!open) setPendingImport(null);
+        }}
+      >
+        <DialogContent className="deck-import-dialog">
+          <DialogHeader>
+            <DialogTitle>Open your PowerPoint.</DialogTitle>
+            <DialogDescription>
+              {pendingImport?.imported?.name} · {pendingImport?.slides.length} slides. Keep the
+              original design, images and slide size.
+            </DialogDescription>
+          </DialogHeader>
+          {pendingImport && (
+            <PresentationCanvas deck={pendingImport} slide={pendingImport.slides[0]!} mini />
+          )}
+          <p>
+            Opening this replaces the current canvas. Download your current backup first if you want
+            to keep both.
+          </p>
+          {!!pendingImport?.imported?.warnings.length && (
+            <div className="deck-import-notes">
+              <b>Preview compatibility</b>
+              <p>
+                Some elements have a simplified preview. Their untouched originals stay in the
+                PowerPoint download. PDF uses the preview.
+              </p>
+              <ul>
+                {pendingImport.imported.warnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="deck-import-actions">
+            <button
+              onClick={() =>
+                download(
+                  new Blob([JSON.stringify(deck)], { type: "application/json" }),
+                  "presentation-backup.json",
+                )
+              }
+            >
+              Back up current deck
+            </button>
+            <button onClick={() => setPendingImport(null)}>Cancel</button>
+            <button
+              onClick={() => {
+                if (pendingImport) {
+                  updateDeck(() => pendingImport);
+                  setSelected(0);
+                  setSelectedObject(null);
+                  setPendingImport(null);
+                  setNotice(
+                    "PowerPoint opened with its original design. Select text or photos to edit them.",
+                  );
+                }
+              }}
+            >
+              Open presentation
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={gallery} onOpenChange={setGallery}>
+        <DialogContent className="deck-template-dialog">
+          <DialogHeader>
+            <DialogTitle>A design for every story.</DialogTitle>
+            <DialogDescription>
+              20 distinct designs. Choose a structure here, then make the colors your own. Your
+              content stays.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="deck-gallery-tools">
+            <input
+              aria-label="Search templates"
+              placeholder="Find a template…"
+              value={templateSearch}
+              onChange={(e) => setTemplateSearch(e.target.value)}
+            />
+            <span>{templates.length} designs · 5 slide layouts each</span>
+          </div>
+          <div className="deck-category-tabs">
+            {[
+              "All",
+              "Minimal",
+              "Modern",
+              "Editorial",
+              "Creative",
+              "Photo",
+              "Formal",
+              "Electronics",
+            ].map((c) => (
+              <button
+                key={c}
+                aria-pressed={templateCategory === c}
+                onClick={() => setTemplateCategory(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          <div className="deck-template-grid">
+            {templates
+              .filter(
+                (t) =>
+                  (templateCategory === "All" || t.category === templateCategory) &&
+                  (t.name + " " + t.description)
+                    .toLowerCase()
+                    .includes(templateSearch.toLowerCase()),
+              )
+              .map((t) => (
+                <button
+                  key={t.id}
+                  aria-label={"Apply " + t.name}
+                  aria-pressed={(deck.template ?? "circuit") === t.id}
+                  onClick={() => {
+                    updateDeck((d) => ({ ...d, template: t.id }));
+                    setGallery(false);
+                    setNotice(`${t.name} applied. Your writing and colors are unchanged.`);
+                  }}
+                >
+                  <SlideCanvas
+                    slide={{
+                      ...starterDeck(project.name).slides[0]!,
+                      title: t.name,
+                      body: "A clear idea. A new perspective.",
+                    }}
+                    theme={deck.theme}
+                    template={t.id}
+                    accent={deck.accent}
+                    mini
+                  />
+                  <div>
+                    <small>{t.category}</small>
+                    <h3>
+                      {t.name}
+                      {(deck.template ?? "circuit") === t.id && <Check size={15} />}
+                    </h3>
+                    <p>{t.description}</p>
+                    <span>
+                      {(deck.template ?? "circuit") === t.id ? "Current design" : "Use this design"}
+                      <ArrowRight size={13} />
+                    </span>
+                  </div>
+                </button>
+              ))}
+          </div>
+          {!templates.some(
+            (t) =>
+              (templateCategory === "All" || t.category === templateCategory) &&
+              (t.name + " " + t.description).toLowerCase().includes(templateSearch.toLowerCase()),
+          ) && (
+            <p className="deck-gallery-empty">No designs match. Try another search or category.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={review} onOpenChange={setReview}>
+        <DialogContent className="deck-review-dialog">
+          <DialogHeader>
+            <DialogTitle>One last look.</DialogTitle>
+            <DialogDescription>
+              Check your slides before recording this submission on this device.
+            </DialogDescription>
+          </DialogHeader>
+          <SlideCanvas
+            slide={deck.slides[0]!}
+            deck={deck}
+            theme={deck.theme}
+            template={deck.template}
+            accent={deck.accent}
+            total={deck.slides.length}
+            projectTitle={deck.title}
+          />
+          <div className="deck-review-summary">
+            <span>
+              <b>{deck.slides.length}</b> slides
+            </span>
+            <span>
+              <b>
+                {deck.slides.reduce(
+                  (count, s) =>
+                    count + slideScene(deck, s).objects.filter((o) => o.kind === "image").length,
+                  0,
+                )}
+              </b>{" "}
+              images
+            </span>
+            <span>
+              <b>{deck.slides.filter((s) => s.notes.trim()).length}</b> with notes
+            </span>
+          </div>
+          {!ready && (
+            <p className="deck-review-error">
+              Add a deck title, at least 3 slides, and a heading on every slide.
+            </p>
+          )}
+          <div className="deck-review-actions">
+            <button
+              onClick={() => {
+                setReview(false);
+                startPresentation();
+              }}
+            >
+              <MonitorPlay size={15} />
+              Preview full deck
+            </button>
+            <button disabled={!ready} className="deck-submit" onClick={submit}>
+              <Send size={15} />
+              Submit presentation
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={present}
+        onOpenChange={(open) => {
+          if (!open) closePresentation();
+        }}
+      >
+        <DialogContent className="deck-player">
+          <button
+            className="deck-minimize"
+            aria-label="Minimize presentation"
+            title="Back to editor"
+            onClick={closePresentation}
+          >
+            <Minimize2 size={20} />
+            <span>Back to editor</span>
+          </button>
+          <DialogTitle className="sr-only">{deck.title} presentation</DialogTitle>
+          <DialogDescription className="sr-only">
+            Use left and right arrows to change slides. Escape closes the presentation.
+          </DialogDescription>
+          <SlideCanvas
+            slide={deck.slides[playIndex] ?? deck.slides[0]!}
+            deck={deck}
+            theme={deck.theme}
+            template={deck.template}
+            accent={deck.accent}
+            index={playIndex}
+            total={deck.slides.length}
+            projectTitle={deck.title}
+          />
+          <div className="deck-player-controls">
+            <button
+              aria-label="Previous slide"
+              disabled={playIndex === 0}
+              onClick={() => setPlayIndex((i) => i - 1)}
+            >
+              <ChevronLeft size={21} />
+            </button>
+            <span>
+              {playIndex + 1} / {deck.slides.length}
+            </span>
+            <button
+              aria-label="Next slide"
+              disabled={playIndex === deck.slides.length - 1}
+              onClick={() => setPlayIndex((i) => i + 1)}
+            >
+              <ChevronRight size={21} />
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }

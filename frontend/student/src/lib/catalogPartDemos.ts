@@ -1,46 +1,294 @@
-export type PartDemoKind="board"|"distance"|"climate"|"light"|"motion"|"temperature"|"axes"|"pressure"|"beam"|"flame"|"gas"|"soil"|"level"|"servo"|"rotation"|"steps"|"sound"|"relay"|"display"|"segments"|"led"|"resistor"|"knob"|"button"|"driver"|"wifi"|"rfid"|"bluetooth"|"radio"|"pump";
-export const catalogPartDemos:Record<string,{kind:PartDemoKind;title:string;caption:string;variant:number}>={
- "arduino-uno":{kind:"board",title:"GPIO pulse",caption:"A signal travelling from pin to pin",variant:0},
- "arduino-nano":{kind:"board",title:"Small board. Big ideas.",caption:"Compact controller · alternating pin pulses",variant:1},
- "esp32":{kind:"wifi",title:"Connected controller",caption:"Wireless waves and a pulsing status light",variant:2},
- "esp8266":{kind:"wifi",title:"An idea goes online",caption:"A connection building one wave at a time",variant:3},
- "raspberry-pi-4":{kind:"board",title:"Booting your next idea",caption:"A tiny computer, a growing boot sequence",variant:4},
- "hc-sr04":{kind:"distance",title:"Send. Echo. Detect.",caption:"Move your pointer through the sensing field",variant:0},
- "dht11":{kind:"climate",title:"Temperature + humidity",caption:"Warmth and moisture, side by side",variant:0},
- "dht22":{kind:"climate",title:"A closer look at the climate",caption:"Two smooth traces for temperature and humidity",variant:1},
- "ldr-bare":{kind:"light",title:"Following the light",caption:"A moving beam meets a light-sensitive surface",variant:0},
- "pir":{kind:"motion",title:"Something moved",caption:"A silhouette crosses the detection zones",variant:0},
- "lm35":{kind:"temperature",title:"A little change in warmth",caption:"A thermometer gently rises and falls",variant:0},
- "mpu6050":{kind:"axes",title:"Find your balance",caption:"Three axes tilt around the motion sensor",variant:0},
- "bmp280":{kind:"pressure",title:"Feel the pressure",caption:"A barometer needle follows a gentle arc",variant:0},
- "ir-obstacle":{kind:"beam",title:"A beam meets an obstacle",caption:"The reflected light returns to the sensor",variant:0},
- "flame":{kind:"flame",title:"Watching for a flame",caption:"An illustrated flame flickers in the detection field",variant:0},
- "mq2":{kind:"gas",title:"Particles in the air",caption:"A drifting cloud crosses the sensor",variant:0},
- "soil":{kind:"soil",title:"From dry to damp",caption:"Moisture spreads through a small soil cross-section",variant:0},
- "water-level":{kind:"level",title:"Watch the water rise",caption:"Water moves along the sensing tracks",variant:0},
- "ldr":{kind:"light",title:"Light in. Signal out.",caption:"A light sweep changes the module indicator",variant:1},
- "push-button":{kind:"button",title:"Press. Release. Repeat.",caption:"The button moves down and the contact closes",variant:0},
- "sg90":{kind:"servo",title:"A small, precise sweep",caption:"The servo horn turns smoothly back and forth",variant:0},
- "mg995":{kind:"servo",title:"A stronger turn",caption:"A slower sweep with a longer hold",variant:1},
- "dc-motor":{kind:"rotation",title:"Let it spin",caption:"An illustrative propeller reveals the shaft rotation",variant:0},
- "stepper":{kind:"steps",title:"One step at a time",caption:"The shaft advances in distinct steps",variant:0},
- "buzzer":{kind:"sound",title:"A sound you can see",caption:"Silent sound waves pulse out from the buzzer",variant:0},
- "relay":{kind:"relay",title:"Make the connection",caption:"An illustrated contact opens and closes",variant:0},
- "lcd-i2c":{kind:"display",title:"Hello, builder",caption:"Characters appear on the LCD, one by one",variant:0},
- "oled":{kind:"display",title:"A tiny live canvas",caption:"A scrolling waveform lights up the OLED",variant:1},
- "seven-seg":{kind:"segments",title:"Count it in light",caption:"The seven segments count from zero to nine",variant:0},
- "led-red":{kind:"led",title:"A red little spark",caption:"A red glow with a gentle breathing effect",variant:0},
- "led-green":{kind:"led",title:"Green means glow",caption:"A green glow with a gentle breathing effect",variant:1},
- "led-rgb":{kind:"led",title:"A whole spectrum",caption:"The RGB light blends through its colours",variant:2},
- "resistor-220":{kind:"resistor",title:"Give the signal some resistance",caption:"A pulse travels past the 220 Ω colour bands",variant:0},
- "resistor-10k":{kind:"resistor",title:"Same path. Different resistance.",caption:"The 10 kΩ band pattern meets a slower pulse",variant:1},
- "potentiometer":{kind:"knob",title:"Turn it your way",caption:"The knob and its illustrated level move together",variant:0},
- "l298n":{kind:"driver",title:"Two channels. Two directions.",caption:"Two illustrated motor paths alternate direction",variant:0},
- "tb6600":{kind:"driver",title:"Pulse by pulse",caption:"Step pulses advance along the driver path",variant:1},
- "uln2003":{kind:"driver",title:"A sequence brings motion",caption:"Four channel indicators light in sequence",variant:2},
- "esp8266-module":{kind:"wifi",title:"Give a project its Wi-Fi",caption:"Wireless arcs expand from the module",variant:0},
- "rfid-rc522":{kind:"rfid",title:"Tap into an idea",caption:"A card approaches the illustrated reading field",variant:0},
- "hc05":{kind:"bluetooth",title:"Better together",caption:"Two pairing points connect across the air",variant:0},
- "nrf24l01":{kind:"radio",title:"A packet on its way",caption:"Little data packets travel between two nodes",variant:0},
- "water-pump":{kind:"pump",title:"Keep it flowing",caption:"Water droplets travel through an illustrated inlet and outlet",variant:0},
+export type PartDemoKind =
+  | "board"
+  | "distance"
+  | "climate"
+  | "light"
+  | "motion"
+  | "temperature"
+  | "axes"
+  | "pressure"
+  | "beam"
+  | "flame"
+  | "gas"
+  | "soil"
+  | "level"
+  | "servo"
+  | "rotation"
+  | "steps"
+  | "sound"
+  | "relay"
+  | "display"
+  | "segments"
+  | "led"
+  | "resistor"
+  | "knob"
+  | "button"
+  | "driver"
+  | "wifi"
+  | "rfid"
+  | "bluetooth"
+  | "radio"
+  | "pump";
+export const catalogPartDemos: Record<
+  string,
+  { kind: PartDemoKind; title: string; caption: string; variant: number }
+> = {
+  "arduino-uno": {
+    kind: "board",
+    title: "GPIO pulse",
+    caption: "A signal travelling from pin to pin",
+    variant: 0,
+  },
+  "arduino-nano": {
+    kind: "board",
+    title: "Small board. Big ideas.",
+    caption: "Compact controller · alternating pin pulses",
+    variant: 1,
+  },
+  esp32: {
+    kind: "wifi",
+    title: "Connected controller",
+    caption: "Wireless waves and a pulsing status light",
+    variant: 2,
+  },
+  esp8266: {
+    kind: "wifi",
+    title: "An idea goes online",
+    caption: "A connection building one wave at a time",
+    variant: 3,
+  },
+  "raspberry-pi-4": {
+    kind: "board",
+    title: "Booting your next idea",
+    caption: "A tiny computer, a growing boot sequence",
+    variant: 4,
+  },
+  "hc-sr04": {
+    kind: "distance",
+    title: "Send. Echo. Detect.",
+    caption: "Move your pointer through the sensing field",
+    variant: 0,
+  },
+  dht11: {
+    kind: "climate",
+    title: "Temperature + humidity",
+    caption: "Warmth and moisture, side by side",
+    variant: 0,
+  },
+  dht22: {
+    kind: "climate",
+    title: "A closer look at the climate",
+    caption: "Two smooth traces for temperature and humidity",
+    variant: 1,
+  },
+  "ldr-bare": {
+    kind: "light",
+    title: "Following the light",
+    caption: "A moving beam meets a light-sensitive surface",
+    variant: 0,
+  },
+  pir: {
+    kind: "motion",
+    title: "Something moved",
+    caption: "A silhouette crosses the detection zones",
+    variant: 0,
+  },
+  lm35: {
+    kind: "temperature",
+    title: "A little change in warmth",
+    caption: "A thermometer gently rises and falls",
+    variant: 0,
+  },
+  mpu6050: {
+    kind: "axes",
+    title: "Find your balance",
+    caption: "Three axes tilt around the motion sensor",
+    variant: 0,
+  },
+  bmp280: {
+    kind: "pressure",
+    title: "Feel the pressure",
+    caption: "A barometer needle follows a gentle arc",
+    variant: 0,
+  },
+  "ir-obstacle": {
+    kind: "beam",
+    title: "A beam meets an obstacle",
+    caption: "The reflected light returns to the sensor",
+    variant: 0,
+  },
+  flame: {
+    kind: "flame",
+    title: "Watching for a flame",
+    caption: "An illustrated flame flickers in the detection field",
+    variant: 0,
+  },
+  mq2: {
+    kind: "gas",
+    title: "Particles in the air",
+    caption: "A drifting cloud crosses the sensor",
+    variant: 0,
+  },
+  soil: {
+    kind: "soil",
+    title: "From dry to damp",
+    caption: "Moisture spreads through a small soil cross-section",
+    variant: 0,
+  },
+  "water-level": {
+    kind: "level",
+    title: "Watch the water rise",
+    caption: "Water moves along the sensing tracks",
+    variant: 0,
+  },
+  ldr: {
+    kind: "light",
+    title: "Light in. Signal out.",
+    caption: "A light sweep changes the module indicator",
+    variant: 1,
+  },
+  "push-button": {
+    kind: "button",
+    title: "Press. Release. Repeat.",
+    caption: "The button moves down and the contact closes",
+    variant: 0,
+  },
+  sg90: {
+    kind: "servo",
+    title: "A small, precise sweep",
+    caption: "The servo horn turns smoothly back and forth",
+    variant: 0,
+  },
+  mg995: {
+    kind: "servo",
+    title: "A stronger turn",
+    caption: "A slower sweep with a longer hold",
+    variant: 1,
+  },
+  "dc-motor": {
+    kind: "rotation",
+    title: "Let it spin",
+    caption: "An illustrative propeller reveals the shaft rotation",
+    variant: 0,
+  },
+  stepper: {
+    kind: "steps",
+    title: "One step at a time",
+    caption: "The shaft advances in distinct steps",
+    variant: 0,
+  },
+  buzzer: {
+    kind: "sound",
+    title: "A sound you can see",
+    caption: "Silent sound waves pulse out from the buzzer",
+    variant: 0,
+  },
+  relay: {
+    kind: "relay",
+    title: "Make the connection",
+    caption: "An illustrated contact opens and closes",
+    variant: 0,
+  },
+  "lcd-i2c": {
+    kind: "display",
+    title: "Hello, builder",
+    caption: "Characters appear on the LCD, one by one",
+    variant: 0,
+  },
+  oled: {
+    kind: "display",
+    title: "A tiny live canvas",
+    caption: "A scrolling waveform lights up the OLED",
+    variant: 1,
+  },
+  "seven-seg": {
+    kind: "segments",
+    title: "Count it in light",
+    caption: "The seven segments count from zero to nine",
+    variant: 0,
+  },
+  "led-red": {
+    kind: "led",
+    title: "A red little spark",
+    caption: "A red glow with a gentle breathing effect",
+    variant: 0,
+  },
+  "led-green": {
+    kind: "led",
+    title: "Green means glow",
+    caption: "A green glow with a gentle breathing effect",
+    variant: 1,
+  },
+  "led-rgb": {
+    kind: "led",
+    title: "A whole spectrum",
+    caption: "The RGB light blends through its colours",
+    variant: 2,
+  },
+  "resistor-220": {
+    kind: "resistor",
+    title: "Give the signal some resistance",
+    caption: "A pulse travels past the 220 Ω colour bands",
+    variant: 0,
+  },
+  "resistor-10k": {
+    kind: "resistor",
+    title: "Same path. Different resistance.",
+    caption: "The 10 kΩ band pattern meets a slower pulse",
+    variant: 1,
+  },
+  potentiometer: {
+    kind: "knob",
+    title: "Turn it your way",
+    caption: "The knob and its illustrated level move together",
+    variant: 0,
+  },
+  l298n: {
+    kind: "driver",
+    title: "Two channels. Two directions.",
+    caption: "Two illustrated motor paths alternate direction",
+    variant: 0,
+  },
+  tb6600: {
+    kind: "driver",
+    title: "Pulse by pulse",
+    caption: "Step pulses advance along the driver path",
+    variant: 1,
+  },
+  uln2003: {
+    kind: "driver",
+    title: "A sequence brings motion",
+    caption: "Four channel indicators light in sequence",
+    variant: 2,
+  },
+  "esp8266-module": {
+    kind: "wifi",
+    title: "Give a project its Wi-Fi",
+    caption: "Wireless arcs expand from the module",
+    variant: 0,
+  },
+  "rfid-rc522": {
+    kind: "rfid",
+    title: "Tap into an idea",
+    caption: "A card approaches the illustrated reading field",
+    variant: 0,
+  },
+  hc05: {
+    kind: "bluetooth",
+    title: "Better together",
+    caption: "Two pairing points connect across the air",
+    variant: 0,
+  },
+  nrf24l01: {
+    kind: "radio",
+    title: "A packet on its way",
+    caption: "Little data packets travel between two nodes",
+    variant: 0,
+  },
+  "water-pump": {
+    kind: "pump",
+    title: "Keep it flowing",
+    caption: "Water droplets travel through an illustrated inlet and outlet",
+    variant: 0,
+  },
 };

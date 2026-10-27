@@ -22,7 +22,7 @@ export const WIRE_TYPES: { value: WireType; label: string }[] = [
   { value: "power", label: "DC Power Wire · Stranded" },
 ];
 export function wireRadius(type?: WireType, gauge: PowerGauge = 22) {
-  return type === "power" ? ({ 18: 0.10, 20: 0.085, 22: 0.07 }[gauge]) : 0.045;
+  return type === "power" ? { 18: 0.1, 20: 0.085, 22: 0.07 }[gauge] : 0.045;
 }
 export interface Wire {
   id: string;
@@ -57,4 +57,12 @@ export interface Project {
 }
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
-export const WIRE_COLORS = ["#e5484d", "#2b2f33", "#12a594", "#f5a524", "#3e9bf0", "#8e4ec6", "#ffffff"];
+export const WIRE_COLORS = [
+  "#e5484d",
+  "#2b2f33",
+  "#12a594",
+  "#f5a524",
+  "#3e9bf0",
+  "#8e4ec6",
+  "#ffffff",
+];

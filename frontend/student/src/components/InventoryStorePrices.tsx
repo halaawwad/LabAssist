@@ -1,15 +1,172 @@
 import { MapPin, Phone, ArrowUpRight, CircuitBoard, Search } from "lucide-react";
 import { storeOffers, storeForOffer, workshopStock } from "@/lib/workshopInventory";
 
-export function InventoryStorePrices({query,onQuery,onMap}:{query:string;onQuery:(value:string)=>void;onMap:(id:string)=>void}){
- const term=query.trim().toLowerCase();
- const groups=workshopStock.map(part=>({part,offers:storeOffers.filter(offer=>offer.id===part.id)})).filter(({part,offers})=>offers.length&&`${part.name} ${part.arabic} ${offers.map(offer=>`${offer.name} ${storeForOffer(offer).name} ${storeForOffer(offer).city}`).join(" ")}`.toLowerCase().includes(term));
- return <section className="inventory-store-prices"><header><div><span>COMPARE BEFORE YOU BUY</span><h2>One component. Different stores.</h2><p>Prices, availability and location — together, where you can compare them.</p></div><span className="store-prices-count">{groups.length} components</span></header>
+export function InventoryStorePrices({
+  query,
+  onQuery,
+  onMap,
+}: {
+  query: string;
+  onQuery: (value: string) => void;
+  onMap: (id: string) => void;
+}) {
+  const term = query.trim().toLowerCase();
+  const groups = workshopStock
+    .map((part) => ({ part, offers: storeOffers.filter((offer) => offer.id === part.id) }))
+    .filter(
+      ({ part, offers }) =>
+        offers.length &&
+        `${part.name} ${part.arabic} ${offers.map((offer) => `${offer.name} ${storeForOffer(offer).name} ${storeForOffer(offer).city}`).join(" ")}`
+          .toLowerCase()
+          .includes(term),
+    );
+  return (
+    <section className="inventory-store-prices">
+      <header>
+        <div>
+          <span>COMPARE BEFORE YOU BUY</span>
+          <h2>One component. Different stores.</h2>
+          <p>Prices, availability and location — together, where you can compare them.</p>
+        </div>
+        <span className="store-prices-count">{groups.length} components</span>
+      </header>
 
- {!term&&<div className="store-prices-suggestions"><span>Try</span>{["ESP32","Arduino","XL4015"].map(value=><button key={value} onClick={()=>onQuery(value)}>{value}</button>)}</div>}
- <div className="store-prices-groups">{groups.map(({part,offers})=>{const priced=offers.filter(offer=>offer.price!==null).sort((a,b)=>a.price!-b.price!),min=priced[0]?.price,max=priced[priced.length-1]?.price;return <article className="store-prices-group" key={part.id}><header><div><span className="store-prices-part-icon"><CircuitBoard size={21}/></span><div><h3>{part.name}</h3><small>{new Set(offers.map(offer=>offer.storeId)).size} stores · Compare exact variants below</small></div></div>{min!==undefined&&min!==null&&max!==undefined&&max!==null&&<div className="store-prices-range"><b>{min===max?`₪${min}`:`₪${min} – ₪${max}`}</b><small>{max>min?`₪${max-min} difference across listed variants`:"One published price"}</small></div>}</header>
- <div className="store-prices-offer-grid">{[...offers].sort((a,b)=>(a.price??Infinity)-(b.price??Infinity)).map(offer=>{const store=storeForOffer(offer),out=offer.availability==="Out of Stock",difference=offer.price!==null&&min!==undefined&&min!==null?offer.price-min:0;return <div className={`store-price-option ${out?"price-option-unavailable":""}`} key={offer.offerId}><div className="store-price-shop"><strong>{store.name}</strong><span><MapPin size={11}/>{store.city}</span></div><div className="store-price-amount">{offer.price===null?<b className="price-on-request">Ask for price</b>:<b>₪{offer.price}</b>}<span>{offer.price===null?"No published price":difference>0?`+₪${difference} vs lowest listing${priced[0]?.availability==="Out of Stock"?" (out of stock)":""}`:priced.length>1?(out?"Historical low · unavailable":"Lowest listed · compare variant"):"Published unit price"}</span></div><span className={`store-price-stock ${out?"stock-unavailable":""}`}>{offer.availability}</span><div className="store-price-facts"><span>Condition: ask store</span><span>{offer.storeId==="technolab"&&offer.id==="uno"?"Cable not included":"Check included accessories"}</span></div><h4>{offer.name}</h4><p>{offer.note}</p><small className="store-price-date">Checked {offer.checked} · Shipping excluded</small><footer><button onClick={()=>onMap(store.id)}><MapPin size={12}/>Map</button><a href={`tel:${store.phone}`}><Phone size={12}/>{offer.price===null?"Ask store":"Call"}</a><a href={offer.url} target="_blank" rel="noopener noreferrer">Source<ArrowUpRight size={12}/></a></footer></div>;})}</div>
- {priced.length>1&&<p className="store-prices-caveat">{priced.some(offer=>offer.availability==="Out of Stock")?"The cheaper listing is out of stock, and board versions may differ. This is not a like-for-like saving.":"Prices cover different listed variants. Confirm the USB chip, accessories and condition before comparing."}</p>}</article>})}</div>
- {!groups.length&&<div className="inventory-empty"><Search size={28}/><h3>No store listings for this search</h3><p>Try a model name or browse the components already added.</p><button onClick={()=>onQuery("")}>Show all comparisons</button></div>}
- </section>;
+      {!term && (
+        <div className="store-prices-suggestions">
+          <span>Try</span>
+          {["ESP32", "Arduino", "XL4015"].map((value) => (
+            <button key={value} onClick={() => onQuery(value)}>
+              {value}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="store-prices-groups">
+        {groups.map(({ part, offers }) => {
+          const priced = offers
+              .filter((offer) => offer.price !== null)
+              .sort((a, b) => a.price! - b.price!),
+            min = priced[0]?.price,
+            max = priced[priced.length - 1]?.price;
+          return (
+            <article className="store-prices-group" key={part.id}>
+              <header>
+                <div>
+                  <span className="store-prices-part-icon">
+                    <CircuitBoard size={21} />
+                  </span>
+                  <div>
+                    <h3>{part.name}</h3>
+                    <small>
+                      {new Set(offers.map((offer) => offer.storeId)).size} stores · Compare exact
+                      variants below
+                    </small>
+                  </div>
+                </div>
+                {min !== undefined && min !== null && max !== undefined && max !== null && (
+                  <div className="store-prices-range">
+                    <b>{min === max ? `₪${min}` : `₪${min} – ₪${max}`}</b>
+                    <small>
+                      {max > min
+                        ? `₪${max - min} difference across listed variants`
+                        : "One published price"}
+                    </small>
+                  </div>
+                )}
+              </header>
+              <div className="store-prices-offer-grid">
+                {[...offers]
+                  .sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity))
+                  .map((offer) => {
+                    const store = storeForOffer(offer),
+                      out = offer.availability === "Out of Stock",
+                      difference =
+                        offer.price !== null && min !== undefined && min !== null
+                          ? offer.price - min
+                          : 0;
+                    return (
+                      <div
+                        className={`store-price-option ${out ? "price-option-unavailable" : ""}`}
+                        key={offer.offerId}
+                      >
+                        <div className="store-price-shop">
+                          <strong>{store.name}</strong>
+                          <span>
+                            <MapPin size={11} />
+                            {store.city}
+                          </span>
+                        </div>
+                        <div className="store-price-amount">
+                          {offer.price === null ? (
+                            <b className="price-on-request">Ask for price</b>
+                          ) : (
+                            <b>₪{offer.price}</b>
+                          )}
+                          <span>
+                            {offer.price === null
+                              ? "No published price"
+                              : difference > 0
+                                ? `+₪${difference} vs lowest listing${priced[0]?.availability === "Out of Stock" ? " (out of stock)" : ""}`
+                                : priced.length > 1
+                                  ? out
+                                    ? "Historical low · unavailable"
+                                    : "Lowest listed · compare variant"
+                                  : "Published unit price"}
+                          </span>
+                        </div>
+                        <span className={`store-price-stock ${out ? "stock-unavailable" : ""}`}>
+                          {offer.availability}
+                        </span>
+                        <div className="store-price-facts">
+                          <span>Condition: ask store</span>
+                          <span>
+                            {offer.storeId === "technolab" && offer.id === "uno"
+                              ? "Cable not included"
+                              : "Check included accessories"}
+                          </span>
+                        </div>
+                        <h4>{offer.name}</h4>
+                        <p>{offer.note}</p>
+                        <small className="store-price-date">
+                          Checked {offer.checked} · Shipping excluded
+                        </small>
+                        <footer>
+                          <button onClick={() => onMap(store.id)}>
+                            <MapPin size={12} />
+                            Map
+                          </button>
+                          <a href={`tel:${store.phone}`}>
+                            <Phone size={12} />
+                            {offer.price === null ? "Ask store" : "Call"}
+                          </a>
+                          <a href={offer.url} target="_blank" rel="noopener noreferrer">
+                            Source
+                            <ArrowUpRight size={12} />
+                          </a>
+                        </footer>
+                      </div>
+                    );
+                  })}
+              </div>
+              {priced.length > 1 && (
+                <p className="store-prices-caveat">
+                  {priced.some((offer) => offer.availability === "Out of Stock")
+                    ? "The cheaper listing is out of stock, and board versions may differ. This is not a like-for-like saving."
+                    : "Prices cover different listed variants. Confirm the USB chip, accessories and condition before comparing."}
+                </p>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      {!groups.length && (
+        <div className="inventory-empty">
+          <Search size={28} />
+          <h3>No store listings for this search</h3>
+          <p>Try a model name or browse the components already added.</p>
+          <button onClick={() => onQuery("")}>Show all comparisons</button>
+        </div>
+      )}
+    </section>
+  );
 }

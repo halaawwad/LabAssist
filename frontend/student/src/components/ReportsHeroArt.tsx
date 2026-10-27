@@ -1,5 +1,154 @@
 import { Check, CheckCheck, Cpu, Sparkles } from "lucide-react";
 
-export function ReportsHeroArt(){
- return <div className="report-journal-art" aria-hidden="true"><div className="journal-halo"/><div className="journal-back-page"/><div className="journal-notebook engineer-notebook"><div className="journal-binding">{Array.from({length:6},(_,index)=><i key={index}/>)}</div><div className="journal-page-heading"><span>ENGINEERING NOTES</span><span>01—03</span></div><div className="journal-engineer-title">prototype #03 <span>↗</span></div><svg className="journal-dense-notes" viewBox="0 0 132 132" fill="none"><defs><pattern id="engineer-grid" width="7" height="7" patternUnits="userSpaceOnUse"><path d="M7 0H0V7" stroke="#dce5dc" strokeWidth=".45"/></pattern><clipPath id="journal-signal-window"><rect x="77" y="101" width="49" height="21"/></clipPath></defs><rect width="132" height="132" fill="url(#engineer-grid)"/><g stroke="#819568" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M8 30V13h12l3-4 4 8 4-8 4 8 4-8 3 4h24v14M66 38v14H8V38M2 30h12m-9 6h6M58 27h16v11H58zM66 13h23v17M83 30h12m-12 5h12m-6 1v16H66"/><circle cx="66" cy="13" r="1.4"/><path d="m98 16 11-5m-4 0h4v4M47 39l-9 6m0-4v4h5"/></g><g fill="#7e8a70" fontSize="4.7" fontFamily="'Segoe Print',cursive"><text x="20" y="6">R₁ = 220Ω</text><text x="1" y="25">5V</text><text x="94" y="34">100µF</text><text x="39" y="51">check GND!</text><text x="98" y="8">sensor</text><text x="106" y="20">A0 →</text></g><g stroke="#879fb6" strokeWidth=".85" strokeLinecap="round"><rect x="18" y="63" width="27" height="21" rx="2"/><path d="M22 59v4m5-4v4m5-4v4m5-4v4m5-4v4M22 84v4m5-4v4m5-4v4m5-4v4m5-4v4M14 67h4m-4 5h4m-4 5h4M45 67h9v-9h9m-18 14h13v13h12m-25-8h6v15h12"/><path d="M63 58h7m-5-3 5 3-5 3M70 84h6m-3-2 3 2-3 2"/></g><g fill="#8c9db2" fontSize="4.7" fontFamily="'Segoe Print',cursive"><text x="23" y="76">MCU</text><text x="74" y="59">PWM ~</text><text x="77" y="86">motor</text><text x="54" y="98">3.3V ✓</text></g><g fill="#aa8e68" fontFamily="'Segoe Print',cursive" fontSize="6"><text x="77" y="47" transform="rotate(-5 77 47)">V = IR</text><text x="81" y="68">τ = RC</text><text x="5" y="99" transform="rotate(-3 5 99)">I = 5/220</text><text x="77" y="78">P = VI</text><text x="9" y="108">≈ 22.7 mA</text></g><path d="M7 110q18 4 36-1" stroke="#c7ac7b" strokeWidth=".8"/><g stroke="#a391b8" strokeWidth=".9"><path d="M74 100v23h51"/><g clipPath="url(#journal-signal-window)"><path className="journal-moving-wave" d="M54 112c4-12 8-12 12 0s8 12 12 0 8-12 12 0 8 12 12 0 8-12 12 0 8 12 12 0 8-12 12 0"/></g><path className="journal-pwm-signal" d="M10 118h8v-6h8v6h8v-6h8v6h8"/></g><g fill="#a391b8" fontFamily="'Segoe Print',cursive" fontSize="4.8"><text x="82" y="128">f = 1/T</text><text x="9" y="127">test again →</text></g><path d="m112 91 3 3 6-7" stroke="#91a46f" strokeWidth="1.2" strokeLinecap="round"/><path d="M53 15q-2 10 1 17m-1-1-2-3m2 3 2-3" stroke="#bd9c72" strokeWidth=".65"/><path d="M104 48q7 0 12-5" stroke="#9aa780" strokeWidth=".7"/><circle cx="31" cy="74" r="18" stroke="#c4ad85" strokeWidth=".55" strokeDasharray="2 2"/><g className="journal-current-flow"><path className="journal-flow-path flow-main" d="M8 30V13H66V27"/><path className="journal-flow-path flow-return" d="M66 38V52H8V38"/><path className="journal-flow-path flow-output" d="M45 72H58V85H76"/><path className="journal-flow-path flow-sensor" d="M66 13H89V30"/></g><circle className="journal-node-pulse" cx="66" cy="13" r="2.8"/><circle className="journal-output-pulse" cx="76" cy="85" r="2"/></svg><div className="journal-page-bottom"><span><Check size={10}/>Wire</span><span><Check size={10}/>Measure</span><span>Repeat</span></div></div><div className="journal-photo-slip"><Cpu size={19}/><span/><span/></div><div className="journal-done-slip"><span><CheckCheck size={17}/></span><div><small>BUILD · TEST · REFINE</small><strong>Ideas taking shape.</strong></div></div><div className="journal-pencil"/><Sparkles className="journal-sparkle" size={20}/></div>;
+export function ReportsHeroArt() {
+  return (
+    <div className="report-journal-art" aria-hidden="true">
+      <div className="journal-halo" />
+      <div className="journal-back-page" />
+      <div className="journal-notebook engineer-notebook">
+        <div className="journal-binding">
+          {Array.from({ length: 6 }, (_, index) => (
+            <i key={index} />
+          ))}
+        </div>
+        <div className="journal-page-heading">
+          <span>ENGINEERING NOTES</span>
+          <span>01—03</span>
+        </div>
+        <div className="journal-engineer-title">
+          prototype #03 <span>↗</span>
+        </div>
+        <svg className="journal-dense-notes" viewBox="0 0 132 132" fill="none">
+          <defs>
+            <pattern id="engineer-grid" width="7" height="7" patternUnits="userSpaceOnUse">
+              <path d="M7 0H0V7" stroke="#dce5dc" strokeWidth=".45" />
+            </pattern>
+            <clipPath id="journal-signal-window">
+              <rect x="77" y="101" width="49" height="21" />
+            </clipPath>
+          </defs>
+          <rect width="132" height="132" fill="url(#engineer-grid)" />
+          <g stroke="#819568" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 30V13h12l3-4 4 8 4-8 4 8 4-8 3 4h24v14M66 38v14H8V38M2 30h12m-9 6h6M58 27h16v11H58zM66 13h23v17M83 30h12m-12 5h12m-6 1v16H66" />
+            <circle cx="66" cy="13" r="1.4" />
+            <path d="m98 16 11-5m-4 0h4v4M47 39l-9 6m0-4v4h5" />
+          </g>
+          <g fill="#7e8a70" fontSize="4.7" fontFamily="'Segoe Print',cursive">
+            <text x="20" y="6">
+              R₁ = 220Ω
+            </text>
+            <text x="1" y="25">
+              5V
+            </text>
+            <text x="94" y="34">
+              100µF
+            </text>
+            <text x="39" y="51">
+              check GND!
+            </text>
+            <text x="98" y="8">
+              sensor
+            </text>
+            <text x="106" y="20">
+              A0 →
+            </text>
+          </g>
+          <g stroke="#879fb6" strokeWidth=".85" strokeLinecap="round">
+            <rect x="18" y="63" width="27" height="21" rx="2" />
+            <path d="M22 59v4m5-4v4m5-4v4m5-4v4m5-4v4M22 84v4m5-4v4m5-4v4m5-4v4m5-4v4M14 67h4m-4 5h4m-4 5h4M45 67h9v-9h9m-18 14h13v13h12m-25-8h6v15h12" />
+            <path d="M63 58h7m-5-3 5 3-5 3M70 84h6m-3-2 3 2-3 2" />
+          </g>
+          <g fill="#8c9db2" fontSize="4.7" fontFamily="'Segoe Print',cursive">
+            <text x="23" y="76">
+              MCU
+            </text>
+            <text x="74" y="59">
+              PWM ~
+            </text>
+            <text x="77" y="86">
+              motor
+            </text>
+            <text x="54" y="98">
+              3.3V ✓
+            </text>
+          </g>
+          <g fill="#aa8e68" fontFamily="'Segoe Print',cursive" fontSize="6">
+            <text x="77" y="47" transform="rotate(-5 77 47)">
+              V = IR
+            </text>
+            <text x="81" y="68">
+              τ = RC
+            </text>
+            <text x="5" y="99" transform="rotate(-3 5 99)">
+              I = 5/220
+            </text>
+            <text x="77" y="78">
+              P = VI
+            </text>
+            <text x="9" y="108">
+              ≈ 22.7 mA
+            </text>
+          </g>
+          <path d="M7 110q18 4 36-1" stroke="#c7ac7b" strokeWidth=".8" />
+          <g stroke="#a391b8" strokeWidth=".9">
+            <path d="M74 100v23h51" />
+            <g clipPath="url(#journal-signal-window)">
+              <path
+                className="journal-moving-wave"
+                d="M54 112c4-12 8-12 12 0s8 12 12 0 8-12 12 0 8 12 12 0 8-12 12 0 8 12 12 0 8-12 12 0"
+              />
+            </g>
+            <path className="journal-pwm-signal" d="M10 118h8v-6h8v6h8v-6h8v6h8" />
+          </g>
+          <g fill="#a391b8" fontFamily="'Segoe Print',cursive" fontSize="4.8">
+            <text x="82" y="128">
+              f = 1/T
+            </text>
+            <text x="9" y="127">
+              test again →
+            </text>
+          </g>
+          <path d="m112 91 3 3 6-7" stroke="#91a46f" strokeWidth="1.2" strokeLinecap="round" />
+          <path d="M53 15q-2 10 1 17m-1-1-2-3m2 3 2-3" stroke="#bd9c72" strokeWidth=".65" />
+          <path d="M104 48q7 0 12-5" stroke="#9aa780" strokeWidth=".7" />
+          <circle cx="31" cy="74" r="18" stroke="#c4ad85" strokeWidth=".55" strokeDasharray="2 2" />
+          <g className="journal-current-flow">
+            <path className="journal-flow-path flow-main" d="M8 30V13H66V27" />
+            <path className="journal-flow-path flow-return" d="M66 38V52H8V38" />
+            <path className="journal-flow-path flow-output" d="M45 72H58V85H76" />
+            <path className="journal-flow-path flow-sensor" d="M66 13H89V30" />
+          </g>
+          <circle className="journal-node-pulse" cx="66" cy="13" r="2.8" />
+          <circle className="journal-output-pulse" cx="76" cy="85" r="2" />
+        </svg>
+        <div className="journal-page-bottom">
+          <span>
+            <Check size={10} />
+            Wire
+          </span>
+          <span>
+            <Check size={10} />
+            Measure
+          </span>
+          <span>Repeat</span>
+        </div>
+      </div>
+      <div className="journal-photo-slip">
+        <Cpu size={19} />
+        <span />
+        <span />
+      </div>
+      <div className="journal-done-slip">
+        <span>
+          <CheckCheck size={17} />
+        </span>
+        <div>
+          <small>BUILD · TEST · REFINE</small>
+          <strong>Ideas taking shape.</strong>
+        </div>
+      </div>
+      <div className="journal-pencil" />
+      <Sparkles className="journal-sparkle" size={20} />
+    </div>
+  );
 }

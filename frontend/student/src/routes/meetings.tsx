@@ -1,42 +1,802 @@
 import { MeetingCalendarVisual } from "@/components/MeetingCalendarVisual";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, MapPin, Menu, MessageCircle, Plus, Search, Users, Video, X } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  MapPin,
+  Menu,
+  MessageCircle,
+  Plus,
+  Search,
+  Users,
+  Video,
+  X,
+} from "lucide-react";
 import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { people, useMessages, type ChatMeeting } from "@/lib/messages";
 import { project, teammates } from "@/lib/projectWorkspace";
 import { useStudentProfile } from "@/lib/studentProfile";
 
-export const Route=createFileRoute("/meetings")({head:()=>({meta:[{title:"Meetings | LabAssist"}]}),component:MeetingsPage});
-const dayKey=(value:string|Date)=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Hebron",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(value));
-const dateLabel=(value:string)=>new Date(value).toLocaleDateString("en-US",{timeZone:"Asia/Hebron",weekday:"short",month:"short",day:"numeric"});
-const timeLabel=(value:string)=>new Date(value).toLocaleTimeString("en-US",{timeZone:"Asia/Hebron",hour:"numeric",minute:"2-digit"});
-function MeetingsPage(){
- const navigate=useNavigate(),{meetings,setMeetings,chats,setChats}=useMessages(),{profile}=useStudentProfile();
- const today=dayKey(new Date()),[menu,setMenu]=useState(false),[filter,setFilter]=useState("Upcoming"),[query,setQuery]=useState(""),[selectedDay,setSelectedDay]=useState(""),[selected,setSelected]=useState<string|null>(null),[editing,setEditing]=useState<string|null>(null),[formOpen,setFormOpen]=useState(false),[notice,setNotice]=useState("");
- const [month,setMonth]=useState(()=>new Date(today.slice(0,7)+"-01T12:00:00Z")),[title,setTitle]=useState(""),[date,setDate]=useState(""),[duration,setDuration]=useState(30),[location,setLocation]=useState(""),[agenda,setAgenda]=useState(""),[chat,setChat]=useState("team"),[meetingType,setMeetingType]=useState("team"),[personQuery,setPersonQuery]=useState(""),[personPickerOpen,setPersonPickerOpen]=useState(false),[personDraft,setPersonDraft]=useState(""),[error,setError]=useState("");
- const active=meetings.find(item=>item.id===selected);const [now,setNow]=useState(Date.now);
- useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(timer);},[]);
- const status=(item:ChatMeeting)=>item.status||"Scheduled";
- const isPast=(item:ChatMeeting)=>status(item)==="Completed"||new Date(item.startsAt).getTime()+item.duration*60000<now;
- const upcoming=meetings.filter(item=>status(item)==="Scheduled"&&!isPast(item)).sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
- const visible=meetings.filter(item=>(filter==="All"||filter==="Upcoming"&&status(item)==="Scheduled"&&!isPast(item)||filter==="Past"&&isPast(item)&&status(item)!=="Cancelled"||filter==="Cancelled"&&status(item)==="Cancelled")&&(!selectedDay||dayKey(item.startsAt)===selectedDay)&&`${item.title} ${item.location} ${item.agenda}`.toLowerCase().includes(query.trim().toLowerCase())).sort((a,b)=>filter==="Past"?b.startsAt.localeCompare(a.startsAt):a.startsAt.localeCompare(b.startsAt));
- const members=(item:ChatMeeting)=>item.participants||[profile.name,...(item.conversationId==="team"?teammates.slice(1).map(person=>person.name):[chats.find(c=>c.id===item.conversationId)?.name||people.find(p=>p.id===item.conversationId)?.name||"Participant"])];
- const openForm=(item?:ChatMeeting)=>{setEditing(item?.id||null);setTitle(item?.title||"");setDate(item?`${new Date(item.startsAt).toLocaleDateString("sv-SE")}T${new Date(item.startsAt).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`:"");setDuration(item?.duration||30);setLocation(item?.location||"");setAgenda(item?.agenda||"");setChat(item?.conversationId||"team");setMeetingType(item&&item.conversationId!=="team"?"individual":"team");setError("");setPersonQuery("");setPersonPickerOpen(false);setFormOpen(true);};
- const update=(id:string,change:Partial<ChatMeeting>)=>setMeetings(items=>items.map(item=>item.id===id?{...item,...change}:item));
- const monthYear=month.toLocaleDateString("en-US",{timeZone:"UTC",month:"long",year:"numeric"}),offset=(month.getUTCDay()+6)%7,daysInMonth=new Date(Date.UTC(month.getUTCFullYear(),month.getUTCMonth()+1,0)).getUTCDate();
- return <div className="meetings-background min-h-screen"><div className="insight-shell">{menu&&<button aria-label="Close navigation overlay" className="fixed inset-0 z-30 bg-foreground/20 lg:hidden" onClick={()=>setMenu(false)}/>}<WorkspaceSidebar active="Meetings" open={menu} onClose={()=>setMenu(false)} onSelect={label=>{if(label==="Dashboard")navigate({to:"/"});else if(label==="My Project")navigate({to:"/project"});else if(label==="3D Lab")navigate({to:"/lab"});else if(label==="Component Catalog")navigate({to:"/catalog"});}} className="lg:sticky lg:top-4 lg:h-[calc(100vh-32px)]"/>
- <main className="insight-main meetings-main"><header className="project-page-heading"><div className="flex items-center gap-3"><button className="lg:hidden" aria-label="Open menu" onClick={()=>setMenu(true)}><Menu/></button><div><p className="insight-eyebrow">YOUR WORKSPACE / MAKE TIME TOGETHER</p><h1>Meetings</h1></div></div><Button onClick={()=>openForm()}><Plus size={16}/>Schedule Meeting</Button></header>
- <section className="meeting-hero"><div><span className="meeting-project-label"><Users size={14}/>{project.name}</span><h2>A shared moment.<br/><em>A clearer next step.</em></h2><p>Bring your questions, review the progress, and leave with a plan.</p><div className="meeting-hero-stats"><span><b>{upcoming.length}</b>Upcoming</span><span><b>{meetings.filter(item=>status(item)==="Completed").length}</b>Completed</span><span><b>{teammates.length}</b>Teammates</span></div></div><div className="meeting-next-card"><MeetingCalendarVisual {...(upcoming[0]?{startsAt:upcoming[0].startsAt}:{})}/><small>NEXT ON YOUR CALENDAR</small>{upcoming[0]?<><h3>{upcoming[0].title}</h3><p>{dateLabel(upcoming[0].startsAt)} · {timeLabel(upcoming[0].startsAt)}</p><span>{upcoming[0].duration} min · {upcoming[0].sample?"Example meeting":"Scheduled"}</span><button onClick={()=>setSelected(upcoming[0]!.id)}>View meeting <ChevronRight size={15}/></button></>:<><h3>A little space to plan.</h3><p>No upcoming meetings.</p><button onClick={()=>openForm()}>Schedule your next meeting <Plus size={15}/></button></>}</div></section>
- {notice&&<p className="reports-notice" role="status">{notice}</p>}
- <div className="meetings-layout"><section className="meetings-list-panel"><div className="meetings-list-top"><h2>Your meetings</h2><label className="meetings-search"><Search size={16}/><input aria-label="Search meetings" placeholder="Search meetings…" value={query} onChange={e=>setQuery(e.target.value)}/></label></div><div className="meetings-filters">{["Upcoming","Past","All","Cancelled"].map(value=><button key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{value}</button>)}</div>{selectedDay&&<button className="meetings-day-filter" onClick={()=>setSelectedDay("")}>{selectedDay}<X size={13}/>Clear date</button>}
- <div className="meetings-cards">{visible.map(item=><button className={`meeting-card ${status(item)==="Cancelled"?"is-cancelled":""}`} key={item.id} onClick={()=>setSelected(item.id)}><span className="meeting-date-tile"><small>{new Date(item.startsAt).toLocaleDateString("en-US",{timeZone:"Asia/Hebron",month:"short"})}</small><b>{new Date(item.startsAt).toLocaleDateString("en-US",{timeZone:"Asia/Hebron",day:"2-digit"})}</b></span><span className="meeting-card-copy"><span className="meeting-card-labels"><small className={`meeting-kind kind-${item.conversationId==="team"?"team":"individual"}`}>{item.conversationId==="team"?"Team meeting":"One-to-one"}</small><small className={`meeting-state state-${status(item).toLowerCase()}`}>{status(item)}</small>{item.sample&&<small className="meeting-sample">Example</small>}</span><strong>{item.title}</strong><span><Clock3 size={12}/>{timeLabel(item.startsAt)} · {item.duration} min <span className="meeting-location"><MapPin size={12}/>{item.location}</span></span><span className="meeting-card-people"><Users size={12}/>{members(item).length} participants · {chats.find(c=>c.id===item.conversationId)?.name||people.find(p=>p.id===item.conversationId)?.name||"Participant"}</span></span><ChevronRight size={18}/></button>)}{!visible.length&&<div className="meetings-empty"><CalendarDays size={35}/><h3>No meetings here yet.</h3><p>Try another filter or schedule a time to get together.</p><Button variant="secondary" onClick={()=>{setSelectedDay("");setQuery("");setFilter("All");}}>Show all meetings</Button></div>}</div></section>
- <aside className="meetings-calendar-panel"><header><h2>{monthYear}</h2><div><button aria-label="Previous month" onClick={()=>setMonth(new Date(Date.UTC(month.getUTCFullYear(),month.getUTCMonth()-1,1,12)))}><ChevronLeft size={17}/></button><button aria-label="Next month" onClick={()=>setMonth(new Date(Date.UTC(month.getUTCFullYear(),month.getUTCMonth()+1,1,12)))}><ChevronRight size={17}/></button></div></header><div className="meeting-calendar-grid">{["M","T","W","T","F","S","S"].map((day,i)=><small key={i}>{day}</small>)}{Array.from({length:offset},(_,i)=><span key={`empty-${i}`}/>)}{Array.from({length:daysInMonth},(_,i)=>{const key=`${month.getUTCFullYear()}-${String(month.getUTCMonth()+1).padStart(2,"0")}-${String(i+1).padStart(2,"0")}`,has=meetings.some(item=>status(item)!=="Cancelled"&&dayKey(item.startsAt)===key);return <button key={key} aria-label={`${key}${has?", has meetings":""}`} aria-pressed={selectedDay===key} className={`${today===key?"is-today":""} ${has?"has-meetings":""}`} onClick={()=>{setSelectedDay(key===selectedDay?"":key);setFilter("All");}}>{i+1}{has&&<i/>}</button>;})}</div><p className="meeting-calendar-key"><i/>Meeting scheduled <span>Palestine time</span></p><button className="meeting-calendar-today" onClick={()=>{setMonth(new Date(today.slice(0,7)+"-01T12:00:00Z"));setSelectedDay("");}}>Back to this month</button><section className="meeting-tip"><span><MessageCircle size={19}/></span><h3>Make the time count.</h3><p>Add an agenda before you meet. Keep the decisions and next steps in your meeting notes.</p><button onClick={()=>navigate({to:"/messages",search:{chat:"team"}})}>Open team conversation <ChevronRight size={14}/></button></section></aside></div>
- </main></div>
- <Dialog open={formOpen} onOpenChange={setFormOpen}><DialogContent className="meeting-dialog"><DialogHeader><DialogTitle>{editing?"Edit Meeting":"Schedule Meeting"}</DialogTitle><DialogDescription>{project.name} · Choose a time and give everyone a clear agenda.</DialogDescription></DialogHeader><form className="meeting-form" noValidate onSubmit={e=>{e.preventDefault();const missing=[!title.trim()?"meeting title":"",!date?"date and time":"",meetingType==="individual"&&!chat?"a person to meet":"",!location.trim()?"location or meeting link":""].filter(Boolean);if(missing.length){setError(`Please add: ${missing.join(", ")}.`);return;}if(!Number.isFinite(new Date(date).getTime())){setError("Choose a valid date and time.");return;}if(!Number.isFinite(duration)||duration<15||duration>240){setError("Choose a duration between 15 and 240 minutes.");return;}const startsAt=new Date(date).toISOString();if(new Date(startsAt).getTime()<=Date.now()){setError("Choose a future meeting time.");return;}if(!title.trim()||!location.trim())return;const details={title:title.trim(),startsAt,duration,location:location.trim(),agenda:agenda.trim(),conversationId:chat};if(editing)update(editing,details);else{const id=crypto.randomUUID();setMeetings(items=>[...items,{...details,id,status:"Scheduled"}]);}setFormOpen(false);setNotice(editing?"Meeting updated for this session.":"Meeting scheduled for this session.");}}><label>Meeting title<input value={title} onChange={e=>setTitle(e.target.value)} required maxLength={120}/></label><div className="meeting-form-pair"><label>Date & time (your local time)<input type="datetime-local" value={date} onChange={e=>setDate(e.target.value)} required/></label><label>Duration<select value={duration} onChange={e=>setDuration(Number(e.target.value))}>{[15,30,40,45,60,90,120].map(n=><option key={n} value={n}>{n} minutes</option>)}</select></label></div><fieldset className="meeting-type-picker"><legend>Who are you meeting?</legend><button type="button" aria-pressed={meetingType==="team"} onClick={()=>{setMeetingType("team");setChat("team");}}><Users size={16}/>With my team</button><button type="button" aria-pressed={meetingType==="individual"} onClick={()=>{setMeetingType("individual");setChat("");setPersonQuery("");setPersonPickerOpen(false);}}><MessageCircle size={16}/>One-to-one</button></fieldset>{meetingType==="individual"?<section className="meeting-people-picker">{chat?<div className="meeting-chosen-person"><span className="meeting-person-avatar">{people.find(person=>person.id===chat)?.initials}</span><span><strong>{people.find(person=>person.id===chat)?.name}</strong><small>{people.find(person=>person.id===chat)?.kind}</small></span><button type="button" onClick={()=>{setPersonDraft(chat);setPersonQuery("");setPersonPickerOpen(true);}}>Change person</button></div>:<Button type="button" variant="secondary" onClick={()=>{setPersonDraft("");setPersonQuery("");setPersonPickerOpen(true);}}><Users size={16}/>Choose a person</Button>}</section>:<p className="meeting-form-attendees">{profile.name}, {teammates.slice(1).map(person=>person.name).join(", ")}</p>}<label>Location or meeting link<input value={location} onChange={e=>setLocation(e.target.value)} placeholder="Engineering lab or https://…" required maxLength={300}/></label><label>Agenda<textarea value={agenda} onChange={e=>setAgenda(e.target.value)} placeholder="What should everyone prepare?" maxLength={3000}/></label><footer className="meeting-save-footer">{error&&<p role="alert">{error}</p>}<Button type="button" variant="secondary" onClick={()=>setFormOpen(false)}>Cancel</Button><Button type="submit" disabled={meetingType==="individual"&&!chat}>{editing?"Save Changes":"Save Meeting"}</Button></footer></form></DialogContent></Dialog>
- <Dialog open={personPickerOpen} onOpenChange={setPersonPickerOpen}><DialogContent className="meeting-person-dialog"><DialogHeader><DialogTitle>Choose a person</DialogTitle><DialogDescription>Select someone to meet, then save your choice.</DialogDescription></DialogHeader><label className="meetings-search"><Search size={16}/><input aria-label="Search meeting participants" placeholder="Search name or department…" value={personQuery} onChange={e=>setPersonQuery(e.target.value)}/></label><div className="meeting-people-results" role="group" aria-label="Choose meeting participant">{people.filter(person=>`${person.name} ${person.kind} ${person.detail}`.toLocaleLowerCase().includes(personQuery.trim().toLocaleLowerCase())).map(person=><button type="button" key={person.id} aria-pressed={personDraft===person.id} onClick={()=>setPersonDraft(person.id)}><span className={`meeting-person-avatar role-${person.kind.toLowerCase()}`}>{person.initials}</span><span><strong>{person.name}</strong><small>{person.kind} · {person.detail}</small></span>{personDraft===person.id&&<Check size={16}/>}</button>)}{!people.some(person=>`${person.name} ${person.kind} ${person.detail}`.toLocaleLowerCase().includes(personQuery.trim().toLocaleLowerCase()))&&<p className="messages-no-results">No matching people.</p>}</div><footer className="meeting-person-footer"><Button variant="secondary" onClick={()=>setPersonPickerOpen(false)}>Cancel</Button><Button disabled={!personDraft} onClick={()=>{setChat(personDraft);setPersonPickerOpen(false);setError("");}}>Save Person</Button></footer></DialogContent></Dialog>
- <Dialog open={!!active} onOpenChange={open=>!open&&setSelected(null)}><DialogContent className="meeting-dialog"><DialogHeader><DialogTitle>{active?.title||"Meeting details"}</DialogTitle><DialogDescription>{active?.sample?"Example meeting · ":""}{project.name}</DialogDescription></DialogHeader>{active&&<div className="meeting-detail"><span className={`meeting-state state-${status(active).toLowerCase()}`}>{status(active)}</span><div className="meeting-detail-meta"><p><CalendarDays size={17}/>{dateLabel(active.startsAt)}</p><p><Clock3 size={17}/>{timeLabel(active.startsAt)} · {active.duration} minutes · Palestine time</p><p><MapPin size={17}/>{active.location}</p></div>{/^https:\/\//i.test(active.location)&&status(active)==="Scheduled"&&<a className="meeting-join" href={active.location} target="_blank" rel="noopener noreferrer"><Video size={16}/>Open Meeting Link</a>}<section><h3>Participants</h3><div className="meeting-participants">{members(active).map(name=><span key={name}>{name}</span>)}</div></section><section><h3>Agenda</h3><p>{active.agenda||"No agenda added yet."}</p></section><label>Meeting notes & next steps<textarea aria-label="Meeting notes & next steps" value={active.notes||""} onChange={e=>update(active.id,{notes:e.target.value})} placeholder="Capture decisions, action items, and what happens next…" maxLength={5000}/><small>Changes stay in this session.</small></label><footer><Button variant="secondary" onClick={()=>{if(!chats.some(c=>c.id===active.conversationId)){const person=people.find(p=>p.id===active.conversationId);if(person)setChats(items=>[...items,{...person,unread:0,messages:[]}]);}setSelected(null);navigate({to:"/messages",search:{chat:active.conversationId}});}}><MessageCircle size={14}/>Open Chat</Button>{status(active)==="Scheduled"&&<><Button variant="secondary" onClick={()=>{setSelected(null);openForm(active);}}>Edit</Button><Button variant="secondary" onClick={()=>update(active.id,{status:"Cancelled"})}>Cancel Meeting</Button><Button onClick={()=>update(active.id,{status:"Completed"})}><Check size={14}/>Mark Completed</Button></>}</footer></div>}</DialogContent></Dialog>
- </div>;
+export const Route = createFileRoute("/meetings")({
+  head: () => ({ meta: [{ title: "Meetings | LabAssist" }] }),
+  component: MeetingsPage,
+});
+const dayKey = (value: string | Date) =>
+  new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Hebron",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+const dateLabel = (value: string) =>
+  new Date(value).toLocaleDateString("en-US", {
+    timeZone: "Asia/Hebron",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+const timeLabel = (value: string) =>
+  new Date(value).toLocaleTimeString("en-US", {
+    timeZone: "Asia/Hebron",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+function MeetingsPage() {
+  const navigate = useNavigate(),
+    { meetings, setMeetings, chats, setChats } = useMessages(),
+    { profile } = useStudentProfile();
+  const today = dayKey(new Date()),
+    [menu, setMenu] = useState(false),
+    [filter, setFilter] = useState("Upcoming"),
+    [query, setQuery] = useState(""),
+    [selectedDay, setSelectedDay] = useState(""),
+    [selected, setSelected] = useState<string | null>(null),
+    [editing, setEditing] = useState<string | null>(null),
+    [formOpen, setFormOpen] = useState(false),
+    [notice, setNotice] = useState("");
+  const [month, setMonth] = useState(() => new Date(today.slice(0, 7) + "-01T12:00:00Z")),
+    [title, setTitle] = useState(""),
+    [date, setDate] = useState(""),
+    [duration, setDuration] = useState(30),
+    [location, setLocation] = useState(""),
+    [agenda, setAgenda] = useState(""),
+    [chat, setChat] = useState("team"),
+    [meetingType, setMeetingType] = useState("team"),
+    [personQuery, setPersonQuery] = useState(""),
+    [personPickerOpen, setPersonPickerOpen] = useState(false),
+    [personDraft, setPersonDraft] = useState(""),
+    [error, setError] = useState("");
+  const active = meetings.find((item) => item.id === selected);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+  const status = (item: ChatMeeting) => item.status || "Scheduled";
+  const isPast = (item: ChatMeeting) =>
+    status(item) === "Completed" || new Date(item.startsAt).getTime() + item.duration * 60000 < now;
+  const upcoming = meetings
+    .filter((item) => status(item) === "Scheduled" && !isPast(item))
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const visible = meetings
+    .filter(
+      (item) =>
+        (filter === "All" ||
+          (filter === "Upcoming" && status(item) === "Scheduled" && !isPast(item)) ||
+          (filter === "Past" && isPast(item) && status(item) !== "Cancelled") ||
+          (filter === "Cancelled" && status(item) === "Cancelled")) &&
+        (!selectedDay || dayKey(item.startsAt) === selectedDay) &&
+        `${item.title} ${item.location} ${item.agenda}`
+          .toLowerCase()
+          .includes(query.trim().toLowerCase()),
+    )
+    .sort((a, b) =>
+      filter === "Past"
+        ? b.startsAt.localeCompare(a.startsAt)
+        : a.startsAt.localeCompare(b.startsAt),
+    );
+  const members = (item: ChatMeeting) =>
+    item.participants || [
+      profile.name,
+      ...(item.conversationId === "team"
+        ? teammates.slice(1).map((person) => person.name)
+        : [
+            chats.find((c) => c.id === item.conversationId)?.name ||
+              people.find((p) => p.id === item.conversationId)?.name ||
+              "Participant",
+          ]),
+    ];
+  const openForm = (item?: ChatMeeting) => {
+    setEditing(item?.id || null);
+    setTitle(item?.title || "");
+    setDate(
+      item
+        ? `${new Date(item.startsAt).toLocaleDateString("sv-SE")}T${new Date(item.startsAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+        : "",
+    );
+    setDuration(item?.duration || 30);
+    setLocation(item?.location || "");
+    setAgenda(item?.agenda || "");
+    setChat(item?.conversationId || "team");
+    setMeetingType(item && item.conversationId !== "team" ? "individual" : "team");
+    setError("");
+    setPersonQuery("");
+    setPersonPickerOpen(false);
+    setFormOpen(true);
+  };
+  const update = (id: string, change: Partial<ChatMeeting>) =>
+    setMeetings((items) => items.map((item) => (item.id === id ? { ...item, ...change } : item)));
+  const monthYear = month.toLocaleDateString("en-US", {
+      timeZone: "UTC",
+      month: "long",
+      year: "numeric",
+    }),
+    offset = (month.getUTCDay() + 6) % 7,
+    daysInMonth = new Date(
+      Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 0),
+    ).getUTCDate();
+  return (
+    <div className="meetings-background min-h-screen">
+      <div className="insight-shell">
+        {menu && (
+          <button
+            aria-label="Close navigation overlay"
+            className="fixed inset-0 z-30 bg-foreground/20 lg:hidden"
+            onClick={() => setMenu(false)}
+          />
+        )}
+        <WorkspaceSidebar
+          active="Meetings"
+          open={menu}
+          onClose={() => setMenu(false)}
+          onSelect={(label) => {
+            if (label === "Dashboard") navigate({ to: "/" });
+            else if (label === "My Project") navigate({ to: "/project" });
+            else if (label === "3D Lab") navigate({ to: "/lab" });
+            else if (label === "Component Catalog") navigate({ to: "/catalog" });
+          }}
+          className="lg:sticky lg:top-4 lg:h-[calc(100vh-32px)]"
+        />
+        <main className="insight-main meetings-main">
+          <header className="project-page-heading">
+            <div className="flex items-center gap-3">
+              <button className="lg:hidden" aria-label="Open menu" onClick={() => setMenu(true)}>
+                <Menu />
+              </button>
+              <div>
+                <p className="insight-eyebrow">YOUR WORKSPACE / MAKE TIME TOGETHER</p>
+                <h1>Meetings</h1>
+              </div>
+            </div>
+            <Button onClick={() => openForm()}>
+              <Plus size={16} />
+              Schedule Meeting
+            </Button>
+          </header>
+          <section className="meeting-hero">
+            <div>
+              <span className="meeting-project-label">
+                <Users size={14} />
+                {project.name}
+              </span>
+              <h2>
+                A shared moment.
+                <br />
+                <em>A clearer next step.</em>
+              </h2>
+              <p>Bring your questions, review the progress, and leave with a plan.</p>
+              <div className="meeting-hero-stats">
+                <span>
+                  <b>{upcoming.length}</b>Upcoming
+                </span>
+                <span>
+                  <b>{meetings.filter((item) => status(item) === "Completed").length}</b>Completed
+                </span>
+                <span>
+                  <b>{teammates.length}</b>Teammates
+                </span>
+              </div>
+            </div>
+            <div className="meeting-next-card">
+              <MeetingCalendarVisual {...(upcoming[0] ? { startsAt: upcoming[0].startsAt } : {})} />
+              <small>NEXT ON YOUR CALENDAR</small>
+              {upcoming[0] ? (
+                <>
+                  <h3>{upcoming[0].title}</h3>
+                  <p>
+                    {dateLabel(upcoming[0].startsAt)} · {timeLabel(upcoming[0].startsAt)}
+                  </p>
+                  <span>
+                    {upcoming[0].duration} min ·{" "}
+                    {upcoming[0].sample ? "Example meeting" : "Scheduled"}
+                  </span>
+                  <button onClick={() => setSelected(upcoming[0]!.id)}>
+                    View meeting <ChevronRight size={15} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h3>A little space to plan.</h3>
+                  <p>No upcoming meetings.</p>
+                  <button onClick={() => openForm()}>
+                    Schedule your next meeting <Plus size={15} />
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+          {notice && (
+            <p className="reports-notice" role="status">
+              {notice}
+            </p>
+          )}
+          <div className="meetings-layout">
+            <section className="meetings-list-panel">
+              <div className="meetings-list-top">
+                <h2>Your meetings</h2>
+                <label className="meetings-search">
+                  <Search size={16} />
+                  <input
+                    aria-label="Search meetings"
+                    placeholder="Search meetings…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="meetings-filters">
+                {["Upcoming", "Past", "All", "Cancelled"].map((value) => (
+                  <button
+                    key={value}
+                    aria-pressed={filter === value}
+                    onClick={() => setFilter(value)}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+              {selectedDay && (
+                <button className="meetings-day-filter" onClick={() => setSelectedDay("")}>
+                  {selectedDay}
+                  <X size={13} />
+                  Clear date
+                </button>
+              )}
+              <div className="meetings-cards">
+                {visible.map((item) => (
+                  <button
+                    className={`meeting-card ${status(item) === "Cancelled" ? "is-cancelled" : ""}`}
+                    key={item.id}
+                    onClick={() => setSelected(item.id)}
+                  >
+                    <span className="meeting-date-tile">
+                      <small>
+                        {new Date(item.startsAt).toLocaleDateString("en-US", {
+                          timeZone: "Asia/Hebron",
+                          month: "short",
+                        })}
+                      </small>
+                      <b>
+                        {new Date(item.startsAt).toLocaleDateString("en-US", {
+                          timeZone: "Asia/Hebron",
+                          day: "2-digit",
+                        })}
+                      </b>
+                    </span>
+                    <span className="meeting-card-copy">
+                      <span className="meeting-card-labels">
+                        <small
+                          className={`meeting-kind kind-${item.conversationId === "team" ? "team" : "individual"}`}
+                        >
+                          {item.conversationId === "team" ? "Team meeting" : "One-to-one"}
+                        </small>
+                        <small className={`meeting-state state-${status(item).toLowerCase()}`}>
+                          {status(item)}
+                        </small>
+                        {item.sample && <small className="meeting-sample">Example</small>}
+                      </span>
+                      <strong>{item.title}</strong>
+                      <span>
+                        <Clock3 size={12} />
+                        {timeLabel(item.startsAt)} · {item.duration} min{" "}
+                        <span className="meeting-location">
+                          <MapPin size={12} />
+                          {item.location}
+                        </span>
+                      </span>
+                      <span className="meeting-card-people">
+                        <Users size={12} />
+                        {members(item).length} participants ·{" "}
+                        {chats.find((c) => c.id === item.conversationId)?.name ||
+                          people.find((p) => p.id === item.conversationId)?.name ||
+                          "Participant"}
+                      </span>
+                    </span>
+                    <ChevronRight size={18} />
+                  </button>
+                ))}
+                {!visible.length && (
+                  <div className="meetings-empty">
+                    <CalendarDays size={35} />
+                    <h3>No meetings here yet.</h3>
+                    <p>Try another filter or schedule a time to get together.</p>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setSelectedDay("");
+                        setQuery("");
+                        setFilter("All");
+                      }}
+                    >
+                      Show all meetings
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </section>
+            <aside className="meetings-calendar-panel">
+              <header>
+                <h2>{monthYear}</h2>
+                <div>
+                  <button
+                    aria-label="Previous month"
+                    onClick={() =>
+                      setMonth(
+                        new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() - 1, 1, 12)),
+                      )
+                    }
+                  >
+                    <ChevronLeft size={17} />
+                  </button>
+                  <button
+                    aria-label="Next month"
+                    onClick={() =>
+                      setMonth(
+                        new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1, 12)),
+                      )
+                    }
+                  >
+                    <ChevronRight size={17} />
+                  </button>
+                </div>
+              </header>
+              <div className="meeting-calendar-grid">
+                {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => (
+                  <small key={i}>{day}</small>
+                ))}
+                {Array.from({ length: offset }, (_, i) => (
+                  <span key={`empty-${i}`} />
+                ))}
+                {Array.from({ length: daysInMonth }, (_, i) => {
+                  const key = `${month.getUTCFullYear()}-${String(month.getUTCMonth() + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`,
+                    has = meetings.some(
+                      (item) => status(item) !== "Cancelled" && dayKey(item.startsAt) === key,
+                    );
+                  return (
+                    <button
+                      key={key}
+                      aria-label={`${key}${has ? ", has meetings" : ""}`}
+                      aria-pressed={selectedDay === key}
+                      className={`${today === key ? "is-today" : ""} ${has ? "has-meetings" : ""}`}
+                      onClick={() => {
+                        setSelectedDay(key === selectedDay ? "" : key);
+                        setFilter("All");
+                      }}
+                    >
+                      {i + 1}
+                      {has && <i />}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="meeting-calendar-key">
+                <i />
+                Meeting scheduled <span>Palestine time</span>
+              </p>
+              <button
+                className="meeting-calendar-today"
+                onClick={() => {
+                  setMonth(new Date(today.slice(0, 7) + "-01T12:00:00Z"));
+                  setSelectedDay("");
+                }}
+              >
+                Back to this month
+              </button>
+              <section className="meeting-tip">
+                <span>
+                  <MessageCircle size={19} />
+                </span>
+                <h3>Make the time count.</h3>
+                <p>
+                  Add an agenda before you meet. Keep the decisions and next steps in your meeting
+                  notes.
+                </p>
+                <button onClick={() => navigate({ to: "/messages", search: { chat: "team" } })}>
+                  Open team conversation <ChevronRight size={14} />
+                </button>
+              </section>
+            </aside>
+          </div>
+        </main>
+      </div>
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="meeting-dialog">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit Meeting" : "Schedule Meeting"}</DialogTitle>
+            <DialogDescription>
+              {project.name} · Choose a time and give everyone a clear agenda.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="meeting-form"
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              const missing = [
+                !title.trim() ? "meeting title" : "",
+                !date ? "date and time" : "",
+                meetingType === "individual" && !chat ? "a person to meet" : "",
+                !location.trim() ? "location or meeting link" : "",
+              ].filter(Boolean);
+              if (missing.length) {
+                setError(`Please add: ${missing.join(", ")}.`);
+                return;
+              }
+              if (!Number.isFinite(new Date(date).getTime())) {
+                setError("Choose a valid date and time.");
+                return;
+              }
+              if (!Number.isFinite(duration) || duration < 15 || duration > 240) {
+                setError("Choose a duration between 15 and 240 minutes.");
+                return;
+              }
+              const startsAt = new Date(date).toISOString();
+              if (new Date(startsAt).getTime() <= Date.now()) {
+                setError("Choose a future meeting time.");
+                return;
+              }
+              if (!title.trim() || !location.trim()) return;
+              const details = {
+                title: title.trim(),
+                startsAt,
+                duration,
+                location: location.trim(),
+                agenda: agenda.trim(),
+                conversationId: chat,
+              };
+              if (editing) update(editing, details);
+              else {
+                const id = crypto.randomUUID();
+                setMeetings((items) => [...items, { ...details, id, status: "Scheduled" }]);
+              }
+              setFormOpen(false);
+              setNotice(
+                editing
+                  ? "Meeting updated for this session."
+                  : "Meeting scheduled for this session.",
+              );
+            }}
+          >
+            <label>
+              Meeting title
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                maxLength={120}
+              />
+            </label>
+            <div className="meeting-form-pair">
+              <label>
+                Date & time (your local time)
+                <input
+                  type="datetime-local"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Duration
+                <select value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
+                  {[15, 30, 40, 45, 60, 90, 120].map((n) => (
+                    <option key={n} value={n}>
+                      {n} minutes
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <fieldset className="meeting-type-picker">
+              <legend>Who are you meeting?</legend>
+              <button
+                type="button"
+                aria-pressed={meetingType === "team"}
+                onClick={() => {
+                  setMeetingType("team");
+                  setChat("team");
+                }}
+              >
+                <Users size={16} />
+                With my team
+              </button>
+              <button
+                type="button"
+                aria-pressed={meetingType === "individual"}
+                onClick={() => {
+                  setMeetingType("individual");
+                  setChat("");
+                  setPersonQuery("");
+                  setPersonPickerOpen(false);
+                }}
+              >
+                <MessageCircle size={16} />
+                One-to-one
+              </button>
+            </fieldset>
+            {meetingType === "individual" ? (
+              <section className="meeting-people-picker">
+                {chat ? (
+                  <div className="meeting-chosen-person">
+                    <span className="meeting-person-avatar">
+                      {people.find((person) => person.id === chat)?.initials}
+                    </span>
+                    <span>
+                      <strong>{people.find((person) => person.id === chat)?.name}</strong>
+                      <small>{people.find((person) => person.id === chat)?.kind}</small>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPersonDraft(chat);
+                        setPersonQuery("");
+                        setPersonPickerOpen(true);
+                      }}
+                    >
+                      Change person
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setPersonDraft("");
+                      setPersonQuery("");
+                      setPersonPickerOpen(true);
+                    }}
+                  >
+                    <Users size={16} />
+                    Choose a person
+                  </Button>
+                )}
+              </section>
+            ) : (
+              <p className="meeting-form-attendees">
+                {profile.name},{" "}
+                {teammates
+                  .slice(1)
+                  .map((person) => person.name)
+                  .join(", ")}
+              </p>
+            )}
+            <label>
+              Location or meeting link
+              <input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Engineering lab or https://…"
+                required
+                maxLength={300}
+              />
+            </label>
+            <label>
+              Agenda
+              <textarea
+                value={agenda}
+                onChange={(e) => setAgenda(e.target.value)}
+                placeholder="What should everyone prepare?"
+                maxLength={3000}
+              />
+            </label>
+            <footer className="meeting-save-footer">
+              {error && <p role="alert">{error}</p>}
+              <Button type="button" variant="secondary" onClick={() => setFormOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={meetingType === "individual" && !chat}>
+                {editing ? "Save Changes" : "Save Meeting"}
+              </Button>
+            </footer>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={personPickerOpen} onOpenChange={setPersonPickerOpen}>
+        <DialogContent className="meeting-person-dialog">
+          <DialogHeader>
+            <DialogTitle>Choose a person</DialogTitle>
+            <DialogDescription>Select someone to meet, then save your choice.</DialogDescription>
+          </DialogHeader>
+          <label className="meetings-search">
+            <Search size={16} />
+            <input
+              aria-label="Search meeting participants"
+              placeholder="Search name or department…"
+              value={personQuery}
+              onChange={(e) => setPersonQuery(e.target.value)}
+            />
+          </label>
+          <div
+            className="meeting-people-results"
+            role="group"
+            aria-label="Choose meeting participant"
+          >
+            {people
+              .filter((person) =>
+                `${person.name} ${person.kind} ${person.detail}`
+                  .toLocaleLowerCase()
+                  .includes(personQuery.trim().toLocaleLowerCase()),
+              )
+              .map((person) => (
+                <button
+                  type="button"
+                  key={person.id}
+                  aria-pressed={personDraft === person.id}
+                  onClick={() => setPersonDraft(person.id)}
+                >
+                  <span className={`meeting-person-avatar role-${person.kind.toLowerCase()}`}>
+                    {person.initials}
+                  </span>
+                  <span>
+                    <strong>{person.name}</strong>
+                    <small>
+                      {person.kind} · {person.detail}
+                    </small>
+                  </span>
+                  {personDraft === person.id && <Check size={16} />}
+                </button>
+              ))}
+            {!people.some((person) =>
+              `${person.name} ${person.kind} ${person.detail}`
+                .toLocaleLowerCase()
+                .includes(personQuery.trim().toLocaleLowerCase()),
+            ) && <p className="messages-no-results">No matching people.</p>}
+          </div>
+          <footer className="meeting-person-footer">
+            <Button variant="secondary" onClick={() => setPersonPickerOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!personDraft}
+              onClick={() => {
+                setChat(personDraft);
+                setPersonPickerOpen(false);
+                setError("");
+              }}
+            >
+              Save Person
+            </Button>
+          </footer>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!active} onOpenChange={(open) => !open && setSelected(null)}>
+        <DialogContent className="meeting-dialog">
+          <DialogHeader>
+            <DialogTitle>{active?.title || "Meeting details"}</DialogTitle>
+            <DialogDescription>
+              {active?.sample ? "Example meeting · " : ""}
+              {project.name}
+            </DialogDescription>
+          </DialogHeader>
+          {active && (
+            <div className="meeting-detail">
+              <span className={`meeting-state state-${status(active).toLowerCase()}`}>
+                {status(active)}
+              </span>
+              <div className="meeting-detail-meta">
+                <p>
+                  <CalendarDays size={17} />
+                  {dateLabel(active.startsAt)}
+                </p>
+                <p>
+                  <Clock3 size={17} />
+                  {timeLabel(active.startsAt)} · {active.duration} minutes · Palestine time
+                </p>
+                <p>
+                  <MapPin size={17} />
+                  {active.location}
+                </p>
+              </div>
+              {/^https:\/\//i.test(active.location) && status(active) === "Scheduled" && (
+                <a
+                  className="meeting-join"
+                  href={active.location}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Video size={16} />
+                  Open Meeting Link
+                </a>
+              )}
+              <section>
+                <h3>Participants</h3>
+                <div className="meeting-participants">
+                  {members(active).map((name) => (
+                    <span key={name}>{name}</span>
+                  ))}
+                </div>
+              </section>
+              <section>
+                <h3>Agenda</h3>
+                <p>{active.agenda || "No agenda added yet."}</p>
+              </section>
+              <label>
+                Meeting notes & next steps
+                <textarea
+                  aria-label="Meeting notes & next steps"
+                  value={active.notes || ""}
+                  onChange={(e) => update(active.id, { notes: e.target.value })}
+                  placeholder="Capture decisions, action items, and what happens next…"
+                  maxLength={5000}
+                />
+                <small>Changes stay in this session.</small>
+              </label>
+              <footer>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (!chats.some((c) => c.id === active.conversationId)) {
+                      const person = people.find((p) => p.id === active.conversationId);
+                      if (person)
+                        setChats((items) => [...items, { ...person, unread: 0, messages: [] }]);
+                    }
+                    setSelected(null);
+                    navigate({ to: "/messages", search: { chat: active.conversationId } });
+                  }}
+                >
+                  <MessageCircle size={14} />
+                  Open Chat
+                </Button>
+                {status(active) === "Scheduled" && (
+                  <>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setSelected(null);
+                        openForm(active);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => update(active.id, { status: "Cancelled" })}
+                    >
+                      Cancel Meeting
+                    </Button>
+                    <Button onClick={() => update(active.id, { status: "Completed" })}>
+                      <Check size={14} />
+                      Mark Completed
+                    </Button>
+                  </>
+                )}
+              </footer>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }

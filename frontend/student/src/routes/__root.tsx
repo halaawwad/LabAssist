@@ -93,7 +93,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap",
+      },
       {
         rel: "stylesheet",
         href: appCss,
@@ -126,7 +129,24 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <PartRequestsProvider><StudentSettingsProvider><ReportsProvider><MessagesProvider><StudentProfileProvider><ProjectWorkspaceProvider><ProjectImageProvider><NotificationsProvider><Outlet /><NotificationsPanel/></NotificationsProvider></ProjectImageProvider></ProjectWorkspaceProvider></StudentProfileProvider></MessagesProvider></ReportsProvider></StudentSettingsProvider></PartRequestsProvider>
+      <PartRequestsProvider>
+        <StudentSettingsProvider>
+          <ReportsProvider>
+            <MessagesProvider>
+              <StudentProfileProvider>
+                <ProjectWorkspaceProvider>
+                  <ProjectImageProvider>
+                    <NotificationsProvider>
+                      <Outlet />
+                      <NotificationsPanel />
+                    </NotificationsProvider>
+                  </ProjectImageProvider>
+                </ProjectWorkspaceProvider>
+              </StudentProfileProvider>
+            </MessagesProvider>
+          </ReportsProvider>
+        </StudentSettingsProvider>
+      </PartRequestsProvider>
     </QueryClientProvider>
   );
 }

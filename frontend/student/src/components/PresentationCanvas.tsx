@@ -1,23 +1,224 @@
-import {useRef,useState,type CSSProperties,type PointerEvent} from 'react';
-import {slideScene,boundedBox,type CanvasObject,type ObjectPatch} from '@/lib/presentationScene';
-import type {Deck,Slide} from '@/lib/presentations';
+import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import {
+  slideScene,
+  boundedBox,
+  type CanvasObject,
+  type ObjectPatch,
+} from "@/lib/presentationScene";
+import type { Deck, Slide } from "@/lib/presentations";
 
-export function PresentationCanvas({deck,slide,index=0,mini=false,editable=false,selectedId,onSelect,onChange}:{deck:Deck;slide:Slide;index?:number;mini?:boolean;editable?:boolean;selectedId?:string|null|undefined;onSelect?:(id:string|null)=>void;onChange?:(id:string,patch:ObjectPatch)=>void}){
- const scene=slideScene(deck,slide,index),root=useRef<HTMLDivElement>(null),[moving,setMoving]=useState<CanvasObject|null>(null);
- const gesture=useRef<{object:CanvasObject;startX:number;startY:number;mode:string;scale:number;draft:CanvasObject;moved:boolean}|null>(null);
- const box=(o:CanvasObject):CSSProperties=>({left:o.x/9.6+'%',top:o.y/scene.height*100+'%',width:o.w/9.6+'%',height:o.h/scene.height*100+'%',transform:o.rotation?`rotate(${o.rotation}deg)`:undefined});
- const start=(e:PointerEvent,o:CanvasObject,mode='move')=>{if(!editable||o.locked||e.button!==0)return;e.preventDefault();e.stopPropagation();onSelect?.(o.id);e.currentTarget.setPointerCapture(e.pointerId);const width=root.current?.getBoundingClientRect().width??960;gesture.current={object:o,startX:e.clientX,startY:e.clientY,mode,scale:960/width,draft:o,moved:false};};
- const move=(e:PointerEvent)=>{const g=gesture.current;if(!g)return;const dx=(e.clientX-g.startX)*g.scale,dy=(e.clientY-g.startY)*g.scale;if(Math.abs(dx)+Math.abs(dy)<2)return;g.moved=true;let next={...g.object};if(g.mode==='move'){next.x=Math.max(0,Math.min(960-next.w,g.object.x+dx));next.y=Math.max(0,Math.min(scene.height-next.h,g.object.y+dy));}else{
-  const west=g.mode.includes('w'),north=g.mode.includes('n');next.w=Math.max(20,g.object.w+(west?-dx:dx));next.h=Math.max(20,g.object.h+(north?-dy:dy));if(west)next.x=g.object.x+g.object.w-next.w;if(north)next.y=g.object.y+g.object.h-next.h;
-  if(e.shiftKey){const ratio=g.object.w/g.object.h;next.h=next.w/ratio;if(north)next.y=g.object.y+g.object.h-next.h;}
-  Object.assign(next,boundedBox(next,scene.height));
- }g.draft=next;setMoving(next);};
- const finish=(e:PointerEvent,cancel=false)=>{const g=gesture.current;if(!g)return;gesture.current=null;setMoving(null);if(!cancel&&g.moved)onChange?.(g.object.id,{x:g.draft.x,y:g.draft.y,w:g.draft.w,h:g.draft.h});if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);};
- return <div ref={root} className={`deck-slide deck-composed deck-free-canvas ${mini?'deck-mini':''} ${editable?'is-editable':''}`} style={{background:scene.background,aspectRatio:`960 / ${scene.height}`,'--canvas-ratio':960/scene.height} as CSSProperties} onPointerDown={e=>{if(e.target===e.currentTarget)onSelect?.(null);}} onPointerMove={move} onPointerUp={e=>finish(e)} onPointerCancel={e=>finish(e,true)} onKeyDown={e=>{if(!editable||!selectedId)return;const o=scene.objects.find(o=>o.id===selectedId);if(!o||o.locked||!(e.target instanceof HTMLElement)||e.target.closest('input,textarea,select'))return;const step=e.shiftKey?10:1;if(e.key==='Delete'){e.preventDefault();onChange?.(o.id,{hidden:true});}if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();onChange?.(o.id,boundedBox({...o,x:o.x+(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0),y:o.y+(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0)},scene.height));}}}>
- {scene.objects.map(original=>{const o=moving?.id===original.id?moving:original,selected=editable&&selectedId===o.id&&!o.locked;const style:CSSProperties={...box(o),...(o.kind==='text'?{fontSize:(o.size??24)/9.6+'cqw',color:o.color??'#243530',fontFamily:o.font??'Arial',fontWeight:o.bold?700:400,textAlign:o.align,lineHeight:1.3,whiteSpace:'pre-wrap',background:o.fill??'transparent'}:{background:o.kind==='shape'?o.fill:undefined}),border:o.stroke?'1px solid '+o.stroke:undefined,borderRadius:o.geometry==='ellipse'?'50%':(o.radius??0)/9.6+'cqw'};
- return <div key={o.id} tabIndex={editable&&!o.locked?0:undefined} role={editable&&!o.locked?'button':undefined} aria-label={editable&&!o.locked?`Select ${o.kind}: ${(o.text??o.id).slice(0,55)}`:undefined} aria-pressed={editable&&!o.locked?selected:undefined} className={`deck-scene-object object-${o.kind} ${o.locked?'is-locked':''} ${selected?'is-selected':''}`} style={style} onPointerDown={e=>start(e,o)} onFocus={()=>{if(editable&&!o.locked)onSelect?.(o.id);}}>
- <div className="deck-object-content">{o.kind==='text'?o.text:o.kind==='image'?<img src={o.src} alt="Presentation visual" draggable={false} style={{objectFit:o.fit??'contain'}}/>:null}</div>
- {selected&&<><span className="deck-selection-label">{o.kind==='image'?'Image':o.kind==='text'?'Text':'Shape'} · drag to move</span>{['nw','ne','sw','se'].map(corner=><span key={corner} role="button" tabIndex={0} aria-label={`Resize ${corner}`} className={`deck-resize-handle handle-${corner}`} onPointerDown={e=>start(e,o,corner)}/>)}</>}
- </div>;})}
- </div>;
+export function PresentationCanvas({
+  deck,
+  slide,
+  index = 0,
+  mini = false,
+  editable = false,
+  selectedId,
+  onSelect,
+  onChange,
+}: {
+  deck: Deck;
+  slide: Slide;
+  index?: number;
+  mini?: boolean;
+  editable?: boolean;
+  selectedId?: string | null | undefined;
+  onSelect?: (id: string | null) => void;
+  onChange?: (id: string, patch: ObjectPatch) => void;
+}) {
+  const scene = slideScene(deck, slide, index),
+    root = useRef<HTMLDivElement>(null),
+    [moving, setMoving] = useState<CanvasObject | null>(null);
+  const gesture = useRef<{
+    object: CanvasObject;
+    startX: number;
+    startY: number;
+    mode: string;
+    scale: number;
+    draft: CanvasObject;
+    moved: boolean;
+  } | null>(null);
+  const box = (o: CanvasObject): CSSProperties => ({
+    left: o.x / 9.6 + "%",
+    top: (o.y / scene.height) * 100 + "%",
+    width: o.w / 9.6 + "%",
+    height: (o.h / scene.height) * 100 + "%",
+    transform: o.rotation ? `rotate(${o.rotation}deg)` : undefined,
+  });
+  const start = (e: PointerEvent, o: CanvasObject, mode = "move") => {
+    if (!editable || o.locked || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    onSelect?.(o.id);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const width = root.current?.getBoundingClientRect().width ?? 960;
+    gesture.current = {
+      object: o,
+      startX: e.clientX,
+      startY: e.clientY,
+      mode,
+      scale: 960 / width,
+      draft: o,
+      moved: false,
+    };
+  };
+  const move = (e: PointerEvent) => {
+    const g = gesture.current;
+    if (!g) return;
+    const dx = (e.clientX - g.startX) * g.scale,
+      dy = (e.clientY - g.startY) * g.scale;
+    if (Math.abs(dx) + Math.abs(dy) < 2) return;
+    g.moved = true;
+    const next = { ...g.object };
+    if (g.mode === "move") {
+      next.x = Math.max(0, Math.min(960 - next.w, g.object.x + dx));
+      next.y = Math.max(0, Math.min(scene.height - next.h, g.object.y + dy));
+    } else {
+      const west = g.mode.includes("w"),
+        north = g.mode.includes("n");
+      next.w = Math.max(20, g.object.w + (west ? -dx : dx));
+      next.h = Math.max(20, g.object.h + (north ? -dy : dy));
+      if (west) next.x = g.object.x + g.object.w - next.w;
+      if (north) next.y = g.object.y + g.object.h - next.h;
+      if (e.shiftKey) {
+        const ratio = g.object.w / g.object.h;
+        next.h = next.w / ratio;
+        if (north) next.y = g.object.y + g.object.h - next.h;
+      }
+      Object.assign(next, boundedBox(next, scene.height));
+    }
+    g.draft = next;
+    setMoving(next);
+  };
+  const finish = (e: PointerEvent, cancel = false) => {
+    const g = gesture.current;
+    if (!g) return;
+    gesture.current = null;
+    setMoving(null);
+    if (!cancel && g.moved)
+      onChange?.(g.object.id, { x: g.draft.x, y: g.draft.y, w: g.draft.w, h: g.draft.h });
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+  return (
+    <div
+      ref={root}
+      className={`deck-slide deck-composed deck-free-canvas ${mini ? "deck-mini" : ""} ${editable ? "is-editable" : ""}`}
+      style={
+        {
+          background: scene.background,
+          aspectRatio: `960 / ${scene.height}`,
+          "--canvas-ratio": 960 / scene.height,
+        } as CSSProperties
+      }
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget) onSelect?.(null);
+      }}
+      onPointerMove={move}
+      onPointerUp={(e) => finish(e)}
+      onPointerCancel={(e) => finish(e, true)}
+      onKeyDown={(e) => {
+        if (!editable || !selectedId) return;
+        const o = scene.objects.find((o) => o.id === selectedId);
+        if (
+          !o ||
+          o.locked ||
+          !(e.target instanceof HTMLElement) ||
+          e.target.closest("input,textarea,select")
+        )
+          return;
+        const step = e.shiftKey ? 10 : 1;
+        if (e.key === "Delete") {
+          e.preventDefault();
+          onChange?.(o.id, { hidden: true });
+        }
+        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+          e.preventDefault();
+          onChange?.(
+            o.id,
+            boundedBox(
+              {
+                ...o,
+                x: o.x + (e.key === "ArrowRight" ? step : e.key === "ArrowLeft" ? -step : 0),
+                y: o.y + (e.key === "ArrowDown" ? step : e.key === "ArrowUp" ? -step : 0),
+              },
+              scene.height,
+            ),
+          );
+        }
+      }}
+    >
+      {scene.objects.map((original) => {
+        const o = moving?.id === original.id ? moving : original,
+          selected = editable && selectedId === o.id && !o.locked;
+        const style: CSSProperties = {
+          ...box(o),
+          ...(o.kind === "text"
+            ? {
+                fontSize: (o.size ?? 24) / 9.6 + "cqw",
+                color: o.color ?? "#243530",
+                fontFamily: o.font ?? "Arial",
+                fontWeight: o.bold ? 700 : 400,
+                textAlign: o.align,
+                lineHeight: 1.3,
+                whiteSpace: "pre-wrap",
+                background: o.fill ?? "transparent",
+              }
+            : { background: o.kind === "shape" ? o.fill : undefined }),
+          border: o.stroke ? "1px solid " + o.stroke : undefined,
+          borderRadius: o.geometry === "ellipse" ? "50%" : (o.radius ?? 0) / 9.6 + "cqw",
+        };
+        return (
+          <div
+            key={o.id}
+            tabIndex={editable && !o.locked ? 0 : undefined}
+            role={editable && !o.locked ? "button" : undefined}
+            aria-label={
+              editable && !o.locked
+                ? `Select ${o.kind}: ${(o.text ?? o.id).slice(0, 55)}`
+                : undefined
+            }
+            aria-pressed={editable && !o.locked ? selected : undefined}
+            className={`deck-scene-object object-${o.kind} ${o.locked ? "is-locked" : ""} ${selected ? "is-selected" : ""}`}
+            style={style}
+            onPointerDown={(e) => start(e, o)}
+            onFocus={() => {
+              if (editable && !o.locked) onSelect?.(o.id);
+            }}
+          >
+            <div className="deck-object-content">
+              {o.kind === "text" ? (
+                o.text
+              ) : o.kind === "image" ? (
+                <img
+                  src={o.src}
+                  alt="Presentation visual"
+                  draggable={false}
+                  style={{ objectFit: o.fit ?? "contain" }}
+                />
+              ) : null}
+            </div>
+            {selected && (
+              <>
+                <span className="deck-selection-label">
+                  {o.kind === "image" ? "Image" : o.kind === "text" ? "Text" : "Shape"} · drag to
+                  move
+                </span>
+                {["nw", "ne", "sw", "se"].map((corner) => (
+                  <span
+                    key={corner}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Resize ${corner}`}
+                    className={`deck-resize-handle handle-${corner}`}
+                    onPointerDown={(e) => start(e, o, corner)}
+                  />
+                ))}
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }

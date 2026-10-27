@@ -57,9 +57,13 @@ export function validate(data: CircuitData): ValidationResult {
     const buses = new Map<string, string>();
     placedDefinition(part).pins.forEach((pin, i) => {
       if (!pin.internalNet) return;
-      const k = key(part.id, i), first = buses.get(pin.internalNet);
+      const k = key(part.id, i),
+        first = buses.get(pin.internalNet);
       if (first) parent.set(find(k), find(first));
-      else { buses.set(pin.internalNet, k); find(k); }
+      else {
+        buses.set(pin.internalNet, k);
+        find(k);
+      }
     });
   }
 
@@ -91,34 +95,105 @@ export function validate(data: CircuitData): ValidationResult {
     if (w.from.partId === w.to.partId && w.from.pin === w.to.pin) continue;
     if (pa.kind === "passive" || pb.kind === "passive") continue;
 
-    if ((pa.kind === "power" && SIGNAL.has(pb.kind)) || (pb.kind === "power" && SIGNAL.has(pa.kind))) {
-      issues.push({ type: "Wrong Pin Type", severity: "error", message: `Power pin wired to signal pin: ${label(a)} → ${label(b)}`, ...ids });
+    if (
+      (pa.kind === "power" && SIGNAL.has(pb.kind)) ||
+      (pb.kind === "power" && SIGNAL.has(pa.kind))
+    ) {
+      issues.push({
+        type: "Wrong Pin Type",
+        severity: "error",
+        message: `Power pin wired to signal pin: ${label(a)} → ${label(b)}`,
+        ...ids,
+      });
       badWire.add(w.id);
-    } else if ((pa.kind === "ground" && SIGNAL.has(pb.kind)) || (pb.kind === "ground" && SIGNAL.has(pa.kind))) {
-      issues.push({ type: "Wrong Pin Type", severity: "error", message: `Ground wired to signal pin: ${label(a)} → ${label(b)}`, ...ids });
+    } else if (
+      (pa.kind === "ground" && SIGNAL.has(pb.kind)) ||
+      (pb.kind === "ground" && SIGNAL.has(pa.kind))
+    ) {
+      issues.push({
+        type: "Wrong Pin Type",
+        severity: "error",
+        message: `Ground wired to signal pin: ${label(a)} → ${label(b)}`,
+        ...ids,
+      });
       badWire.add(w.id);
     } else if (kinds === "scl-sda") {
-      issues.push({ type: "Wrong Pin Type", severity: "error", message: `SDA wired to SCL: ${label(a)} → ${label(b)}`, ...ids });
+      issues.push({
+        type: "Wrong Pin Type",
+        severity: "error",
+        message: `SDA wired to SCL: ${label(a)} → ${label(b)}`,
+        ...ids,
+      });
       badWire.add(w.id);
     } else if ((pa.kind === "tx" && pb.kind === "tx") || (pa.kind === "rx" && pb.kind === "rx")) {
-      issues.push({ type: "Wrong Pin Type", severity: "error", message: `UART needs TX → RX crossover: ${label(a)} → ${label(b)}`, ...ids });
+      issues.push({
+        type: "Wrong Pin Type",
+        severity: "error",
+        message: `UART needs TX → RX crossover: ${label(a)} → ${label(b)}`,
+        ...ids,
+      });
       badWire.add(w.id);
-    } else if ((pa.kind === "sda" || pa.kind === "scl") !== (pb.kind === "sda" || pb.kind === "scl") && SIGNAL.has(pa.kind) && SIGNAL.has(pb.kind)) {
-      issues.push({ type: "Compatibility Warning", severity: "warning", message: `I2C pin wired to non-I2C pin: ${label(a)} → ${label(b)}`, ...ids });
-    } else if ((pa.kind === "pwm" && pa.dir === "in" && pb.kind === "digital") || (pb.kind === "pwm" && pb.dir === "in" && pa.kind === "digital")) {
-      issues.push({ type: "Compatibility Warning", severity: "warning", message: `PWM input on a non-PWM pin: ${label(a)} → ${label(b)}`, ...ids });
-    } else if ((pa.kind === "analog" && pa.dir === "out" && pb.kind !== "analog" && SIGNAL.has(pb.kind)) || (pb.kind === "analog" && pb.dir === "out" && pa.kind !== "analog" && SIGNAL.has(pa.kind))) {
-      issues.push({ type: "Compatibility Warning", severity: "warning", message: `Analog output read by a digital pin: ${label(a)} → ${label(b)}`, ...ids });
-    } else if ((pa.kind === "motor") !== (pb.kind === "motor") && (SIGNAL.has(pa.kind) || SIGNAL.has(pb.kind))) {
-      issues.push({ type: "Current Over Limit", severity: "error", message: `Motor driven directly from a GPIO pin (needs a driver): ${label(a)} → ${label(b)}`, ...ids });
+    } else if (
+      (pa.kind === "sda" || pa.kind === "scl") !== (pb.kind === "sda" || pb.kind === "scl") &&
+      SIGNAL.has(pa.kind) &&
+      SIGNAL.has(pb.kind)
+    ) {
+      issues.push({
+        type: "Compatibility Warning",
+        severity: "warning",
+        message: `I2C pin wired to non-I2C pin: ${label(a)} → ${label(b)}`,
+        ...ids,
+      });
+    } else if (
+      (pa.kind === "pwm" && pa.dir === "in" && pb.kind === "digital") ||
+      (pb.kind === "pwm" && pb.dir === "in" && pa.kind === "digital")
+    ) {
+      issues.push({
+        type: "Compatibility Warning",
+        severity: "warning",
+        message: `PWM input on a non-PWM pin: ${label(a)} → ${label(b)}`,
+        ...ids,
+      });
+    } else if (
+      (pa.kind === "analog" && pa.dir === "out" && pb.kind !== "analog" && SIGNAL.has(pb.kind)) ||
+      (pb.kind === "analog" && pb.dir === "out" && pa.kind !== "analog" && SIGNAL.has(pa.kind))
+    ) {
+      issues.push({
+        type: "Compatibility Warning",
+        severity: "warning",
+        message: `Analog output read by a digital pin: ${label(a)} → ${label(b)}`,
+        ...ids,
+      });
+    } else if (
+      (pa.kind === "motor") !== (pb.kind === "motor") &&
+      (SIGNAL.has(pa.kind) || SIGNAL.has(pb.kind))
+    ) {
+      issues.push({
+        type: "Current Over Limit",
+        severity: "error",
+        message: `Motor driven directly from a GPIO pin (needs a driver): ${label(a)} → ${label(b)}`,
+        ...ids,
+      });
       badWire.add(w.id);
     }
     // logic level mismatch
-    if (SIGNAL.has(pa.kind) && SIGNAL.has(pb.kind) && pa.voltage && pb.voltage && Math.abs(pa.voltage - pb.voltage) > 1 && !(pa.voltage < 3.5 && pb.voltage < 3.5)) {
+    if (
+      SIGNAL.has(pa.kind) &&
+      SIGNAL.has(pb.kind) &&
+      pa.voltage &&
+      pb.voltage &&
+      Math.abs(pa.voltage - pb.voltage) > 1 &&
+      !(pa.voltage < 3.5 && pb.voltage < 3.5)
+    ) {
       const high = Math.max(pa.voltage, pb.voltage);
       const low = Math.min(pa.voltage, pb.voltage);
       if (low >= 3) {
-        issues.push({ type: "Compatibility Warning", severity: "warning", message: `Logic level mismatch ${high}V ↔ ${low}V (use a level shifter): ${label(a)} → ${label(b)}`, ...ids });
+        issues.push({
+          type: "Compatibility Warning",
+          severity: "warning",
+          message: `Logic level mismatch ${high}V ↔ ${low}V (use a level shifter): ${label(a)} → ${label(b)}`,
+          ...ids,
+        });
       }
     }
   }
@@ -132,12 +207,24 @@ export function validate(data: CircuitData): ValidationResult {
     const partIds = [...new Set(members.map((m) => m.split(":")[0]!))];
 
     if (sources.length && grounds.length) {
-      issues.push({ type: "Short Circuit", severity: "error", message: `Power source ${label(sources[0]!.k)} shorted directly to ground`, partIds, wireIds: netWires });
+      issues.push({
+        type: "Short Circuit",
+        severity: "error",
+        message: `Power source ${label(sources[0]!.k)} shorted directly to ground`,
+        partIds,
+        wireIds: netWires,
+      });
       netWires.forEach((id) => badWire.add(id));
     }
     const volts = [...new Set(sources.map((s) => s.d.voltage))];
     if (volts.length > 1) {
-      issues.push({ type: "Short Circuit", severity: "error", message: `Different supply voltages tied together (${volts.join("V, ")}V)`, partIds, wireIds: netWires });
+      issues.push({
+        type: "Short Circuit",
+        severity: "error",
+        message: `Different supply voltages tied together (${volts.join("V, ")}V)`,
+        partIds,
+        wireIds: netWires,
+      });
       netWires.forEach((id) => badWire.add(id));
     }
     if (sources.length) {
@@ -150,21 +237,45 @@ export function validate(data: CircuitData): ValidationResult {
         const def = placedDefinition(partById.get(pid)!);
         load += def.draw;
         if (v > def.vMax + 0.1) {
-          issues.push({ type: "Voltage Over Limit", severity: "error", message: `${def.name} gets ${v}V but tolerates max ${def.vMax}V`, partIds: [pid], wireIds: netWires });
+          issues.push({
+            type: "Voltage Over Limit",
+            severity: "error",
+            message: `${def.name} gets ${v}V but tolerates max ${def.vMax}V`,
+            partIds: [pid],
+            wireIds: netWires,
+          });
           netWires.forEach((id) => badWire.add(id));
         }
       }
       if (avail && load > avail) {
-        issues.push({ type: "Current Over Limit", severity: "error", message: `Load ${load}mA exceeds ${avail}mA available from ${label(sources[0]!.k)}`, partIds, wireIds: netWires });
+        issues.push({
+          type: "Current Over Limit",
+          severity: "error",
+          message: `Load ${load}mA exceeds ${avail}mA available from ${label(sources[0]!.k)}`,
+          partIds,
+          wireIds: netWires,
+        });
       }
     }
     // signals driven at higher voltage than a part's limit (e.g. LED straight to 5V GPIO)
     for (const x of defs) {
       if (!SIGNAL.has(x.d.kind) || x.d.dir !== "in" || !x.d.voltage) continue;
-      const drivers = defs.filter((y) => y !== x && SIGNAL.has(y.d.kind) && y.d.dir !== "in" && (y.d.voltage ?? 0) > x.d.voltage! + 0.5);
+      const drivers = defs.filter(
+        (y) =>
+          y !== x &&
+          SIGNAL.has(y.d.kind) &&
+          y.d.dir !== "in" &&
+          (y.d.voltage ?? 0) > x.d.voltage! + 0.5,
+      );
       if (drivers.length) {
         const pid = x.k.split(":")[0]!;
-        issues.push({ type: "Voltage Over Limit", severity: "error", message: `${label(x.k)} rated ${x.d.voltage}V, driven at ${drivers[0]!.d.voltage}V — add a resistor`, partIds: [pid, drivers[0]!.k.split(":")[0]!], wireIds: netWires });
+        issues.push({
+          type: "Voltage Over Limit",
+          severity: "error",
+          message: `${label(x.k)} rated ${x.d.voltage}V, driven at ${drivers[0]!.d.voltage}V — add a resistor`,
+          partIds: [pid, drivers[0]!.k.split(":")[0]!],
+          wireIds: netWires,
+        });
         netWires.forEach((id) => badWire.add(id));
       }
     }
@@ -173,9 +284,16 @@ export function validate(data: CircuitData): ValidationResult {
   // too many connections
   for (const [k, n] of degree) {
     const d = pinDef(k)!;
-    const limit = d.kind === "power" || d.kind === "ground" ? 6 : d.kind === "sda" || d.kind === "scl" ? 4 : 2;
+    const limit =
+      d.kind === "power" || d.kind === "ground" ? 6 : d.kind === "sda" || d.kind === "scl" ? 4 : 2;
     if (n > limit) {
-      issues.push({ type: "Too Many Connections", severity: "warning", message: `${label(k)} has ${n} wires (max ${limit})`, partIds: [k.split(":")[0]!], wireIds: [] });
+      issues.push({
+        type: "Too Many Connections",
+        severity: "warning",
+        message: `${label(k)} has ${n} wires (max ${limit})`,
+        partIds: [k.split(":")[0]!],
+        wireIds: [],
+      });
     }
   }
 
@@ -196,13 +314,39 @@ export function validate(data: CircuitData): ValidationResult {
       });
     };
     if (needsPower.length && !isSource && !needsPower.some(powered)) {
-      issues.push({ type: "Missing Power", severity: "error", message: `${def.name} has no power connection (${needsPower.map((x) => x.p.name).join("/")})`, partIds: [part.id], wireIds: [] });
+      issues.push({
+        type: "Missing Power",
+        severity: "error",
+        message: `${def.name} has no power connection (${needsPower.map((x) => x.p.name).join("/")})`,
+        partIds: [part.id],
+        wireIds: [],
+      });
     }
-    if (needsPower.length && isSource && def.category !== "Microcontrollers" && !needsPower.some(powered)) {
-      issues.push({ type: "Missing Power", severity: "error", message: `${def.name} input is not powered`, partIds: [part.id], wireIds: [] });
+    if (
+      needsPower.length &&
+      isSource &&
+      def.category !== "Microcontrollers" &&
+      !needsPower.some(powered)
+    ) {
+      issues.push({
+        type: "Missing Power",
+        severity: "error",
+        message: `${def.name} input is not powered`,
+        partIds: [part.id],
+        wireIds: [],
+      });
     }
-    if (grounds.length && !grounds.some((g) => parent.has(g.k) && (nets.get(find(g.k))?.length ?? 0) > 1)) {
-      issues.push({ type: "Missing Ground", severity: "error", message: `${def.name} ground is not connected`, partIds: [part.id], wireIds: [] });
+    if (
+      grounds.length &&
+      !grounds.some((g) => parent.has(g.k) && (nets.get(find(g.k))?.length ?? 0) > 1)
+    ) {
+      issues.push({
+        type: "Missing Ground",
+        severity: "error",
+        message: `${def.name} ground is not connected`,
+        partIds: [part.id],
+        wireIds: [],
+      });
     }
   }
 
