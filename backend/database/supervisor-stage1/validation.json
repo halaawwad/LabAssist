@@ -1,0 +1,23 @@
+{
+  "engine": "PGlite; real PostgreSQL checked separately by CI",
+  "checks": 16,
+  "seedReplayPassed": true,
+  "passed": [
+    "PASS: seven supervisor profiles",
+    "PASS: seven settings",
+    "PASS: no password seed",
+    "PASS: 23 projects preserved",
+    "PASS: 54 students preserved",
+    "PASS: project supervisor pairs are unique",
+    "PASS: all assigned students visible",
+    "PASS: no unrelated project access",
+    "PASS: student cannot own supervisor profile",
+    "PASS: student cannot own settings",
+    "PASS: student cannot own read state",
+    "PASS: invalid locale",
+    "PASS: duplicate read state",
+    "PASS: read state stays private",
+    "PASS: independent language choice",
+    "PASS: another supervisor cannot use private photo"
+  ]
+}
