@@ -1,0 +1,28 @@
+{
+  "engine": "PGlite; real PostgreSQL checked separately by CI",
+  "checks": 21,
+  "seedReplayPassed": true,
+  "passed": [
+    "PASS: one manager reference",
+    "PASS: one manager profile",
+    "PASS: one manager settings row",
+    "PASS: 54 roster students",
+    "PASS: 23 shared teams",
+    "PASS: capacity remains 25",
+    "PASS: no seeded passwords",
+    "PASS: no invented availability history",
+    "PASS: second current manager",
+    "PASS: manager cannot be a student",
+    "PASS: student cannot own workshop settings",
+    "PASS: supervisor cannot own manager profile",
+    "PASS: supervisor cannot create manager availability",
+    "PASS: invalid UI language",
+    "PASS: temporary absence recorded",
+    "PASS: end before start",
+    "PASS: full day cannot have time range",
+    "PASS: duplicate day",
+    "PASS: full day absence accepted",
+    "PASS: student cannot own workshop read state",
+    "PASS: duplicate read receipt"
+  ]
+}
