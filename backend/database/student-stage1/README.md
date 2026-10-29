@@ -40,7 +40,6 @@ Student accounts: pending activation; no preset passwords.
 | `Initialize-Local.ps1` | Local configuration |
 | `.env.example` | Port configuration |
 | `LabAssist_Student_Stage1.sql` | Combined schema and seed for manual import |
-| `Seed_Preview.pdf` | Seed tables |
 | `validation.json` | Validation results |
 
 ## Run
