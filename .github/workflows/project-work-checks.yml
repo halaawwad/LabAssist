@@ -1,0 +1,87 @@
+name: Project work database
+
+on:
+  push:
+    branches: [main, noor]
+  pull_request:
+    branches: [main, noor]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: project-work-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  project-work-database:
+    name: Project work database acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: labassist_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ephemeral-ci-database
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d labassist_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGDATABASE: labassist_ci
+      PGPASSWORD: ephemeral-ci-database
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify PostgreSQL client
+        run: psql --version
+      - name: Check Compose configuration
+        working-directory: backend/database/project-work-stage2
+        run: |
+          mkdir -p secrets
+          printf '%s' 'ephemeral-ci-compose-only' > secrets/postgres_password.txt
+          docker compose --env-file .env.example config --quiet
+      - name: Create schema and seed
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/student-stage1/sql/01-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/student-stage1/sql/02-demo-seed.sql
+      - name: Verify existing student acceptance
+        run: psql -v ON_ERROR_STOP=1 -f backend/database/student-stage1/tests/acceptance.sql
+      - name: Add supervisor schema and seed
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/supervisor-stage1/sql/03-supervisor-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/supervisor-stage1/sql/04-demo-seed.sql
+      - name: Verify supervisor acceptance
+        run: psql -v ON_ERROR_STOP=1 -f backend/database/supervisor-stage1/tests/acceptance.sql
+      - name: Add workshop schema and seed
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/workshop-stage1/sql/05-workshop-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/workshop-stage1/sql/06-demo-seed.sql
+      - name: Verify workshop acceptance
+        run: psql -v ON_ERROR_STOP=1 -f backend/database/workshop-stage1/tests/acceptance.sql
+      - name: Add project work schema and seed
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/project-work-stage2/sql/07-project-work-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/project-work-stage2/sql/08-demo-seed.sql
+      - name: Verify seed replay
+        run: psql -v ON_ERROR_STOP=1 -f backend/database/project-work-stage2/sql/08-demo-seed.sql
+      - name: Run acceptance tests on real PostgreSQL
+        run: |
+          mkdir -p reports
+          psql -v ON_ERROR_STOP=1 -f backend/database/project-work-stage2/tests/acceptance.sql | tee reports/database-acceptance.txt
+      - name: Upload database results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-work-database-results
+          path: reports/database-acceptance.txt
+          if-no-files-found: ignore
+          retention-days: 14
