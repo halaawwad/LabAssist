@@ -1,0 +1,35 @@
+name: labassist-project-work-stage2
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: labassist_project_work
+      POSTGRES_USER: labassist_owner
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      TZ: Asia/Hebron
+    secrets:
+      - postgres_password
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5436}:5432"
+    volumes:
+      - project_work_pgdata:/var/lib/postgresql/data
+      - ../student-stage1/sql/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../student-stage1/sql/02-demo-seed.sql:/docker-entrypoint-initdb.d/02-demo-seed.sql:ro
+      - ../supervisor-stage1/sql/03-supervisor-schema.sql:/docker-entrypoint-initdb.d/03-supervisor-schema.sql:ro
+      - ../supervisor-stage1/sql/04-demo-seed.sql:/docker-entrypoint-initdb.d/04-demo-seed.sql:ro
+      - ../workshop-stage1/sql/05-workshop-schema.sql:/docker-entrypoint-initdb.d/05-workshop-schema.sql:ro
+      - ../workshop-stage1/sql/06-demo-seed.sql:/docker-entrypoint-initdb.d/06-demo-seed.sql:ro
+      - ./sql/07-project-work-schema.sql:/docker-entrypoint-initdb.d/07-project-work-schema.sql:ro
+      - ./sql/08-demo-seed.sql:/docker-entrypoint-initdb.d/08-demo-seed.sql:ro
+      - ./tests:/project-work-tests:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+volumes:
+  project_work_pgdata:
