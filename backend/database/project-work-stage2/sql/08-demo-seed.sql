@@ -8,12 +8,12 @@ INSERT INTO project_tasks(id,seed_key,project_id,created_by,assigned_to,updated_
  FROM project_students m JOIN accounts a ON a.id=m.student_id
  JOIN projects p ON p.id=m.project_id JOIN academic_terms term ON term.id=p.term_id
  CROSS JOIN LATERAL(SELECT x.student_id FROM project_students x WHERE x.project_id=m.project_id AND x.left_at IS NULL ORDER BY x.student_id LIMIT 1) first_member
- WHERE m.left_at IS NULL AND term.is_demo AND a.seed_key LIKE 'STU%'
+ WHERE m.left_at IS NULL AND term.is_demo AND term.seed_key='DEMO_TERM' AND a.seed_key LIKE 'STU%'
  ON CONFLICT(seed_key) DO NOTHING;
 INSERT INTO project_issues(id,seed_key,project_id,created_by,updated_by,title,description)
  SELECT md5('project-work-issue:'||p.id::text)::uuid,'DEMO_ISSUE_'||p.seed_key,p.id,m.student_id,m.student_id,
  'Confirm sensor mounting clearance','Synthetic example only: check the available mounting space before assembly.'
- FROM (SELECT * FROM projects WHERE seed_key IS NOT NULL ORDER BY seed_key LIMIT 3) p
+ FROM (SELECT p.* FROM projects p JOIN academic_terms t ON t.id=p.term_id WHERE p.seed_key IS NOT NULL AND t.seed_key='DEMO_TERM' ORDER BY p.seed_key LIMIT 3) p
  CROSS JOIN LATERAL(SELECT student_id FROM project_students WHERE project_id=p.id AND left_at IS NULL ORDER BY student_id LIMIT 1) m
  JOIN academic_terms term ON term.id=p.term_id AND term.is_demo
  ON CONFLICT(seed_key) DO NOTHING;
