@@ -3,7 +3,8 @@
     "private":  true,
     "type":  "module",
     "workspaces":  [
-                       "frontend/student"
+                       "frontend/student",
+                       "mobile"
                    ],
     "scripts":  {
                     "dev":  "cd frontend/student \u0026\u0026 vite dev",
