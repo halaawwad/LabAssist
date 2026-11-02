@@ -1,28 +1,6 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Redirect } from "expo-router";
 
-import { colors, spacing } from "@/theme";
-import { t } from "@/i18n";
-
-// Placeholder route so Expo Go has something to render until real screens land.
+// No login yet: open the supervisor dashboard. This becomes a role-based redirect once auth exists.
 export default function Index() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{t("en", "app.name")}</Text>
-    </View>
-  );
+  return <Redirect href="/supervisor/dashboard" />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: colors.text,
-  },
-});
