@@ -1,0 +1,40 @@
+name: labassist-reports-stage4
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: labassist_reports
+      POSTGRES_USER: labassist_owner
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      TZ: Asia/Hebron
+    secrets:
+      - postgres_password
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5438}:5432"
+    volumes:
+      - reports_pgdata:/var/lib/postgresql/data
+      - ../student-stage1/sql/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../student-stage1/sql/02-demo-seed.sql:/docker-entrypoint-initdb.d/02-demo-seed.sql:ro
+      - ../supervisor-stage1/sql/03-supervisor-schema.sql:/docker-entrypoint-initdb.d/03-supervisor-schema.sql:ro
+      - ../supervisor-stage1/sql/04-demo-seed.sql:/docker-entrypoint-initdb.d/04-demo-seed.sql:ro
+      - ../workshop-stage1/sql/05-workshop-schema.sql:/docker-entrypoint-initdb.d/05-workshop-schema.sql:ro
+      - ../workshop-stage1/sql/06-demo-seed.sql:/docker-entrypoint-initdb.d/06-demo-seed.sql:ro
+      - ../project-work-stage2/sql/07-project-work-schema.sql:/docker-entrypoint-initdb.d/07-project-work-schema.sql:ro
+      - ../project-work-stage2/sql/08-demo-seed.sql:/docker-entrypoint-initdb.d/08-demo-seed.sql:ro
+      - ../project-finance-stage3/sql/09-project-finance-schema.sql:/docker-entrypoint-initdb.d/09-project-finance-schema.sql:ro
+      - ../project-finance-stage3/sql/10-demo-seed.sql:/docker-entrypoint-initdb.d/10-demo-seed.sql:ro
+      - ../semester-demo/seed.sql:/docker-entrypoint-initdb.d/11-semester-demo.sql:ro
+      - ./sql/11-reports-schema.sql:/docker-entrypoint-initdb.d/12-reports-schema.sql:ro
+      - ./sql/12-demo-seed.sql:/docker-entrypoint-initdb.d/13-reports-seed.sql:ro
+      - ./:/reports-stage4:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+volumes:
+  reports_pgdata:
