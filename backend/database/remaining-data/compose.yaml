@@ -1,0 +1,54 @@
+name: labassist-remaining-data
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: labassist_data
+      POSTGRES_USER: labassist_owner
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      TZ: Asia/Hebron
+    secrets:
+      - postgres_password
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5440}:5432"
+    volumes:
+      - all_data_pgdata:/var/lib/postgresql/data
+      - ../student-stage1/sql/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../student-stage1/sql/02-demo-seed.sql:/docker-entrypoint-initdb.d/02-demo-seed.sql:ro
+      - ../supervisor-stage1/sql/03-supervisor-schema.sql:/docker-entrypoint-initdb.d/03-supervisor-schema.sql:ro
+      - ../supervisor-stage1/sql/04-demo-seed.sql:/docker-entrypoint-initdb.d/04-demo-seed.sql:ro
+      - ../workshop-stage1/sql/05-workshop-schema.sql:/docker-entrypoint-initdb.d/05-workshop-schema.sql:ro
+      - ../workshop-stage1/sql/06-demo-seed.sql:/docker-entrypoint-initdb.d/06-demo-seed.sql:ro
+      - ../project-work-stage2/sql/07-project-work-schema.sql:/docker-entrypoint-initdb.d/07-project-work-schema.sql:ro
+      - ../project-work-stage2/sql/08-demo-seed.sql:/docker-entrypoint-initdb.d/08-demo-seed.sql:ro
+      - ../project-finance-stage3/sql/09-project-finance-schema.sql:/docker-entrypoint-initdb.d/09-project-finance-schema.sql:ro
+      - ../project-finance-stage3/sql/10-demo-seed.sql:/docker-entrypoint-initdb.d/10-demo-seed.sql:ro
+      - ../semester-demo/seed.sql:/docker-entrypoint-initdb.d/11-semester-demo.sql:ro
+      - ../reports-stage4/sql/11-reports-schema.sql:/docker-entrypoint-initdb.d/12-reports-schema.sql:ro
+      - ../reports-stage4/sql/12-demo-seed.sql:/docker-entrypoint-initdb.d/13-reports-seed.sql:ro
+      - ../communication-stage5/sql/13-communication-schema.sql:/docker-entrypoint-initdb.d/14-communication-schema.sql:ro
+      - ../communication-stage5/sql/14-demo-seed.sql:/docker-entrypoint-initdb.d/15-communication-seed.sql:ro
+      - ../workshop-operations-stage6/sql/15-workshop-operations.sql:/docker-entrypoint-initdb.d/16-15-workshop-operations.sql:ro
+      - ../workshop-operations-stage6/sql/16-demo-seed.sql:/docker-entrypoint-initdb.d/17-16-demo-seed.sql:ro
+      - ../catalog-stage7/sql/17-catalog-schema.sql:/docker-entrypoint-initdb.d/18-17-catalog-schema.sql:ro
+      - ../catalog-stage7/sql/18-demo-seed.sql:/docker-entrypoint-initdb.d/19-18-demo-seed.sql:ro
+      - ../marketplace-stage8/sql/19-marketplace-schema.sql:/docker-entrypoint-initdb.d/20-19-marketplace-schema.sql:ro
+      - ../marketplace-stage8/sql/20-demo-seed.sql:/docker-entrypoint-initdb.d/21-20-demo-seed.sql:ro
+      - ../circuits-stage9/sql/21-circuits-schema.sql:/docker-entrypoint-initdb.d/22-21-circuits-schema.sql:ro
+      - ../circuits-stage9/sql/22-demo-seed.sql:/docker-entrypoint-initdb.d/23-22-demo-seed.sql:ro
+      - ../learning-stage10/sql/23-learning-schema.sql:/docker-entrypoint-initdb.d/24-23-learning-schema.sql:ro
+      - ../learning-stage10/sql/24-demo-seed.sql:/docker-entrypoint-initdb.d/25-24-demo-seed.sql:ro
+      - ../ai-stage11/sql/25-ai-schema.sql:/docker-entrypoint-initdb.d/26-25-ai-schema.sql:ro
+      - ../ai-stage11/sql/26-demo-seed.sql:/docker-entrypoint-initdb.d/27-26-demo-seed.sql:ro
+      - ../:/database:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+volumes:
+  all_data_pgdata:

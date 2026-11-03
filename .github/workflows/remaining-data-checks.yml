@@ -1,0 +1,127 @@
+name: Remaining database modules
+
+on:
+  push:
+    branches: [main, noor]
+  pull_request:
+    branches: [main, noor]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: remaining-data-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  remaining-data:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: labassist_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ephemeral-ci-database
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d labassist_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGDATABASE: labassist_ci
+      PGPASSWORD: ephemeral-ci-database
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check local Docker configuration
+        working-directory: backend/database/remaining-data
+        run: |
+          mkdir -p secrets
+          printf '%s' 'ephemeral-compose-check-only' > secrets/postgres_password.txt
+          docker compose --env-file .env.example config --quiet
+      - name: Build and verify prerequisite stages
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f backend/database/student-stage1/sql/01-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/student-stage1/sql/02-demo-seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/student-stage1/tests/acceptance.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/supervisor-stage1/sql/03-supervisor-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/supervisor-stage1/sql/04-demo-seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/supervisor-stage1/tests/acceptance.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/workshop-stage1/sql/05-workshop-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/workshop-stage1/sql/06-demo-seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/workshop-stage1/tests/acceptance.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/project-work-stage2/sql/07-project-work-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/project-work-stage2/sql/08-demo-seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/project-work-stage2/tests/acceptance.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/project-finance-stage3/sql/09-project-finance-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/project-finance-stage3/sql/10-demo-seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/project-finance-stage3/tests/acceptance.sql
+      - name: Add two-semester fixtures and reports
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/semester-demo/seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/semester-demo/tests/acceptance.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/reports-stage4/sql/11-reports-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/reports-stage4/sql/12-demo-seed.sql
+      - name: Verify reports baseline
+        run: psql -v ON_ERROR_STOP=1 -f backend/database/reports-stage4/tests/acceptance.sql
+      - name: Add communication schema and fixtures
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/communication-stage5/sql/13-communication-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/communication-stage5/sql/14-demo-seed.sql
+      - name: Communication acceptance and report regressions
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/communication-stage5/tests/acceptance.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/reports-stage4/tests/acceptance.sql
+      - name: Workshop operations schema, seed and acceptance
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/workshop-operations-stage6/sql/15-workshop-operations.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/workshop-operations-stage6/sql/16-demo-seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/workshop-operations-stage6/tests/acceptance.sql
+      - name: Component catalog schema, seed and acceptance
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/catalog-stage7/sql/17-catalog-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/catalog-stage7/sql/18-demo-seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/catalog-stage7/tests/acceptance.sql
+      - name: Marketplace schema, seed and acceptance
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/marketplace-stage8/sql/19-marketplace-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/marketplace-stage8/sql/20-demo-seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/marketplace-stage8/tests/acceptance.sql
+      - name: Circuit lab schema, seed and acceptance
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/circuits-stage9/sql/21-circuits-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/circuits-stage9/sql/22-demo-seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/circuits-stage9/tests/acceptance.sql
+      - name: Learning Hub schema, seed and acceptance
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/learning-stage10/sql/23-learning-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/learning-stage10/sql/24-demo-seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/learning-stage10/tests/acceptance.sql
+      - name: AI storage schema, seed and acceptance
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/ai-stage11/sql/25-ai-schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/ai-stage11/sql/26-demo-seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/ai-stage11/tests/acceptance.sql
+      - name: Full shared regression
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/reports-stage4/tests/acceptance.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/communication-stage5/tests/acceptance.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/remaining-data/tests/acceptance.sql
+      - name: Seed preservation
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/reports-stage4/tests/seed-replay.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/communication-stage5/tests/seed-replay.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/remaining-data/tests/seed-replay.sql
+      - name: Independent PostgreSQL connection races
+        run: |
+          node backend/database/reports-stage4/tests/concurrency.mjs
+          node backend/database/communication-stage5/tests/concurrency.mjs
+          node backend/database/remaining-data/tests/concurrency.mjs
