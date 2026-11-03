@@ -1,0 +1,24 @@
+BEGIN;SET search_path=labassist_student,public;
+\ir ../../remaining-data/tests/helpers.sql
+SELECT pg_temp.ok('all seller/price fixtures are explicitly synthetic',(SELECT count(*)=3 AND bool_and(is_demo) FROM market_sellers) AND (SELECT count(*)=9 FROM market_offers));
+SELECT pg_temp.ok('normal price comparisons exclude synthetic offers',(SELECT compare_part_offers(owner,'arduino_uno','ILS')='[]'::jsonb FROM f));
+SELECT pg_temp.ok('comparison can explicitly include demo prices',(SELECT jsonb_array_length(compare_part_offers(owner,'arduino_uno','ILS',NULL,'',true))=3 FROM f));
+SELECT pg_temp.ok('condition filter separates used from new prices',(SELECT jsonb_array_length(compare_part_offers(owner,'arduino_uno','ILS','NEW','',true))=2 FROM f));
+SELECT pg_temp.ok('different currencies are never silently combined',(SELECT compare_part_offers(owner,'arduino_uno','USD',NULL,'',true)='[]'::jsonb FROM f));
+SELECT pg_temp.ok('different variants are not silently combined',(SELECT compare_part_offers(owner,'arduino_uno','ILS',NULL,'other variant',true)='[]'::jsonb FROM f));
+SELECT pg_temp.ok('unknown store contact and shipping data are left unknown',NOT EXISTS(SELECT 1 FROM market_sellers WHERE phone IS NOT NULL OR latitude IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM market_offers WHERE shipping_cost IS NOT NULL));
+INSERT INTO ids SELECT 'offer',id FROM market_offers WHERE seed_key='DEMO_OFFER_1_arduino_uno';
+SELECT pg_temp.reject('student cannot overwrite a shops price',$q$SELECT update_market_offer(owner,(SELECT id FROM ids WHERE key='offer'),0,1,2,'ACTIVE') FROM f$q$,'curator');
+SELECT update_market_offer(manager,(SELECT id FROM ids WHERE key='offer'),0,16,2,'ACTIVE') FROM f;
+SELECT pg_temp.ok('price history preserves the old snapshot',(SELECT count(*)=2 FROM market_offer_history WHERE offer_id=(SELECT id FROM ids WHERE key='offer')));
+SELECT pg_temp.reject('stale price edits conflict',$q$SELECT update_market_offer(manager,(SELECT id FROM ids WHERE key='offer'),0,10,2,'ACTIVE') FROM f$q$,'revision conflict');
+SELECT pg_temp.reject('negative prices are rejected',$q$SELECT update_market_offer(manager,(SELECT id FROM ids WHERE key='offer'),1,-1,2,'ACTIVE') FROM f$q$,'check constraint');
+SELECT pg_temp.reject('price evidence cannot be rewritten',$q$UPDATE resale_sources SET url='https://example.invalid/changed' WHERE seed_key='DEMO_SOURCE_1'$q$,'immutable');
+SELECT pg_temp.reject('immutable price history cannot be deleted',$q$DELETE FROM market_offer_history WHERE offer_id=(SELECT id FROM ids WHERE key='offer')$q$,'immutable');
+UPDATE resale_sources SET status='REJECTED' WHERE seed_key='DEMO_SOURCE_1';
+SELECT pg_temp.ok('rejected source disappears from comparison',(SELECT jsonb_array_length(compare_part_offers(owner,'arduino_uno','ILS',NULL,'',true))=2 FROM f));
+SELECT pg_temp.reject('unreviewed offers cannot be activated',$q$SELECT update_market_offer(manager,(SELECT id FROM ids WHERE key='offer'),1,16,2,'ACTIVE') FROM f$q$,'reviewed source');
+SELECT bookmark_market_offer(owner,(SELECT id FROM ids WHERE key='offer'),true) FROM f;
+SELECT bookmark_market_offer(owner,(SELECT id FROM ids WHERE key='offer'),true) FROM f;
+SELECT pg_temp.ok('personal offer bookmarks are idempotent',(SELECT count(*)=1 FROM market_bookmarks WHERE student_id=(SELECT owner FROM f)));
+ROLLBACK;
