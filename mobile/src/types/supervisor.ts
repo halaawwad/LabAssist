@@ -18,7 +18,7 @@ export type DashboardStat = {
   highlighted?: boolean;
 };
 
-export type ProgressStageId = "hardwareDesign" | "prototype" | "testing" | "finalReport";
+export type ProgressStageId = "hardwareDesign" | "prototype" | "testing" | "finalReport" | "tasks";
 
 export type ProgressStage = {
   /** Translation key under `supervisor.dashboard.progressItems.`. */

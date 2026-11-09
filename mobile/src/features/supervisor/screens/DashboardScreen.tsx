@@ -1,4 +1,4 @@
-import { useRouter, type Href } from "expo-router";
+import { useRouter, type Href } from "@/native/router";
 import { RefreshControl, StyleSheet, View } from "react-native";
 
 import {

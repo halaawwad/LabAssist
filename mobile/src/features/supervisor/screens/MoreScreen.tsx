@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import ChevronRight from "lucide-react-native/icons/chevron-right";
+import { useRouter } from "@/native/router";
+import { ChevronRight } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText, Card, LanguageToggle, ScreenContainer, ScreenHeader } from "@/components";

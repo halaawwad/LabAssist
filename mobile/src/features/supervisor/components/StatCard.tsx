@@ -1,9 +1,11 @@
-import ArrowRight from "lucide-react-native/icons/arrow-right";
-import CalendarDays from "lucide-react-native/icons/calendar-days";
-import ClipboardList from "lucide-react-native/icons/clipboard-list";
-import Folder from "lucide-react-native/icons/folder";
-import TrendingUp from "lucide-react-native/icons/trending-up";
-import TriangleAlert from "lucide-react-native/icons/triangle-alert";
+import {
+  ArrowRight,
+  CalendarDays,
+  ClipboardList,
+  Folder,
+  TrendingUp,
+  TriangleAlert,
+} from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components";

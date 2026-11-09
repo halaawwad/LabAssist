@@ -1,4 +1,4 @@
-import ChevronLeft from "lucide-react-native/icons/chevron-left";
+import { ChevronLeft } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 

@@ -60,7 +60,7 @@ export function TextField({
           styles.input,
           {
             fontFamily: fontFamilies[language].regular,
-            textAlign: "start",
+            textAlign: dir === "rtl" ? "right" : "left",
             writingDirection: dir,
           },
           multiline && styles.multiline,

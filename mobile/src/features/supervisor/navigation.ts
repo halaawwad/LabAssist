@@ -1,21 +1,23 @@
 // Supervisor navigation, mirroring the web sidebar (frontend/supervisor/src/data/supervisor/supervisorMockData.ts).
 // A phone tab bar holds five items, so the rest of the sidebar lives under "More".
-import type { Href } from "expo-router";
+import type { Href } from "@/native/router";
 import type { LucideIcon } from "lucide-react-native";
-import Bell from "lucide-react-native/icons/bell";
-import CalendarDays from "lucide-react-native/icons/calendar-days";
-import ChartColumn from "lucide-react-native/icons/chart-column";
-import CheckSquare from "lucide-react-native/icons/square-check-big";
-import ClipboardList from "lucide-react-native/icons/clipboard-list";
-import FileText from "lucide-react-native/icons/file-text";
-import Folder from "lucide-react-native/icons/folder";
-import Home from "lucide-react-native/icons/house";
-import LayoutGrid from "lucide-react-native/icons/layout-grid";
-import MessageCircle from "lucide-react-native/icons/message-circle";
-import Settings from "lucide-react-native/icons/settings";
-import TriangleAlert from "lucide-react-native/icons/triangle-alert";
-import User from "lucide-react-native/icons/user";
-import Users from "lucide-react-native/icons/users";
+import {
+  Bell,
+  CalendarDays,
+  ChartColumn,
+  CheckSquare,
+  ClipboardList,
+  FileText,
+  Folder,
+  Home,
+  LayoutGrid,
+  MessageCircle,
+  Settings,
+  TriangleAlert,
+  User,
+  Users,
+} from "lucide-react-native";
 
 export type SupervisorTabId = "dashboard" | "projects" | "reports" | "messages" | "more";
 

@@ -1,5 +1,6 @@
 // LabAssist light palette, taken from the web apps' CSS variables
 // (frontend/supervisor/src/index.css, frontend/workshop/src/index.css, frontend/student/src/styles.css).
+import type { ViewStyle } from "react-native";
 export const colors = {
   // Surfaces
   background: "#eee8dc", // --cream: page background on supervisor and student
@@ -85,3 +86,7 @@ export const gradients = {
   // .stat-card.is-highlighted (supervisor)
   highlight: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 45%, ${colors.primaryMid} 75%, ${colors.primarySoft} 100%)`,
 } as const;
+export function gradientStyle(value: string): ViewStyle {
+  const webStyle: ViewStyle & { backgroundImage: string } = { backgroundImage: value };
+  return webStyle;
+}

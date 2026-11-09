@@ -1,39 +1,21 @@
-import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, View } from "react-native";
-
-import { LanguageProvider, useLanguage } from "@/i18n";
-import { colors, fontAssets } from "@/theme";
-
+import { useURL } from "expo-linking";
+import OriginalWebsite from "@/web/OriginalWebsite";
+import { targetFromLink } from "@/web/targets";
 export default function RootLayout() {
+  const url = useURL();
+  const target = targetFromLink(url);
   return (
-    <LanguageProvider>
-      <AppShell />
-    </LanguageProvider>
-  );
-}
-
-function AppShell() {
-  const { dir } = useLanguage();
-  const [fontsLoaded, fontError] = useFonts(fontAssets);
-
-  if (!fontsLoaded && !fontError) return null;
-
-  return (
-    // `direction` flips the whole layout as soon as the language changes, including in Expo Go.
-    <View style={[styles.root, { direction: dir }]}>
-      <Stack
-        screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}
-      />
+    <>
+      {target ? (
+        <OriginalWebsite key={target.portal} {...target} />
+      ) : (
+        <Stack
+          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#eee8dc" } }}
+        />
+      )}
       <StatusBar style="dark" />
-    </View>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-});

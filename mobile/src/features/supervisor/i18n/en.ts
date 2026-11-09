@@ -49,6 +49,7 @@ export const supervisorEn = {
     overallProgress: "Overall Progress",
     overallAria: "Overall progress {value} percent",
     progressItems: {
+      tasks: "Team tasks",
       hardwareDesign: "Hardware Design",
       prototype: "Prototype",
       testing: "Testing",

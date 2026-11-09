@@ -1,5 +1,4 @@
-import CalendarDays from "lucide-react-native/icons/calendar-days";
-import ChevronRight from "lucide-react-native/icons/chevron-right";
+import { CalendarDays, ChevronRight } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText, Card, EmptyState } from "@/components";
