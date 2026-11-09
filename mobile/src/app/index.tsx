@@ -1,4 +1,4 @@
-import OriginalWebsite from "@/web/OriginalWebsite";
+import { Redirect } from "expo-router";
 export default function Home() {
-  return <OriginalWebsite />;
+  return <Redirect href="/native" />;
 }
