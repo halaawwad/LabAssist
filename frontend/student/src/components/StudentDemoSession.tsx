@@ -14,19 +14,36 @@ export function StudentDemoSession({ children }: { children: ReactNode }) {
     let current = true;
     setReady(false);
     setError("");
-    void ensureDemoSession("student", import.meta.env).then((allowed) => {
-      if (current) setReady(allowed);
-    }).catch((cause: unknown) => {
-      if (current) setError(cause instanceof Error ? cause.message : "The demo session could not be opened.");
-    });
-    return () => { current = false; };
+    void ensureDemoSession("student", import.meta.env)
+      .then((allowed) => {
+        if (current) setReady(allowed);
+      })
+      .catch((cause: unknown) => {
+        if (current)
+          setError(
+            cause instanceof Error ? cause.message : "The demo session could not be opened.",
+          );
+      });
+    return () => {
+      current = false;
+    };
   }, [publicPage]);
   if (publicPage || ready) return children;
   return (
-    <main className="mx-auto my-16 max-w-xl rounded-2xl bg-card p-8 text-foreground" role={error ? "alert" : "status"}>
+    <main
+      className="mx-auto my-16 max-w-xl rounded-2xl bg-card p-8 text-foreground"
+      role={error ? "alert" : "status"}
+    >
       <LabAssistBrand />
-      <h1 className="text-xl font-bold">{error ? "Demo login configuration" : "Opening your demo workspace…"}</h1>
-      {error && <><p className="my-4">{error}</p><button onClick={() => window.location.reload()}>Try again</button></>}
+      <h1 className="text-xl font-bold">
+        {error ? "Demo login configuration" : "Opening your demo workspace…"}
+      </h1>
+      {error && (
+        <>
+          <p className="my-4">{error}</p>
+          <button onClick={() => window.location.reload()}>Try again</button>
+        </>
+      )}
     </main>
   );
 }

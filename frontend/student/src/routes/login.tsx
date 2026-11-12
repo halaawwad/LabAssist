@@ -6,7 +6,11 @@ import "./access-login.css";
 import workshopScene from "@/assets/login-workshop-backlight-sage.png";
 import { openDepartment } from "@/lib/departmentUrl";
 import {
-  clearPendingDemo, installDemoBridge, isDemoBridgeFrame, isDemoRole, prepareDemoSignIn,
+  clearPendingDemo,
+  installDemoBridge,
+  isDemoBridgeFrame,
+  isDemoRole,
+  prepareDemoSignIn,
   type DemoRole,
 } from "../../../../shared/web/demoSession";
 export const Route = createFileRoute("/login")({ ssr: false, component: AccessLogin });
@@ -58,8 +62,11 @@ function AccessLogin() {
       setRole(requested);
       if (params.get("signedOut") === "1") {
         setSignedOut(true);
-        try { clearPendingDemo(requested); }
-        catch { setError("Browser storage is unavailable. Allow local storage before using this demo."); }
+        try {
+          clearPendingDemo(requested);
+        } catch {
+          setError("Browser storage is unavailable. Allow local storage before using this demo.");
+        }
       }
     }
     return undefined;
@@ -73,7 +80,10 @@ function AccessLogin() {
   const current = roles.find((r) => r.id === role)!;
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if ((role === "student" || role === "department") && !/^\S+@\S+\.\S+$/.test(identifier.trim())) {
+    if (
+      (role === "student" || role === "department") &&
+      !/^\S+@\S+\.\S+$/.test(identifier.trim())
+    ) {
       setError(`Enter a valid ${current.identifier.toLowerCase()}.`);
       return;
     }
@@ -282,8 +292,12 @@ function AccessLogin() {
             Use demo details <ArrowRight size={15} />
           </button>
           <div className="access-demo-details">
-            {signedOut && <p role="status">Signed out. Your saved demo records remain on this device.</p>}
-            <p>Demo: <strong>{current.example}</strong> · <strong>Noor123!</strong></p>
+            {signedOut && (
+              <p role="status">Signed out. Your saved demo records remain on this device.</p>
+            )}
+            <p>
+              Demo: <strong>{current.example}</strong> · <strong>Noor123!</strong>
+            </p>
             <p>Local preview only. No backend authentication or secure authorization.</p>
           </div>
           <footer>

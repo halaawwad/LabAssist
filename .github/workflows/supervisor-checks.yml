@@ -25,11 +25,7 @@ jobs:
         with:
           node-version: '22'
       - name: Prepare standalone supervisor workspace
-        run: |
-          target="$RUNNER_TEMP/labassist-supervisor"
-          mkdir -p "$target"
-          cp -a frontend/supervisor/. "$target/"
-          echo "SUPERVISOR_CHECK_DIR=$target" >> "$GITHUB_ENV"
+        run: bash .github/scripts/prepare-web-workspace.sh supervisor
       - name: Install locked dependencies
         run: cd "$SUPERVISOR_CHECK_DIR" && npm ci
       - name: Lint
@@ -48,7 +44,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: supervisor-test-results
-          path: ${{ runner.temp }}/labassist-supervisor/reports/
+          path: ${{ runner.temp }}/labassist-supervisor/frontend/supervisor/reports/
           if-no-files-found: ignore
           retention-days: 14
 

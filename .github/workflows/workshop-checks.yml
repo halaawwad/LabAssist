@@ -25,30 +25,26 @@ jobs:
         with:
           node-version: '22'
       - name: Prepare standalone workshop workspace
-        run: |
-          target="$RUNNER_TEMP/labassist-workshop"
-          mkdir -p "$target"
-          cp -a frontend/workshop/. "$target/"
-          echo "SUPERVISOR_CHECK_DIR=$target" >> "$GITHUB_ENV"
+        run: bash .github/scripts/prepare-web-workspace.sh workshop
       - name: Install locked dependencies
-        run: cd "$SUPERVISOR_CHECK_DIR" && npm ci
+        run: cd "$WORKSHOP_CHECK_DIR" && npm ci
       - name: Lint
-        run: cd "$SUPERVISOR_CHECK_DIR" && npm run lint
+        run: cd "$WORKSHOP_CHECK_DIR" && npm run lint
       - name: Typecheck
-        run: cd "$SUPERVISOR_CHECK_DIR" && npm run typecheck
+        run: cd "$WORKSHOP_CHECK_DIR" && npm run typecheck
       - name: Test
         run: |
-          cd "$SUPERVISOR_CHECK_DIR"
+          cd "$WORKSHOP_CHECK_DIR"
           mkdir -p reports
           npm test -- --reporter=default --reporter=junit --outputFile=reports/vitest.xml
       - name: Build
-        run: cd "$SUPERVISOR_CHECK_DIR" && npm run build
+        run: cd "$WORKSHOP_CHECK_DIR" && npm run build
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: workshop-test-results
-          path: ${{ runner.temp }}/labassist-workshop/reports/
+          path: ${{ runner.temp }}/labassist-workshop/frontend/workshop/reports/
           if-no-files-found: ignore
           retention-days: 14
 

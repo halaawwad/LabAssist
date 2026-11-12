@@ -1,0 +1,34 @@
+name: Department web checks
+
+on:
+  push:
+    branches: [main, noor]
+  pull_request:
+    branches: [main, noor]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: department-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  department:
+    name: Department types and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Department is an npm workspace. Keep shared/ and the root lockfile in
+      # their real repository locations; do not flatten this app into /tmp.
+      - name: Install locked Department workspace dependencies
+        run: npm ci --workspace frontend/department --include-workspace-root=false
+      - name: Typecheck
+        run: npm run typecheck --workspace frontend/department
+      - name: Build
+        run: npm run build:department

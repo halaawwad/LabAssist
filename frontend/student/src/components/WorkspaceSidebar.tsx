@@ -96,10 +96,14 @@ export function WorkspaceSidebar({
       </nav>
       <div className="workspace-notifications-footer">
         <NotificationBell sidebar />
-        <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground" onClick={() => {
-          endDemoSession("student");
-          window.location.assign(sharedLoginUrl("student", import.meta.env, true).href);
-        }}>
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-3 text-muted-foreground"
+          onClick={() => {
+            endDemoSession("student");
+            window.location.assign(sharedLoginUrl("student", import.meta.env, true).href);
+          }}
+        >
           <LogOut size={18} /> Log out
         </Button>
       </div>

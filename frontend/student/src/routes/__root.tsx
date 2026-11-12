@@ -129,7 +129,9 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const login = useRouterState({ select: (state) => state.location.pathname.replace(/\/$/, "") === "/login" });
+  const login = useRouterState({
+    select: (state) => state.location.pathname.replace(/\/$/, "") === "/login",
+  });
   // Noor's page needs no workspace providers. The hidden handoff must not mount
   // a second copy of them and write any Student demo records in its iframe.
   if (login) return <Outlet />;

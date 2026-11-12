@@ -28,11 +28,7 @@ jobs:
         with:
           bun-version: '1.3.3'
       - name: Prepare standalone student workspace
-        run: |
-          target="$RUNNER_TEMP/labassist-student"
-          mkdir -p "$target"
-          cp -a frontend/student/. "$target/"
-          echo "STUDENT_CHECK_DIR=$target" >> "$GITHUB_ENV"
+        run: bash .github/scripts/prepare-web-workspace.sh student
       - name: Install locked dependencies
         run: |
           cd "$STUDENT_CHECK_DIR"
@@ -51,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: student-test-results
-          path: ${{ runner.temp }}/labassist-student/reports/
+          path: ${{ runner.temp }}/labassist-student/frontend/student/reports/
           if-no-files-found: ignore
           retention-days: 14
 
