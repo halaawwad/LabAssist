@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CatalogRouteImport } from './routes/catalog'
 import { Route as CatalogPreviewRouteImport } from './routes/catalog-preview'
+import { Route as DepartmentRouteImport } from './routes/department'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as LabRouteImport } from './routes/lab'
 import { Route as LabPreviewRouteImport } from './routes/lab-preview'
@@ -37,6 +38,11 @@ const CatalogRoute = CatalogRouteImport.update({
 const CatalogPreviewRoute = CatalogPreviewRouteImport.update({
   id: '/catalog-preview',
   path: '/catalog-preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DepartmentRoute = DepartmentRouteImport.update({
+  id: '/department',
+  path: '/department',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InventoryRoute = InventoryRouteImport.update({
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/catalog': typeof CatalogRoute
   '/catalog-preview': typeof CatalogPreviewRoute
+  '/department': typeof DepartmentRoute
   '/inventory': typeof InventoryRoute
   '/lab': typeof LabRoute
   '/lab-preview': typeof LabPreviewRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/catalog': typeof CatalogRoute
   '/catalog-preview': typeof CatalogPreviewRoute
+  '/department': typeof DepartmentRoute
   '/inventory': typeof InventoryRoute
   '/lab': typeof LabRoute
   '/lab-preview': typeof LabPreviewRoute
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/catalog': typeof CatalogRoute
   '/catalog-preview': typeof CatalogPreviewRoute
+  '/department': typeof DepartmentRoute
   '/inventory': typeof InventoryRoute
   '/lab': typeof LabRoute
   '/lab-preview': typeof LabPreviewRoute
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/'
     | '/catalog'
     | '/catalog-preview'
+    | '/department'
     | '/inventory'
     | '/lab'
     | '/lab-preview'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/'
     | '/catalog'
     | '/catalog-preview'
+    | '/department'
     | '/inventory'
     | '/lab'
     | '/lab-preview'
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '/'
     | '/catalog'
     | '/catalog-preview'
+    | '/department'
     | '/inventory'
     | '/lab'
     | '/lab-preview'
@@ -199,6 +211,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CatalogRoute: typeof CatalogRoute
   CatalogPreviewRoute: typeof CatalogPreviewRoute
+  DepartmentRoute: typeof DepartmentRoute
   InventoryRoute: typeof InventoryRoute
   LabRoute: typeof LabRoute
   LabPreviewRoute: typeof LabPreviewRoute
@@ -233,6 +246,13 @@ declare module '@tanstack/react-router' {
       path: '/catalog-preview'
       fullPath: '/catalog-preview'
       preLoaderRoute: typeof CatalogPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/department': {
+      id: '/department'
+      path: '/department'
+      fullPath: '/department'
+      preLoaderRoute: typeof DepartmentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inventory': {
@@ -319,6 +339,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CatalogRoute: CatalogRoute,
   CatalogPreviewRoute: CatalogPreviewRoute,
+  DepartmentRoute: DepartmentRoute,
   InventoryRoute: InventoryRoute,
   LabRoute: LabRoute,
   LabPreviewRoute: LabPreviewRoute,

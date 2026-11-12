@@ -125,3 +125,8 @@ jobs:
           node backend/database/reports-stage4/tests/concurrency.mjs
           node backend/database/communication-stage5/tests/concurrency.mjs
           node backend/database/remaining-data/tests/concurrency.mjs
+
+      - name: Department account provisioning and group relationships
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/database/department-stage12/sql/27-department-administration.sql
+          psql -v ON_ERROR_STOP=1 -f backend/database/department-stage12/tests/acceptance.sql

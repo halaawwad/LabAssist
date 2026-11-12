@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter } from "@/native/router";
 
 import { Card, EmptyState, LanguageToggle, ScreenContainer, ScreenHeader } from "@/components";
 import { useLanguage } from "@/i18n";

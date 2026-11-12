@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { ImageBackground, StyleSheet, View } from "react-native";
 
 import { AppText, Button } from "@/components";
 import { useLanguage } from "@/i18n";
@@ -13,7 +13,14 @@ export function SupportCard({ onOpen }: SupportCardProps) {
   const { t } = useLanguage();
 
   return (
-    <View style={styles.card}>
+    <ImageBackground
+      source={require("../../../../assets/web/supervisor-support-portrait.png")}
+      imageStyle={{ borderRadius: 28 }}
+      style={styles.card}
+    >
+      <View
+        style={{ position: "absolute", inset: 0, backgroundColor: "#1b352980", borderRadius: 28 }}
+      />
       <AppText variant="heading" tone="inverse">
         {t("supervisor.dashboard.support.title")}
       </AppText>
@@ -27,7 +34,7 @@ export function SupportCard({ onOpen }: SupportCardProps) {
         onPress={onOpen}
         style={styles.button}
       />
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -35,6 +42,9 @@ const styles = StyleSheet.create({
   card: {
     gap: spacing.sm,
     padding: spacing.xl,
+    minHeight: 320,
+    justifyContent: "flex-end",
+    overflow: "hidden",
     backgroundColor: colors.primary,
     backgroundImage: gradients.highlight,
     borderRadius: radius.xl,

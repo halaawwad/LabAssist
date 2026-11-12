@@ -1,0 +1,588 @@
+﻿.access-login {
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: #fff;
+  color: #f8faef;
+  font-family: Inter, system-ui, sans-serif;
+  overflow: hidden;
+}
+.access-login * {
+  box-sizing: border-box;
+}
+.access-grid {
+  display: none;
+}
+.access-layout {
+  container-type: inline-size;
+  isolation: isolate;
+  position: relative;
+  width: min(100vw, 171.37dvh);
+  aspect-ratio: 1748/1020;
+  flex: none;
+  background: white;
+}
+.access-workshop-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  z-index: -1;
+  pointer-events: none;
+}
+.access-topbar {
+  position: absolute;
+  left: 11%;
+  right: 10%;
+  top: 21%;
+  height: 6%;
+  display: flex;
+  align-items: center;
+  gap: 3cqw;
+}
+.access-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7cqw;
+  font-size: 2cqw;
+  color: #fbfcf5;
+  font-weight: 750;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.access-brand > span {
+  display: flex;
+}
+.access-brand svg {
+  width: 2.9cqw;
+  height: 2.9cqw;
+  stroke-width: 1.5;
+}
+.access-roles {
+  display: flex;
+  align-items: center;
+  gap: 1.8cqw;
+}
+.access-roles button {
+  position: relative;
+  padding: 0.7cqw 0;
+  border: 0;
+  background: none;
+  color: #e6edda;
+  font-size: 0.95cqw;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.access-roles button:after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #c5d9a5;
+  transform: scaleX(0);
+  transition: transform 0.2s;
+}
+.access-roles button[aria-pressed="true"]:after,
+.access-roles button:hover:after {
+  transform: scaleX(1);
+}
+.access-top-note {
+  margin-left: auto;
+  font-size: 0.46cqw;
+  letter-spacing: 0.13cqw;
+  color: #d2dfbc;
+}
+.access-card {
+  position: absolute;
+  top: 37.5%;
+  left: 12.2%;
+  width: 25.4%;
+  color: #f8faef;
+}
+.access-card > header {
+  display: none;
+}
+.access-card h2 {
+  font-size: 3.1cqw;
+  letter-spacing: -0.1cqw;
+  line-height: 1.08;
+  font-weight: 750;
+  margin: 0 0 0.7cqw;
+  white-space: nowrap;
+}
+.access-card h2 span {
+  display: none;
+}
+.access-card > p {
+  font-size: 1.25cqw;
+  color: #d6e2c3;
+  margin: 0 0 1.75cqw;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.access-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9cqw;
+}
+.access-card label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.access-input {
+  display: flex;
+  align-items: center;
+  gap: 1.25cqw;
+  min-height: 3cqw;
+  padding: 0 0.7cqw;
+  border: 0;
+  border-bottom: 1px solid #d1dfbc25;
+  color: #e6eed7;
+}
+.access-input input {
+  font: inherit;
+  font-size: 1.28cqw;
+  background: none;
+  border: 0;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+  color: #fff;
+  padding: 0.7cqw 0;
+}
+.access-input input::placeholder {
+  color: #d6e2c5;
+  opacity: 1;
+}
+.access-input > svg {
+  width: 1.6cqw;
+  height: 1.6cqw;
+  flex-shrink: 0;
+}
+.access-input button {
+  border: 0;
+  background: none;
+  color: #e8f0dc;
+  padding: 0.5cqw;
+  cursor: pointer;
+  display: flex;
+}
+.access-input button svg {
+  width: 1.4cqw;
+  height: 1.4cqw;
+}
+.access-input:focus-within {
+  border-bottom-color: #d3e6b6;
+}
+.access-input.invalid {
+  border-bottom-color: #f0b9a0;
+}
+.access-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7cqw;
+  border: 0;
+  border-radius: 99px;
+  min-height: 3.45cqw;
+  margin-top: 1.25cqw;
+  background: linear-gradient(100deg, #a8c486, #7e9f62);
+  color: #f9fff2;
+  font-size: 1.3cqw;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 0.5cqw 1.4cqw #1b302314;
+}
+.access-submit svg {
+  width: 1.25cqw;
+  height: 1.25cqw;
+}
+.access-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6cqw;
+  background: none;
+  border: 0;
+  width: 100%;
+  padding: 1.1cqw 0;
+  font-size: 1cqw;
+  color: #d2dfbd;
+  cursor: pointer;
+}
+.access-demo svg {
+  width: 1.1cqw;
+  height: 1.1cqw;
+}
+.access-card footer {
+  display: none;
+}
+.access-error {
+  color: #ffcfb8;
+  font-size: 0.8cqw;
+  line-height: 1.5;
+  margin: 0;
+}
+.access-success .access-submit {
+  background: #adc98a;
+}
+.access-topbar button:focus-visible,
+.access-submit:focus-visible,
+.access-demo:focus-visible {
+  outline: 2px solid #e6f0d5;
+  outline-offset: 4px;
+}
+@media (max-width: 700px) {
+  .access-login {
+    height: auto;
+    min-height: 100dvh;
+    overflow: auto;
+    padding: 25px 15px;
+    background: #f8faf4;
+  }
+  .access-layout {
+    width: 100%;
+    aspect-ratio: auto;
+    min-height: 740px;
+    border-radius: 27px;
+    background: linear-gradient(135deg, #354e3e, #5e7450);
+    padding: 22px;
+  }
+  .access-workshop-art {
+    top: 90px;
+    left: 0;
+    height: 230px;
+    width: 100%;
+    object-fit: cover;
+    object-position: right;
+    opacity: 0.45;
+    border-radius: 20px;
+    mask-image: linear-gradient(#000, transparent);
+  }
+  .access-topbar {
+    position: relative;
+    inset: auto;
+    height: auto;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .access-brand {
+    font-size: 23px;
+    gap: 8px;
+  }
+  .access-brand svg {
+    width: 30px;
+    height: 30px;
+  }
+  .access-roles {
+    width: 100%;
+    justify-content: space-between;
+    gap: 5px;
+  }
+  .access-roles button {
+    font-size: 9px;
+    padding: 10px 0;
+  }
+  .access-top-note {
+    display: none;
+  }
+  .access-card {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: 100%;
+    margin-top: 145px;
+  }
+  .access-card h2 {
+    font-size: 33px;
+    white-space: normal;
+    margin-bottom: 10px;
+  }
+  .access-card > p {
+    font-size: 12px;
+    white-space: normal;
+    margin-bottom: 22px;
+  }
+  .access-card form {
+    gap: 16px;
+  }
+  .access-input {
+    gap: 13px;
+    min-height: 46px;
+    padding: 0 8px;
+  }
+  .access-input input {
+    font-size: 16px;
+    padding: 12px 0;
+  }
+  .access-input > svg,
+  .access-input button svg {
+    width: 19px;
+    height: 19px;
+  }
+  .access-input button {
+    padding: 8px;
+  }
+  .access-submit {
+    min-height: 48px;
+    font-size: 15px;
+    margin-top: 17px;
+  }
+  .access-submit svg {
+    width: 17px;
+    height: 17px;
+  }
+  .access-demo {
+    padding: 18px 0;
+    font-size: 12px;
+  }
+  .access-demo svg {
+    width: 15px;
+    height: 15px;
+  }
+  .access-error {
+    font-size: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .access-roles button:after {
+    transition: none;
+  }
+}
+
+.access-login {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 10% 10%, #dce6d1, transparent 55%),
+    radial-gradient(ellipse at 95% 85%, #d8e4df, transparent 50%), #f4f3e9;
+}
+.access-layout {
+  isolation: isolate;
+  background: inherit;
+}
+.access-workshop-art {
+  mix-blend-mode: multiply;
+}
+.access-grid {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #8fa07b50 0.8px, transparent 1px);
+  background-size: 25px 25px;
+  opacity: 0.45;
+}
+@media (max-width: 700px) {
+  .access-layout {
+    background: linear-gradient(135deg, #354e3e, #5e7450);
+  }
+  .access-workshop-art {
+    mix-blend-mode: normal;
+  }
+}
+/* The workbench stays still; electricity and light bring it to life. */
+.access-lab-motion {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.access-lab-motion svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.access-current,
+.access-current-bloom {
+  fill: none;
+  stroke: #d7f5a1;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 9 91;
+  stroke-dashoffset: 100;
+  opacity: 0;
+  animation: access-current-flow 6s linear infinite;
+  animation-delay: inherit;
+}
+.access-lab-motion g {
+  animation: none;
+}
+.access-current-bloom {
+  stroke-width: 6;
+  filter: url(#access-current-glow);
+  opacity: 0;
+}
+.access-lab-motion g:nth-of-type(2) path {
+  animation-delay: 1.4s;
+}
+.access-lab-motion g:nth-of-type(3) path {
+  animation-delay: 2.8s;
+}
+.access-led-halo {
+  position: absolute;
+  left: 73.6%;
+  top: 73.9%;
+  width: 5.8%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff5c999 0, #ffd87166 15%, #efc25c25 42%, transparent 72%);
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen;
+  animation: access-led-breathe 3.6s ease-in-out infinite;
+}
+.access-lamp-halo {
+  position: absolute;
+  left: 64%;
+  top: 36%;
+  width: 24%;
+  height: 35%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #fce9aa18, transparent 70%);
+  filter: blur(14px);
+  animation: access-lamp-breathe 7s ease-in-out infinite;
+}
+.access-connecting .access-current,
+.access-success .access-current {
+  animation-duration: 1.4s;
+}
+.access-success .access-led-halo {
+  opacity: 1;
+  filter: brightness(1.4);
+}
+@keyframes access-current-flow {
+  0% {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  65% {
+    opacity: 0.8;
+  }
+  80%,
+  100% {
+    stroke-dashoffset: -10;
+    opacity: 0;
+  }
+}
+@keyframes access-led-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translate(-50%, -50%) scale(0.75);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+}
+@keyframes access-lamp-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (max-width: 700px) {
+  .access-lab-motion {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .access-lab-motion path,
+  .access-led-halo,
+  .access-lamp-halo {
+    animation: none;
+  }
+  .access-led-halo {
+    opacity: 0.45;
+  }
+  .access-lamp-halo {
+    opacity: 0.5;
+  }
+}
+/* Extend the bench toward the viewport edges and frame it with live circuitry. */
+@media (min-width: 701px) {
+  .access-layout {
+    width: min(112vw, 186dvh);
+  }
+}
+.access-background-circuit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  color: #8b9f72;
+  opacity: 0.7;
+}
+.access-background-track {
+  fill: none;
+  stroke: #879b6e80;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.access-background-signal {
+  fill: none;
+  stroke: #678343;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 7 93;
+  stroke-dashoffset: 100;
+  animation: access-background-travel 9s linear infinite;
+  animation-delay: inherit;
+}
+.access-background-circuit g {
+  animation-delay: inherit;
+}
+.access-background-circuit circle {
+  fill: #f1f4e7;
+  stroke: #82986a;
+  stroke-width: 1.5;
+}
+@keyframes access-background-travel {
+  0% {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+  12%,
+  70% {
+    opacity: 0.8;
+  }
+  90%,
+  100% {
+    stroke-dashoffset: -10;
+    opacity: 0;
+  }
+}
+@media (max-width: 700px) {
+  .access-background-circuit {
+    opacity: 0.3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .access-background-signal {
+    animation: none;
+    opacity: 0;
+  }
+}
+.access-background-circuit {
+  z-index: 1;
+}

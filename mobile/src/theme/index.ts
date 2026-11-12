@@ -1,4 +1,4 @@
-export { colors, gradients, type ColorName } from "./colors";
+export { colors, gradients, gradientStyle, type ColorName } from "./colors";
 export { radius, spacing } from "./spacing";
 export { shadows } from "./shadows";
 export {

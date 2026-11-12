@@ -2,9 +2,12 @@
 
 # dependencies
 node_modules/
+.native-preview-backup/
 
 # Expo
 .expo/
+.expo-preview/
+*.local.ps1
 dist/
 web-build/
 expo-env.d.ts
@@ -39,3 +42,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+.web-preview-backup/
+.expo-native-check/
+.expo-browser-preview/
+.native-mobile-revision-20261109/
+.before-restore-*/

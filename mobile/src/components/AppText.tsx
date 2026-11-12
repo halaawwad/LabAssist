@@ -44,7 +44,16 @@ export function AppText({
         fontStyle(textLanguage, variant, weight),
         {
           color: toneColors[tone],
-          textAlign: align,
+          textAlign:
+            align === "start"
+              ? directionOf(textLanguage) === "rtl"
+                ? "right"
+                : "left"
+              : align === "end"
+                ? directionOf(textLanguage) === "rtl"
+                  ? "left"
+                  : "right"
+                : align,
           writingDirection: directionOf(textLanguage),
         },
         style,

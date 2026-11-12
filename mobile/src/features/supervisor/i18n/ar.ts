@@ -49,6 +49,7 @@ export const supervisorAr: Dictionary["supervisor"] = {
     overallProgress: "التقدم الكلي",
     overallAria: "التقدم الكلي {value} بالمئة",
     progressItems: {
+      tasks: "مهام الفرق",
       hardwareDesign: "تصميم العتاد",
       prototype: "النموذج الأولي",
       testing: "الاختبار",

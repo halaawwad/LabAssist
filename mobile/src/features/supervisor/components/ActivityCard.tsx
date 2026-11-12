@@ -1,7 +1,4 @@
-import Box from "lucide-react-native/icons/box";
-import CheckSquare from "lucide-react-native/icons/square-check-big";
-import FileText from "lucide-react-native/icons/file-text";
-import Users from "lucide-react-native/icons/users";
+import { Box, CheckSquare, FileText, Users } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText, Avatar, Card, EmptyState } from "@/components";

@@ -1,5 +1,4 @@
-import ChartPie from "lucide-react-native/icons/chart-pie";
-import TrendingUp from "lucide-react-native/icons/trending-up";
+import { ChartPie, TrendingUp } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 
 import { AppText, Card, EmptyState, ProgressBar } from "@/components";

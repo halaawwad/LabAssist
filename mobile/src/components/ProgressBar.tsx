@@ -1,7 +1,7 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { useLanguage } from "@/i18n";
-import { colors, gradients, radius } from "@/theme";
+import { colors, gradients, gradientStyle, radius } from "@/theme";
 
 export type ProgressBarProps = {
   /** 0–100. */
@@ -25,7 +25,7 @@ export function ProgressBar({ value, style }: ProgressBarProps) {
           styles.fill,
           {
             width: `${percent}%`,
-            backgroundImage: isRTL ? gradients.progressRtl : gradients.progressLtr,
+            ...gradientStyle(isRTL ? gradients.progressRtl : gradients.progressLtr),
           },
         ]}
       />
