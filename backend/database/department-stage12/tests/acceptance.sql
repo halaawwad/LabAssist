@@ -37,10 +37,10 @@ SELECT pg_temp.reject('supervisor number has four digits',format(
 SELECT pg_temp.reject('staff number is unique',format(
  'INSERT INTO accounts(role,full_name,email,employee_number,created_by) VALUES(''SUPERVISOR'',''No'',''invalid.test@najah.edu'',''9101'',%L)',pg_temp.id('head')),'duplicate key');
 SELECT pg_temp.reject('workshop login number has five digits',
- 'UPDATE accounts SET employee_number=''1234'' WHERE role=''WORKSHOP_MANAGER''','employee_login_number');
-UPDATE accounts SET employee_number='54321' WHERE role='WORKSHOP_MANAGER';
+ 'UPDATE accounts SET employee_number=''1234'' WHERE role=''WORKSHOP_MANAGER'' AND status<>''DISABLED''','employee_login_number');
+UPDATE accounts SET employee_number='54321' WHERE role='WORKSHOP_MANAGER' AND status<>'DISABLED';
 SELECT pg_temp.ok('workshop manager retains a unique five-digit login',
- (SELECT count(*)=1 AND bool_and(employee_number ~ '^[0-9]{5}$') FROM accounts WHERE role='WORKSHOP_MANAGER'));
+ (SELECT count(*)=1 AND bool_and(employee_number ~ '^[0-9]{5}$') FROM accounts WHERE role='WORKSHOP_MANAGER' AND status<>'DISABLED'));
 SELECT pg_temp.reject('student university number remains eight digits',format(
  'INSERT INTO accounts(role,full_name,email,university_number,created_by) VALUES(''STUDENT'',''No'',''s123@stu.najah.edu'',''123'',%L)',pg_temp.id('head')),'student_university_identity');
 SELECT pg_temp.reject('student email must match university number',format(
