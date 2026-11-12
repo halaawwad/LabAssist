@@ -4,6 +4,7 @@
     "type":  "module",
     "workspaces":  [
                        "frontend/student",
+                       "frontend/department",
                        "mobile"
                    ],
     "scripts":  {
@@ -18,6 +19,8 @@
                     "dev:student":  "cd frontend/student \u0026\u0026 vite dev",
                     "build:student":  "cd frontend/student \u0026\u0026 vite build",
                     "dev:workshop":  "npm --prefix frontend/workshop run dev",
-                    "build:workshop":  "npm --prefix frontend/workshop run build"
+                    "build:workshop":  "npm --prefix frontend/workshop run build",
+                    "dev:department":  "npm --prefix frontend/department run dev",
+                    "build:department":  "npm --prefix frontend/department run build"
                 }
 }

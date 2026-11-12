@@ -33,7 +33,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
   const [observations, setObservations] = useLocalState('observations', observationsSeed)
   const [notifications, setNotifications] = useLocalState('notifications', notificationsSeed)
   const [conversations, setConversations] = useLocalState('conversations', conversationsSeed)
-  const [signedOut, setSignedOut] = useLocalState('signedOut', false)
+  const [signedOut, setSignedOut] = useLocalState('signedOut', true)
   const [toasts, setToasts] = useState<Toast[]>([])
   const toastId = useRef(0)
 

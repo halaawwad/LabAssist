@@ -84,6 +84,7 @@ export function DepartmentGroups({
               <div className="dept-toolbar">
                 <h3>Student group</h3>
                 <button
+                  className="dept-secondary"
                   aria-label={`Edit group: ${people(g.studentIds).join(", ")}`}
                   onClick={() => {
                     setDraft({
@@ -146,7 +147,12 @@ export function DepartmentGroups({
           >
             <div className="dept-toolbar">
               <h2>Group details</h2>
-              <button type="button" aria-label="Close group form" onClick={() => setDraft(null)}>
+              <button
+                className="dept-icon-button"
+                type="button"
+                aria-label="Close group form"
+                onClick={() => setDraft(null)}
+              >
                 <X />
               </button>
             </div>

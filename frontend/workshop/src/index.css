@@ -1,4 +1,7 @@
 :root {
+  /* Student Catalog/Project's white canvas treatment, independent of cards. */
+  --page-background: #ffffff;
+  --page-background-wash: linear-gradient(120deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
   /* LabAssist palette, Workshop Manager tone: calm, warm, near-white */
   --surface: #fbfaf7;
   --surface-warm: #f6f4ef;
@@ -41,7 +44,7 @@
 
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--ink);
-  background: var(--surface);
+  background: var(--page-background);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -59,7 +62,7 @@
 body {
   min-width: 320px;
   margin: 0;
-  background: var(--surface);
+  background: var(--page-background);
 }
 
 button,
@@ -126,7 +129,7 @@ a {
   height: 100dvh;
   background:
     radial-gradient(circle at 70% 0%, rgba(255, 255, 255, 0.9), transparent 55%),
-    linear-gradient(180deg, var(--surface) 0%, var(--surface-warm) 100%);
+    var(--page-background);
 }
 
 .workshop-main {
@@ -146,7 +149,10 @@ a {
   width: min(66%, 1100px);
   height: clamp(150px, 16.5vh, 182px);
   content: "";
-  background: url("./assets/workshop-header-scene.webp") right top / cover no-repeat;
+  background:
+    var(--page-background-wash),
+    url("./assets/workshop-header-scene.webp") right top / cover no-repeat var(--page-background);
+  background-blend-mode: normal, luminosity;
   -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 34%), linear-gradient(to bottom, #000 72%, transparent);
   mask-image: linear-gradient(to right, transparent 0%, #000 34%), linear-gradient(to bottom, #000 72%, transparent);
   -webkit-mask-composite: source-in;
@@ -171,7 +177,7 @@ a {
   min-height: 0;
   padding: clamp(18px, 2.4vh, 28px) clamp(14px, 1.1vw, 20px) 0;
   overflow: hidden auto;
-  background: linear-gradient(180deg, rgba(250, 249, 246, 0.96), rgba(243, 242, 238, 0.92));
+  background: rgba(255, 255, 255, 0.52);
   border-inline-end: 1px solid rgba(255, 255, 255, 0.9);
   box-shadow: 1px 0 0 var(--line);
   isolation: isolate;
@@ -186,7 +192,10 @@ a {
   /* Sized from the width (the photo is ~1:1) so the handwritten note is never cropped. */
   height: calc(var(--sidebar-width) * 1.01);
   content: "";
-  background: url("./assets/workshop-sidebar-scene.webp") left bottom / 100% 100% no-repeat;
+  background:
+    var(--page-background-wash),
+    url("./assets/workshop-sidebar-scene.webp") left bottom / 100% 100% no-repeat var(--page-background);
+  background-blend-mode: normal, luminosity;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 30%);
   mask-image: linear-gradient(to bottom, transparent 0%, #000 30%);
   pointer-events: none;
@@ -2284,8 +2293,9 @@ body.has-modal {
   place-items: center;
   padding: 20px;
   background:
-    linear-gradient(rgba(251, 250, 247, 0.8), rgba(251, 250, 247, 0.9)),
-    url("./assets/workshop-header-scene.webp") center / cover;
+    var(--page-background-wash),
+    url("./assets/workshop-header-scene.webp") center / cover var(--page-background);
+  background-blend-mode: normal, luminosity;
 }
 
 .signed-out-card {

@@ -10,8 +10,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     ...defaultSupervisorProfile,
     ...readStored<Partial<SupervisorProfile>>('profile', {}),
   }))
-  // Signed in by default so opening the portal keeps landing on the dashboard.
-  const [session, setSession] = useState<Session>(() => readStored<Session>('session', 'signed-in'))
+  // The shared login initializes this existing flag before providers mount.
+  const [session, setSession] = useState<Session>(() => readStored<Session>('session', 'signed-out'))
 
   const updateProfile = useCallback((changes: Partial<SupervisorProfile>) => {
     setProfile((current) => {

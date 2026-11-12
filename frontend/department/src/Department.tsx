@@ -1,7 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
-  Cpu,
   Plus,
   Search,
   MessageCircle,
@@ -16,12 +14,15 @@ import {
   FolderKanban,
 } from "lucide-react";
 import "./department.css";
-import { DepartmentMessages } from "@/components/DepartmentMessages";
+import { LabAssistBrand } from "../../../shared/web/LabAssistBrand";
+import { DepartmentMessages } from "./components/DepartmentMessages";
+import { loginUrl } from "./loginUrl";
+import { endDemoSession } from "../../../shared/web/demoSession";
 import {
   DepartmentGroups,
   type DepartmentAccount as Account,
   type DepartmentGroup,
-} from "@/components/DepartmentGroups";
+} from "./components/DepartmentGroups";
 const initial: Account[] = [
   {
     id: "d1",
@@ -54,8 +55,7 @@ const initial: Account[] = [
     invited: true,
   },
 ];
-export const Route = createFileRoute("/department")({ ssr: false, component: Department });
-function Department() {
+export default function Department() {
   const [navOpen, setNavOpen] = useState(true);
   const [groups, setGroups] = useState<DepartmentGroup[]>([]);
   const [accounts, setAccounts] = useState(initial),
@@ -138,8 +138,8 @@ function Department() {
   return (
     <main className={`dept ${navOpen ? "dept-nav-expanded" : "dept-nav-collapsed"}`}>
       <nav className="dept-rail" aria-label="Quick navigation">
-        <a href="/login" aria-label="LabAssist login" className="dept-rail-brand">
-          <Cpu size={23} />
+        <a href={loginUrl()} onClick={() => endDemoSession("department")} aria-label="LabAssist login" className="dept-rail-brand">
+          <LabAssistBrand iconOnly size={16} />
         </a>
         <button
           aria-label={navOpen ? "Collapse sidebar" : "Expand sidebar"}
@@ -162,8 +162,8 @@ function Department() {
         id="department-navigation"
         inert={!navOpen}
       >
-        <a href="/login" className="dept-brand">
-          <Cpu /> LabAssist
+        <a href={loginUrl()} onClick={() => endDemoSession("department")} className="dept-brand">
+          <LabAssistBrand size={16} />
         </a>
         <span className="dept-label">DEPARTMENT HEAD</span>
         <button className={tab === "accounts" ? "selected" : ""} onClick={() => setTab("accounts")}>
@@ -177,7 +177,7 @@ function Department() {
           <MessageCircle size={18} />
           Communication
         </button>
-        <a href="/login" className="dept-logout">
+        <a href={loginUrl()} onClick={() => endDemoSession("department")} className="dept-logout">
           Back to login
         </a>
       </aside>
@@ -282,7 +282,9 @@ function Department() {
                           {a.role} - {a.number}
                         </p>
                       </div>
-                      <span className={"dept-status " + (!a.active ? "off" : "")}>
+                      <span
+                        className={"dept-status " + (!a.active ? "off" : !a.invited ? "pending" : "")}
+                      >
                         {!a.active ? "Disabled" : a.invited ? "Active" : "Pending"}
                       </span>
                     </div>
@@ -319,6 +321,7 @@ function Department() {
                         Activation invite
                       </button>
                       <button
+                        className={!a.linked || a.active ? "dept-danger" : undefined}
                         aria-label={`${a.linked ? (a.active ? "Disable" : "Enable") : "Delete"} ${a.name}`}
                         onClick={() => setConfirm(a)}
                       >
@@ -378,7 +381,12 @@ function Department() {
           >
             <div className="dept-toolbar">
               <h2>{edit.id ? "Edit account" : "Add account"}</h2>
-              <button type="button" aria-label="Close account form" onClick={() => setEdit(null)}>
+              <button
+                className="dept-icon-button"
+                type="button"
+                aria-label="Close account form"
+                onClick={() => setEdit(null)}
+              >
                 <X />
               </button>
             </div>
@@ -465,9 +473,11 @@ function Department() {
                 : "This unused account will be removed."}
             </p>
             <div className="dept-toolbar">
-              <button onClick={() => setConfirm(null)}>Cancel</button>
+              <button className="dept-secondary" onClick={() => setConfirm(null)}>
+                Cancel
+              </button>
               <button
-                className="dept-primary"
+                className={"dept-primary" + (!confirm.linked || confirm.active ? " dept-danger" : "")}
                 onClick={() => {
                   setAccounts((items) =>
                     confirm.linked

@@ -39,5 +39,5 @@ export default defineConfig(({ command }) => ({
     client: { resolve: { conditions: ["browser", "module", "development|production"] } },
   },
   optimizeDeps: { include: ["@react-pdf/renderer", "pdf-buffer"] },
-  server: { host: "0.0.0.0", port: 8080 },
+  server: { host: "0.0.0.0", port: 8080, strictPort: true },
 }));

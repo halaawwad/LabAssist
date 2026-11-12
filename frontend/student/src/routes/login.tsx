@@ -1,8 +1,14 @@
 ﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Check, Cpu, Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
+import { LabAssistBrand } from "../../../../shared/web/LabAssistBrand";
 import "./access-login.css";
 import workshopScene from "@/assets/login-workshop-backlight-sage.png";
+import { openDepartment } from "@/lib/departmentUrl";
+import {
+  clearPendingDemo, installDemoBridge, isDemoBridgeFrame, isDemoRole, prepareDemoSignIn,
+  type DemoRole,
+} from "../../../../shared/web/demoSession";
 export const Route = createFileRoute("/login")({ ssr: false, component: AccessLogin });
 const roles = [
   {
@@ -35,13 +41,29 @@ const roles = [
   },
 ];
 function AccessLogin() {
-  const [role, setRole] = useState("student"),
+  const [role, setRole] = useState<DemoRole>("student"),
     [identifier, setIdentifier] = useState(""),
     [password, setPassword] = useState(""),
     [reveal, setReveal] = useState(false),
     [error, setError] = useState(""),
     [phase, setPhase] = useState("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [signedOut, setSignedOut] = useState(false);
+  const bridge = isDemoBridgeFrame();
+  useEffect(() => {
+    if (bridge) return installDemoBridge(import.meta.env);
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get("role");
+    if (isDemoRole(requested)) {
+      setRole(requested);
+      if (params.get("signedOut") === "1") {
+        setSignedOut(true);
+        try { clearPendingDemo(requested); }
+        catch { setError("Browser storage is unavailable. Allow local storage before using this demo."); }
+      }
+    }
+    return undefined;
+  }, [bridge]);
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
@@ -51,6 +73,10 @@ function AccessLogin() {
   const current = roles.find((r) => r.id === role)!;
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if ((role === "student" || role === "department") && !/^\S+@\S+\.\S+$/.test(identifier.trim())) {
+      setError(`Enter a valid ${current.identifier.toLowerCase()}.`);
+      return;
+    }
     if (
       (role === "supervisor" && !/^\d{4}$/.test(identifier)) ||
       (role === "workshop" && !/^\d{5}$/.test(identifier))
@@ -67,18 +93,18 @@ function AccessLogin() {
     timer.current = setTimeout(() => {
       setPhase("success");
       timer.current = setTimeout(() => {
-        if (role === "department") window.location.assign("/department");
-        else if (role === "student") window.location.assign("/");
-        else {
-          const url = new URL(window.location.href);
-          url.port = role === "supervisor" ? "5174" : "5175";
-          url.pathname = role === "supervisor" ? "/supervisor/dashboard" : "/dashboard";
-          url.search = "";
-          window.location.assign(url.href);
+        try {
+          const destination = prepareDemoSignIn(role, import.meta.env);
+          if (role === "department") openDepartment(destination);
+          else window.location.assign(destination);
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : "Could not open the demo workspace.");
+          setPhase("idle");
         }
       }, 650);
     }, 1100);
   }
+  if (bridge) return null;
   return (
     <main className={`access-login access-${phase}`}>
       <div className="access-grid" aria-hidden="true" />
@@ -119,10 +145,7 @@ function AccessLogin() {
       <div className="access-layout">
         <div className="access-topbar">
           <a className="access-brand" href="/">
-            <span>
-              <Cpu size={25} />
-            </span>
-            LabAssist
+            <LabAssistBrand login />
           </a>
           <nav className="access-roles" aria-label="Account role">
             {roles.map((r) => (
@@ -132,7 +155,7 @@ function AccessLogin() {
                 aria-pressed={role === r.id}
                 disabled={phase !== "idle"}
                 onClick={() => {
-                  setRole(r.id);
+                  setRole(r.id as DemoRole);
                   setIdentifier("");
                   setPassword("");
                   setError("");
@@ -175,7 +198,7 @@ function AccessLogin() {
             <span className="access-eyebrow">YOUR ACCESS CARD</span>
             <span className="access-card-status">
               <i />
-              {phase === "success" ? "Connected" : "Secure workspace"}
+              {phase === "success" ? "Demo connected" : "Local demo workspace"}
             </span>
           </header>
           <h2>
@@ -235,7 +258,7 @@ function AccessLogin() {
               {phase === "success" ? (
                 <>
                   <Check size={20} />
-                  Access granted
+                  Demo ready
                 </>
               ) : phase === "connecting" ? (
                 "Connecting your workspace - "
@@ -258,6 +281,11 @@ function AccessLogin() {
           >
             Use demo details <ArrowRight size={15} />
           </button>
+          <div className="access-demo-details">
+            {signedOut && <p role="status">Signed out. Your saved demo records remain on this device.</p>}
+            <p>Demo: <strong>{current.example}</strong> · <strong>Noor123!</strong></p>
+            <p>Local preview only. No backend authentication or secure authorization.</p>
+          </div>
           <footer>
             <span>{current.number}</span>
             <span>BUILD - LEARN - CONNECT</span>

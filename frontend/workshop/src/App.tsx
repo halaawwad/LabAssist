@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { WorkshopLayout } from './layouts/WorkshopLayout'
+import { SharedLoginRedirect } from './layouts/SharedLoginRedirect'
 import { AttendancePage } from './pages/AttendancePage'
 import { HandoverPage } from './pages/HandoverPage'
 import { MessagesPage } from './pages/MessagesPage'
@@ -13,6 +14,7 @@ import { WorkshopMapPage } from './pages/WorkshopMapPage'
 function App() {
   return (
     <Routes>
+      <Route path="/login" element={<SharedLoginRedirect />} />
       <Route element={<WorkshopLayout />}>
         <Route path="/dashboard" element={<WorkshopDashboard />} />
         <Route path="/map" element={<WorkshopMapPage />} />

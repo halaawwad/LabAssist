@@ -1,4 +1,7 @@
 :root {
+  /* Student Catalog/Project's white image wash; keep card palette separate. */
+  --page-background: #ffffff;
+  --page-background-wash: linear-gradient(120deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
   /* LabAssist Supervisor palette */
   --surface-light: #f8f9f6;
   --cream: #eee8dc;
@@ -45,7 +48,7 @@
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   color: var(--ink);
-  background: var(--cream);
+  background: var(--page-background);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -94,7 +97,7 @@ button {
      CC BY-SA 4.0, commons.wikimedia.org/wiki/File:Arduino_uno_r3_isometr.jpg (cut out and resized). */
   --shell-component: url("./assets/supervisor-lab-component.webp");
   --shell-texture-opacity: 0.42;
-  background: var(--surface-light);
+  background: var(--page-background);
 }
 
 .supervisor-shell::before {
@@ -102,7 +105,8 @@ button {
   inset: -24px;
   z-index: -2;
   content: "";
-  background: var(--shell-texture) center / cover;
+  background: var(--shell-texture) center / cover var(--page-background);
+  background-blend-mode: luminosity;
   filter: blur(2px) saturate(0.6);
   opacity: var(--shell-texture-opacity);
   pointer-events: none;
@@ -116,20 +120,19 @@ button {
   pointer-events: none;
   background:
     var(--shell-component) center / cover,
-    linear-gradient(
-      160deg,
-      color-mix(in srgb, var(--surface-light) 62%, transparent),
-      color-mix(in srgb, var(--cream) 52%, transparent)
-    );
+    var(--page-background-wash);
 }
 
-/* The soft background already has its blur and cream tint baked in. */
+/* Retain the route photo and framing; remove its baked-in cream tint. */
 .supervisor-shell.is-students-route,
 .supervisor-shell.is-projects-route,
 .supervisor-shell.is-progress-route,
 .supervisor-shell.is-tasks-route,
 .supervisor-shell.is-account-route {
-  background: url("./assets/supervisor-students-background.jpg") center / cover fixed;
+  background:
+    var(--page-background-wash),
+    url("./assets/supervisor-students-background.jpg") center / cover fixed var(--page-background);
+  background-blend-mode: normal, luminosity;
 }
 
 .supervisor-shell.is-students-route::before,

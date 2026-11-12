@@ -3,7 +3,7 @@ import { footerNav, logoutNav, mainNav, type NavItem } from '../data/navigation'
 import { useI18n } from '../i18n/i18nContext'
 import { useDialogs } from '../state/dialogContext'
 import { useWorkshop } from '../state/workshopContext'
-import { LeafLogo } from './LeafLogo'
+import { LabAssistBrand } from '../../../../shared/web/LabAssistBrand'
 
 export function Sidebar() {
   const { t, tp } = useI18n()
@@ -44,9 +44,8 @@ export function Sidebar() {
   return (
     <aside className="sidebar" aria-label={t('nav.aria')}>
       <div className="brand">
-        <LeafLogo />
         <div>
-          <strong>{t('app.brand')}</strong>
+          <LabAssistBrand size={22} />
           <span>{t('app.portal')}</span>
         </div>
       </div>

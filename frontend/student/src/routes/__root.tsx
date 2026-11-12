@@ -1,4 +1,6 @@
 import { NotificationsProvider } from "@/lib/notifications";
+import labAssistIcon from "../../../../shared/web/labassist-mark.svg";
+import { StudentDemoSession } from "@/components/StudentDemoSession";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { PartRequestsProvider } from "@/lib/partRequests";
 import { StudentSettingsProvider } from "@/lib/studentSettings";
@@ -13,6 +15,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -101,7 +104,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/hardwaremate-icon.svg", type: "image/svg+xml" },
+      { rel: "icon", href: labAssistIcon, type: "image/svg+xml" },
     ],
   }),
   shellComponent: RootShell,
@@ -126,27 +129,33 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const login = useRouterState({ select: (state) => state.location.pathname.replace(/\/$/, "") === "/login" });
+  // Noor's page needs no workspace providers. The hidden handoff must not mount
+  // a second copy of them and write any Student demo records in its iframe.
+  if (login) return <Outlet />;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <PartRequestsProvider>
-        <StudentSettingsProvider>
-          <ReportsProvider>
-            <MessagesProvider>
-              <StudentProfileProvider>
-                <ProjectWorkspaceProvider>
-                  <ProjectImageProvider>
-                    <NotificationsProvider>
-                      <Outlet />
-                      <NotificationsPanel />
-                    </NotificationsProvider>
-                  </ProjectImageProvider>
-                </ProjectWorkspaceProvider>
-              </StudentProfileProvider>
-            </MessagesProvider>
-          </ReportsProvider>
-        </StudentSettingsProvider>
-      </PartRequestsProvider>
-    </QueryClientProvider>
+    <StudentDemoSession>
+      <QueryClientProvider client={queryClient}>
+        <PartRequestsProvider>
+          <StudentSettingsProvider>
+            <ReportsProvider>
+              <MessagesProvider>
+                <StudentProfileProvider>
+                  <ProjectWorkspaceProvider>
+                    <ProjectImageProvider>
+                      <NotificationsProvider>
+                        <Outlet />
+                        <NotificationsPanel />
+                      </NotificationsProvider>
+                    </ProjectImageProvider>
+                  </ProjectWorkspaceProvider>
+                </StudentProfileProvider>
+              </MessagesProvider>
+            </ReportsProvider>
+          </StudentSettingsProvider>
+        </PartRequestsProvider>
+      </QueryClientProvider>
+    </StudentDemoSession>
   );
 }

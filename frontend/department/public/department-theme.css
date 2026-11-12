@@ -1,0 +1,151 @@
+/* Shared by the React workspace and the standalone preview-data page. */
+:root {
+  color-scheme: light;
+  --dept-font-family: "DM Sans", system-ui, sans-serif;
+  --dept-font-xs: 11px;
+  --dept-font-sm: 12px;
+  --dept-font-body: 13px;
+  --dept-font-label: 14px;
+  /* Match Student Catalog/Project's white image wash without changing cards. */
+  --dept-page: #ffffff;
+  --dept-background-wash: linear-gradient(120deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+  --dept-background-position: center center;
+  --dept-surface: #fffcf5;
+  --dept-surface-raised: #fffef9;
+  --dept-surface-inset: #f2eddf;
+  --dept-glass: rgba(255, 252, 245, 0.96);
+  --dept-text: #203125;
+  --dept-text-muted: #526049;
+  --dept-placeholder: #64705b;
+  --dept-border: #bdc6b2;
+  --dept-border-strong: #859675;
+  --dept-primary: #435c35;
+  --dept-primary-hover: #344b28;
+  --dept-primary-pressed: #283e1e;
+  --dept-on-primary: #ffffff;
+  --dept-highlight: #edf2e3;
+  --dept-highlight-hover: #e0e9d2;
+  --dept-selected: #dce8cb;
+  --dept-selected-border: #819b65;
+  --dept-success: #30552a;
+  --dept-success-surface: #e3ecd7;
+  --dept-warning: #785018;
+  --dept-warning-surface: #f4e6c9;
+  --dept-danger: #983c2f;
+  --dept-danger-hover: #7e2d23;
+  --dept-danger-surface: #fae9e3;
+  --dept-danger-border: #d4a092;
+  --dept-disabled: #e6e4dc;
+  --dept-disabled-text: #64695e;
+  --dept-blue: #35586a;
+  --dept-blue-surface: #e3edf1;
+  --dept-violet: #634c70;
+  --dept-violet-surface: #ece5f0;
+  --dept-avatar: #eee1c5;
+  --dept-avatar-text: #725018;
+  --dept-overlay: rgba(18, 31, 19, 0.55);
+  --dept-shadow: 0 8px 26px rgba(36, 51, 29, 0.09);
+  --dept-dialog-shadow: 0 24px 80px rgba(18, 31, 19, 0.28);
+  --dept-focus-ring: 0 0 0 3px rgba(67, 92, 53, 0.2);
+  --dept-control-radius: 12px;
+}
+
+/* One viewport-sized image for every tab and the standalone utility page.
+   A fixed layer avoids stretching the photo with long content or relying on
+   background-attachment: fixed on mobile. Content surfaces keep their contrast. */
+body {
+  isolation: isolate;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--dept-page);
+  background-image: var(--dept-background-wash), url("./assets/department-desk-background.png");
+  background-blend-mode: normal, luminosity;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: var(--dept-background-position);
+}
+@media (max-width: 1023px) {
+  :root { --dept-background-position: 75% center; }
+}
+@media (max-width: 600px) {
+  :root { --dept-background-position: right center; }
+}
+
+/* The utility page shares the workspace palette without loading React. */
+.department-data-page {
+  margin: 0;
+  padding: 24px;
+  background: var(--dept-page);
+  color: var(--dept-text);
+  font: 16px/1.6 var(--dept-font-family);
+}
+.department-data-page main {
+  max-width: 660px;
+  margin: 32px auto;
+  padding: 28px;
+  border: 1px solid var(--dept-border);
+  border-radius: 24px;
+  background: var(--dept-surface);
+  box-shadow: var(--dept-shadow);
+}
+.department-data-page h1 { font-size: 26px; line-height: 1.2; }
+.department-data-page :is(button, .link) {
+  display: inline-block;
+  padding: 12px 16px;
+  margin: 8px 8px 8px 0;
+  border: 1px solid var(--dept-primary);
+  border-radius: var(--dept-control-radius);
+  background: var(--dept-primary);
+  color: var(--dept-on-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+.department-data-page .link {
+  background: var(--dept-highlight);
+  color: var(--dept-primary);
+}
+.department-data-page input {
+  max-width: 100%;
+  margin: 12px 0;
+  color: var(--dept-text);
+  font: inherit;
+}
+.department-data-page input::file-selector-button {
+  padding: 8px 12px;
+  border: 1px solid var(--dept-border-strong);
+  border-radius: var(--dept-control-radius);
+  background: var(--dept-highlight);
+  color: var(--dept-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.department-data-page [role="status"] {
+  overflow-wrap: anywhere;
+  padding: 12px;
+  border: 1px solid var(--dept-border);
+  border-radius: var(--dept-control-radius);
+  background: var(--dept-surface-inset);
+  color: var(--dept-text);
+}
+.department-data-page a { color: var(--dept-primary); }
+.department-data-page :is(button, .link):hover {
+  background: var(--dept-primary-hover);
+  color: var(--dept-on-primary);
+}
+.department-data-page :is(button, .link):active {
+  background: var(--dept-primary-pressed);
+  color: var(--dept-on-primary);
+}
+.department-data-page :is(button, a, input):focus-visible {
+  outline: 2px solid var(--dept-primary);
+  outline-offset: 3px;
+  box-shadow: var(--dept-focus-ring);
+}
+.department-data-page [hidden] { display: none !important; }

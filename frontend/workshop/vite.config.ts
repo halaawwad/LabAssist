@@ -4,6 +4,6 @@ import { defineConfig } from 'vite'
 // Workshop Manager portal: its own app and port, isolated from the Student and Supervisor apps.
 export default defineConfig({
   plugins: [react()],
-  server: { port: 5175 },
+  server: { host: '0.0.0.0', port: 5175, strictPort: true },
   preview: { port: 4175 },
 })

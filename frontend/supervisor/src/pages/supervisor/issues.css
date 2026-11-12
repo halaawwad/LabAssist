@@ -1,13 +1,13 @@
 .is-issues-route.supervisor-shell {
-  background: #f5f3ee;
+  background: var(--page-background);
   --ink: #20231f;
   --muted: #7c7e79;
 }
 .is-issues-route.supervisor-shell::before {
   background:
-    radial-gradient(ellipse at 15% 35%, #dfdcd0 0, transparent 45%),
-    radial-gradient(ellipse at 65% 65%, #ece6d7 0, transparent 50%),
-    linear-gradient(145deg, #faf9f6 30%, #eceae2 60%, #fff 85%);
+    radial-gradient(ellipse at 15% 35%, #ffffff 0, transparent 45%),
+    radial-gradient(ellipse at 65% 65%, #ffffff 0, transparent 50%),
+    linear-gradient(145deg, #ffffff 30%, #ffffff 60%, #ffffff 85%);
   opacity: 0.8;
   filter: blur(16px);
   animation: issues-ambient 16s ease-in-out infinite alternate;

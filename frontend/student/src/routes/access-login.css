@@ -224,6 +224,13 @@
   width: 1.1cqw;
   height: 1.1cqw;
 }
+.access-demo-details {
+  color: #e0e9d2;
+  font-size: 0.7cqw;
+  line-height: 1.5;
+}
+.access-demo-details p { margin: 0 0 0.3cqw; }
+.access-demo-details strong { color: #f8faef; }
 .access-card footer {
   display: none;
 }
@@ -350,6 +357,7 @@
     width: 15px;
     height: 15px;
   }
+  .access-demo-details { font-size: 11px; }
   .access-error {
     font-size: 12px;
   }

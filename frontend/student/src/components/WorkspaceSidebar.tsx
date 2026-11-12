@@ -1,4 +1,5 @@
 import { NotificationBell } from "@/components/NotificationsPanel";
+import { LabAssistBrand } from "../../../../shared/web/LabAssistBrand";
 import { useNavigate } from "@tanstack/react-router";
 import {
   CalendarDays,
@@ -15,8 +16,10 @@ import {
   Settings,
   UserRound,
   X,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { endDemoSession, sharedLoginUrl } from "../../../../shared/web/demoSession";
 
 const navigation = [
   { label: "Dashboard", icon: LayoutDashboard },
@@ -52,15 +55,10 @@ export function WorkspaceSidebar({
       className={`glass-panel glass-strong workspace-sidebar fixed inset-y-2.5 left-2.5 z-40 flex w-[220px] shrink-0 flex-col rounded-[18px] px-2.5 py-3 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-[110%]"} ${className}`}
     >
       <div className="flex items-center justify-between px-3 pb-5 pt-2 lg:pb-6">
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-9 items-center justify-center text-primary">
-            <Cpu size={33} strokeWidth={2.2} />
-          </div>
-          <div>
-            <div className="text-[16px] font-extrabold leading-tight">LabAssist</div>
-            <div className="text-[10px] font-medium text-muted-foreground">
-              Build · Simulate · Learn
-            </div>
+        <div>
+          <LabAssistBrand size={16} />
+          <div className="text-[10px] font-medium text-muted-foreground">
+            Build · Simulate · Learn
           </div>
         </div>
         <Button
@@ -98,6 +96,12 @@ export function WorkspaceSidebar({
       </nav>
       <div className="workspace-notifications-footer">
         <NotificationBell sidebar />
+        <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground" onClick={() => {
+          endDemoSession("student");
+          window.location.assign(sharedLoginUrl("student", import.meta.env, true).href);
+        }}>
+          <LogOut size={18} /> Log out
+        </Button>
       </div>
     </aside>
   );

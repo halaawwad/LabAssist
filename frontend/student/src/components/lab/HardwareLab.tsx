@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LabAssistBrand } from "../../../../../shared/web/LabAssistBrand";
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
-  Cpu,
   FilePlus2,
   Grid3x3,
   History,
@@ -433,12 +433,10 @@ export function HardwareLab({
       {/* ===== Toolbar */}
       <header className="lab-main-toolbar flex h-14 shrink-0 items-center gap-1 border-b bg-panel px-3">
         <div className="flex items-center gap-2 pr-3">
-          <div className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground">
-            <Cpu className="size-4" />
-          </div>
           <div className="leading-tight">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              LabAssist · Lab
+            <div className="flex items-center gap-1">
+              <LabAssistBrand size={11} />
+              <span className="text-[11px] text-muted-foreground">· Lab</span>
             </div>
             <div className="text-xs text-muted-foreground">{P.project.name}</div>
           </div>

@@ -49,9 +49,19 @@ Main modules will include:
 - virtual-lab
 
 ## Frontend
-The same application serves all roles using Role-Based Access Control.
+The web interfaces live in separate applications: `frontend/student`,
+`frontend/supervisor`, `frontend/workshop`, and `frontend/department`.
+Department Head opens at its application's root URL and preserves its local
+preview state independently of the Student application. See
+[Department Head setup](../frontend/department/README.md) for development ports,
+cross-application navigation configuration, and transfer of origin-specific
+preview data. This separation does not add authentication or API integration.
 
-Dashboards, navigation, and actions change according to the user's role and permissions.
+All four web applications use the Student `/login` page as their shared demo
+entry. The browser-only session coordinator in `shared/web/demoSession.ts`
+uses origin-checked messages to initialize each destination's local demo flag;
+client-side guards and public demo credentials are not secure authorization.
+See [shared web login](SHARED-WEB-LOGIN.md) for configuration and limitations.
 
 ## Database
 PostgreSQL with Prisma ORM.

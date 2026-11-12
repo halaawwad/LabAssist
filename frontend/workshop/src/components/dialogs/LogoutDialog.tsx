@@ -2,6 +2,7 @@ import { LogOut } from 'lucide-react'
 import { useI18n } from '../../i18n/i18nContext'
 import { useWorkshop } from '../../state/workshopContext'
 import { Modal } from '../Modal'
+import { endDemoSession } from '../../../../../shared/web/demoSession'
 
 export function LogoutDialog({ onClose }: { onClose: () => void }) {
   const { t } = useI18n()
@@ -23,6 +24,7 @@ export function LogoutDialog({ onClose }: { onClose: () => void }) {
             className="btn btn-primary"
             type="button"
             onClick={() => {
+              endDemoSession('workshop') // Persist before the redirect; useLocalState also updates below.
               onClose()
               setSignedOut(true)
             }}

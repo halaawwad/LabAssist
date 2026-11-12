@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Box } from 'lucide-react'
+import { LabAssistBrand } from '../../../../../shared/web/LabAssistBrand'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { LogoutDialog } from '../../components/supervisor/account/LogoutDialog'
 import { sidebarItems, type SidebarItem } from '../../data/supervisor/supervisorMockData'
@@ -96,11 +96,8 @@ export function SupervisorLayout({ children }: SupervisorLayoutProps) {
     <div className={`supervisor-shell ${routeClass}`}>
       <aside className="supervisor-sidebar" aria-label={t('nav.aria')}>
         <div className="brand-mark">
-          <div className="brand-icon" aria-hidden="true">
-            <Box size={32} strokeWidth={1.8} />
-          </div>
           <div>
-            <strong>{t('app.brand')}</strong>
+            <LabAssistBrand size={22} />
             <span>{t('app.portal')}</span>
           </div>
         </div>

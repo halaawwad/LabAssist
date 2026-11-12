@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transfer department preview data | LabAssist</title>
+    <link rel="stylesheet" href="./department-theme.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body class="department-data-page">
+    <main>
+      <h1>Keep your department preview data</h1>
+      <p>Department Head now runs as an independent application. Browsers keep local preview data separately for each address and port.</p>
+      <p>This tool reads or replaces only <code>labassist.department.preview</code> on <strong id="origin"></strong>. Nothing is uploaded. The original data stays on the old address.</p>
+      <ol>
+        <li>On the old Student address, export your accounts, groups and messages as a JSON file.</li>
+        <li>Open the import page on the Department Head address and select that file.</li>
+        <li>Continue to Department Head. Keep the exported file as a backup.</li>
+      </ol>
+      <button id="export" type="button">Export preview data</button>
+      <p><a id="import-link" class="link" hidden>Open Department Head import page</a></p>
+      <label for="file">Import a previously exported JSON file on this address</label><br />
+      <input id="file" type="file" accept="application/json,.json" />
+      <p role="status" id="status" aria-live="polite"></p>
+      <a id="continue" class="link" href="/">Continue to application</a>
+    </main>
+    <script type="module">
+      // Kept identical in both apps: it must run on each storage origin.
+      const key = "labassist.department.preview";
+      const status = document.getElementById("status");
+      const tell = (message) => { status.textContent = message; };
+      document.getElementById("origin").textContent = location.origin;
+      const destination = new URLSearchParams(location.search).get("destination");
+      document.getElementById("continue").href = new URL(".", location.href).href;
+      if (destination) {
+        try {
+          const url = new URL(destination);
+          if (!["http:", "https:"].includes(url.protocol)) throw new Error("Unsupported URL");
+          document.getElementById("continue").href = url.href;
+          document.getElementById("continue").textContent = "Continue to Department Head";
+          const link = document.getElementById("import-link");
+          link.href = new URL("department-preview-data.html", url.href.replace(/\/?$/, "/")).href;
+          link.hidden = false;
+        } catch { tell("Invalid destination address. Use the Department Head URL supplied by your deployment."); }
+      }
+      function download(raw, name) {
+        const url = URL.createObjectURL(new Blob([raw], { type: "application/json" }));
+        const link = document.createElement("a");
+        link.href = url; link.download = name;
+        document.body.append(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      function valid(data) {
+        const strings = (value) => Array.isArray(value) && value.every((v) => typeof v === "string");
+        return data && Array.isArray(data.accounts) && data.accounts.every((a) =>
+          a && [a.id, a.name, a.number, a.email].every((v) => typeof v === "string") &&
+          ["Student", "Supervisor", "Workshop Manager"].includes(a.role) &&
+          [a.active, a.linked, a.invited].every((v) => typeof v === "boolean")) &&
+          (data.messages === undefined || (Array.isArray(data.messages) && data.messages.every((m) =>
+            m && [m.id, m.to, m.body, m.at].every((v) => typeof v === "string")))) &&
+          (data.groups === undefined || (Array.isArray(data.groups) && data.groups.every((g) =>
+            g && typeof g.id === "string" && strings(g.studentIds) && strings(g.supervisorIds))));
+      }
+      document.getElementById("export").addEventListener("click", () => {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) return tell("No saved department preview data on this address. Export from the original Student address using the same browser profile.");
+          download(raw, "labassist-department-preview.json");
+          tell("Export downloaded. Import it on the Department Head address before continuing there.");
+        } catch { tell("Could not read local storage. Check browser storage/download permissions and try again."); }
+      });
+      document.getElementById("file").addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        try {
+          const raw = await file.text();
+          if (!valid(JSON.parse(raw))) throw new Error("Invalid preview data");
+          const previous = localStorage.getItem(key);
+          if (previous && !confirm("Replace this address's existing department preview? A backup of its current data will be downloaded first. The original Student address is unchanged.")) return;
+          if (previous) download(previous, "labassist-department-before-import.json");
+          localStorage.setItem(key, raw);
+          tell("Preview data imported. Continue to the application (or reload it if it is already open) to see your accounts, groups and messages.");
+        } catch { tell("Import failed. Use an exported department preview JSON file and allow browser storage. Existing saved data has not been replaced."); }
+        finally { event.target.value = ""; }
+      });
+      try {
+        if (localStorage.getItem(key)) tell("Saved department preview data exists on this address. Export it before switching addresses.");
+        else tell("No saved department preview data on this address yet.");
+      } catch { tell("Browser storage is unavailable on this address."); }
+    </script>
+  </body>
+</html>

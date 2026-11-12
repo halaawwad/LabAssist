@@ -1,0 +1,39 @@
+/* Workspace reset and semantic aliases; palette is shared with static pages. */
+@import "tailwindcss" source(none);
+
+@theme inline {
+  --font-sans: var(--dept-font-family);
+  --color-border: var(--border);
+}
+
+:root {
+  --background: var(--dept-page);
+  --foreground: var(--dept-text);
+  --border: var(--dept-border);
+  --glass: var(--dept-glass);
+  --glass-strong: var(--dept-surface);
+  --glass-border: var(--dept-border);
+  --glass-shadow: var(--dept-shadow);
+  color: var(--foreground);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+  button, input, textarea { font: inherit; }
+}
+
+.glass-panel {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(20px) saturate(125%);
+}
+.glass-strong { background: var(--glass-strong); }
+
+html, body, [role="dialog"] { scrollbar-width: none; -ms-overflow-style: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar, [role="dialog"]::-webkit-scrollbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
