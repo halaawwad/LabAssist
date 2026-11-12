@@ -40,6 +40,7 @@ services:
       - ../learning-stage10/sql/24-demo-seed.sql:/docker-entrypoint-initdb.d/25-24-demo-seed.sql:ro
       - ../ai-stage11/sql/25-ai-schema.sql:/docker-entrypoint-initdb.d/26-25-ai-schema.sql:ro
       - ../ai-stage11/sql/26-demo-seed.sql:/docker-entrypoint-initdb.d/27-26-demo-seed.sql:ro
+      - ../department-stage12/sql/27-department-administration.sql:/docker-entrypoint-initdb.d/28-27-department-administration.sql:ro
       - ../:/database:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
