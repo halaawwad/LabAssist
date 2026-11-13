@@ -1,0 +1,1697 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model academic_terms {
+  id                        String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                  String?                    @unique
+  name                      String
+  starts_on                 DateTime                   @db.Date
+  ends_on                   DateTime?                  @db.Date
+  is_demo                   Boolean                    @default(false)
+  timezone                  String                     @default("Asia/Hebron")
+  created_at                DateTime                   @default(now()) @db.Timestamptz(6)
+  projects                  projects[]
+  reporting_periods         reporting_periods[]
+  student_enrollments       student_enrollments[]
+  term_workshop_capacity    term_workshop_capacity?
+  workshop_absence_policies workshop_absence_policies?
+  workshop_days             workshop_days[]
+  workshop_records          workshop_records[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model accounts {
+  id                                                                          String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                                                                    String?                         @unique
+  role                                                                        String
+  full_name                                                                   String
+  university_number                                                           String?                         @unique @db.VarChar(8)
+  email                                                                       String                          @unique @db.VarChar(254)
+  account_supervisor_id                                                       String?                         @db.Uuid
+  status                                                                      String                          @default("PENDING_ACTIVATION")
+  password_hash                                                               String?
+  activated_at                                                                DateTime?                       @db.Timestamptz(6)
+  created_at                                                                  DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                                                                  DateTime                        @default(now()) @db.Timestamptz(6)
+  created_by                                                                  String?                         @db.Uuid
+  employee_number                                                             String?                         @unique @db.VarChar(5)
+  accounts_accounts_account_supervisor_idToaccounts                           accounts?                       @relation("accounts_account_supervisor_idToaccounts", fields: [account_supervisor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_accounts_accounts_account_supervisor_idToaccounts                     accounts[]                      @relation("accounts_account_supervisor_idToaccounts")
+  accounts_accounts_created_byToaccounts                                      accounts?                       @relation("accounts_created_byToaccounts", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_accounts_accounts_created_byToaccounts                                accounts[]                      @relation("accounts_created_byToaccounts")
+  activation_invitations_activation_invitations_invited_byToaccounts          activation_invitations[]        @relation("activation_invitations_invited_byToaccounts")
+  activation_invitations_activation_invitations_student_idToaccounts          activation_invitations[]        @relation("activation_invitations_student_idToaccounts")
+  ai_conversations                                                            ai_conversations[]
+  audit_events                                                                audit_events[]
+  auth_mail_outbox                                                            auth_mail_outbox[]
+  auth_sessions                                                               auth_sessions[]
+  chat_message_stars                                                          chat_message_stars[]
+  chat_messages                                                               chat_messages[]
+  circuit_copy_requests_circuit_copy_requests_decided_byToaccounts            circuit_copy_requests[]         @relation("circuit_copy_requests_decided_byToaccounts")
+  circuit_copy_requests_circuit_copy_requests_student_idToaccounts            circuit_copy_requests[]         @relation("circuit_copy_requests_student_idToaccounts")
+  circuit_documents_circuit_documents_owner_idToaccounts                      circuit_documents[]             @relation("circuit_documents_owner_idToaccounts")
+  circuit_documents_circuit_documents_updated_byToaccounts                    circuit_documents[]             @relation("circuit_documents_updated_byToaccounts")
+  circuit_forks                                                               circuit_forks[]
+  circuit_publications                                                        circuit_publications[]
+  circuit_versions                                                            circuit_versions[]
+  conversation_members                                                        conversation_members[]
+  conversations_conversations_created_byToaccounts                            conversations[]                 @relation("conversations_created_byToaccounts")
+  conversations_conversations_owner_idToaccounts                              conversations?                  @relation("conversations_owner_idToaccounts")
+  conversations_conversations_peer_highToaccounts                             conversations[]                 @relation("conversations_peer_highToaccounts")
+  conversations_conversations_peer_lowToaccounts                              conversations[]                 @relation("conversations_peer_lowToaccounts")
+  files                                                                       files[]
+  learning_ai_snapshots                                                       learning_ai_snapshots[]
+  learning_bookmarks                                                          learning_bookmarks[]
+  market_bookmarks                                                            market_bookmarks[]
+  market_offer_history                                                        market_offer_history[]
+  market_offers                                                               market_offers[]
+  market_sellers                                                              market_sellers[]
+  meeting_participants_meeting_participants_account_idToaccounts              meeting_participants[]          @relation("meeting_participants_account_idToaccounts")
+  meeting_participants_meeting_participants_invited_byToaccounts              meeting_participants[]          @relation("meeting_participants_invited_byToaccounts")
+  meetings_meetings_organizer_idToaccounts                                    meetings[]                      @relation("meetings_organizer_idToaccounts")
+  meetings_meetings_updated_byToaccounts                                      meetings[]                      @relation("meetings_updated_byToaccounts")
+  notification_events                                                         notification_events[]
+  notification_inbox                                                          notification_inbox[]
+  password_reset_tokens                                                       password_reset_tokens[]
+  personal_notes                                                              personal_notes?
+  personal_reminders                                                          personal_reminders[]
+  personal_tasks                                                              personal_tasks[]
+  project_bom_items_project_bom_items_created_byToaccounts                    project_bom_items[]             @relation("project_bom_items_created_byToaccounts")
+  project_bom_items_project_bom_items_updated_byToaccounts                    project_bom_items[]             @relation("project_bom_items_updated_byToaccounts")
+  project_budgets_project_budgets_created_byToaccounts                        project_budgets[]               @relation("project_budgets_created_byToaccounts")
+  project_budgets_project_budgets_updated_byToaccounts                        project_budgets[]               @relation("project_budgets_updated_byToaccounts")
+  project_expenses_project_expenses_created_byToaccounts                      project_expenses[]              @relation("project_expenses_created_byToaccounts")
+  project_expenses_project_expenses_updated_byToaccounts                      project_expenses[]              @relation("project_expenses_updated_byToaccounts")
+  project_expenses_project_expenses_voided_byToaccounts                       project_expenses[]              @relation("project_expenses_voided_byToaccounts")
+  project_issues_project_issues_created_byToaccounts                          project_issues[]                @relation("project_issues_created_byToaccounts")
+  project_issues_project_issues_resolved_byToaccounts                         project_issues[]                @relation("project_issues_resolved_byToaccounts")
+  project_issues_project_issues_updated_byToaccounts                          project_issues[]                @relation("project_issues_updated_byToaccounts")
+  project_supervisors                                                         project_supervisors[]
+  project_tasks_project_tasks_assigned_toToaccounts                           project_tasks[]                 @relation("project_tasks_assigned_toToaccounts")
+  project_tasks_project_tasks_created_byToaccounts                            project_tasks[]                 @relation("project_tasks_created_byToaccounts")
+  project_tasks_project_tasks_updated_byToaccounts                            project_tasks[]                 @relation("project_tasks_updated_byToaccounts")
+  project_work_events                                                         project_work_events[]
+  projects                                                                    projects[]
+  report_check_runs                                                           report_check_runs[]
+  report_documents_report_documents_created_byToaccounts                      report_documents[]              @relation("report_documents_created_byToaccounts")
+  report_documents_report_documents_updated_byToaccounts                      report_documents[]              @relation("report_documents_updated_byToaccounts")
+  report_feedback_report_feedback_created_byToaccounts                        report_feedback[]               @relation("report_feedback_created_byToaccounts")
+  report_feedback_report_feedback_seen_by_student_idToaccounts                report_feedback[]               @relation("report_feedback_seen_by_student_idToaccounts")
+  report_feedback_report_feedback_updated_byToaccounts                        report_feedback[]               @relation("report_feedback_updated_byToaccounts")
+  report_submission_windows                                                   report_submission_windows[]
+  report_submissions_report_submissions_changed_byToaccounts                  report_submissions[]            @relation("report_submissions_changed_byToaccounts")
+  report_submissions_report_submissions_first_viewed_byToaccounts             report_submissions[]            @relation("report_submissions_first_viewed_byToaccounts")
+  report_submissions_report_submissions_submitted_byToaccounts                report_submissions[]            @relation("report_submissions_submitted_byToaccounts")
+  report_version_files                                                        report_version_files[]
+  report_versions                                                             report_versions[]
+  resale_sources                                                              resale_sources[]
+  student_enrollments_student_enrollments_extended_byToaccounts               student_enrollments[]           @relation("student_enrollments_extended_byToaccounts")
+  student_enrollments_student_enrollments_student_idToaccounts                student_enrollments[]           @relation("student_enrollments_student_idToaccounts")
+  student_profiles                                                            student_profiles?
+  student_settings                                                            student_settings?
+  supervisor_notification_reads                                               supervisor_notification_reads[]
+  supervisor_profiles                                                         supervisor_profiles?
+  supervisor_settings                                                         supervisor_settings?
+  workshop_absence_policies                                                   workshop_absence_policies[]
+  workshop_attendance                                                         workshop_attendance[]
+  workshop_availability                                                       workshop_availability[]
+  workshop_days                                                               workshop_days[]
+  workshop_handovers                                                          workshop_handovers[]
+  workshop_manager_profiles                                                   workshop_manager_profiles?
+  workshop_manager_settings                                                   workshop_manager_settings?
+  workshop_notification_reads                                                 workshop_notification_reads[]
+  workshop_record_recipients                                                  workshop_record_recipients[]
+  workshop_records_workshop_records_created_byToaccounts                      workshop_records[]              @relation("workshop_records_created_byToaccounts")
+  workshop_records_workshop_records_updated_byToaccounts                      workshop_records[]              @relation("workshop_records_updated_byToaccounts")
+  workshop_return_updates                                                     workshop_return_updates[]
+  workshop_table_assignments_workshop_table_assignments_assigned_byToaccounts workshop_table_assignments[]    @relation("workshop_table_assignments_assigned_byToaccounts")
+  workshop_table_assignments_workshop_table_assignments_verified_byToaccounts workshop_table_assignments[]    @relation("workshop_table_assignments_verified_byToaccounts")
+  workshop_table_history                                                      workshop_table_history[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model activation_invitations {
+  id                                                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id                                           String    @db.Uuid
+  invited_by                                           String    @db.Uuid
+  token_hash                                           String    @unique @db.Char(64)
+  expires_at                                           DateTime  @db.Timestamptz(6)
+  used_at                                              DateTime? @db.Timestamptz(6)
+  revoked_at                                           DateTime? @db.Timestamptz(6)
+  created_at                                           DateTime  @default(now()) @db.Timestamptz(6)
+  accounts_activation_invitations_invited_byToaccounts accounts  @relation("activation_invitations_invited_byToaccounts", fields: [invited_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_activation_invitations_student_idToaccounts accounts  @relation("activation_invitations_student_idToaccounts", fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([student_id, created_at(sort: Desc)], map: "invitation_student_lookup")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ai_conversations {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key              String?                 @unique
+  owner_id              String                  @db.Uuid
+  project_id            String?                 @db.Uuid
+  title                 String
+  shared_with_team      Boolean                 @default(false)
+  revision              Int                     @default(0)
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  accounts              accounts                @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects              projects?               @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ai_jobs               ai_jobs[]
+  ai_messages           ai_messages[]
+  learning_ai_snapshots learning_ai_snapshots[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ai_jobs {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversation_id     String                @db.Uuid
+  request_key         String                @db.Uuid
+  kind                String
+  input_snapshot      Json
+  base_revision       Int
+  status              String                @default("QUEUED")
+  worker_id           String?
+  claim_token         String?               @db.Uuid
+  lease_until         DateTime?             @db.Timestamptz(6)
+  revision            Int                   @default(0)
+  model               String?
+  result              Json?
+  error_text          String?
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  finished_at         DateTime?             @db.Timestamptz(6)
+  ai_conversations    ai_conversations      @relation(fields: [conversation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ai_messages         ai_messages?
+  ai_part_suggestions ai_part_suggestions[]
+  ai_project_designs  ai_project_designs?
+  ai_sources          ai_sources[]
+
+  @@unique([conversation_id, request_key])
+  @@unique([id, conversation_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ai_messages {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sequence         BigInt           @unique @default(autoincrement())
+  conversation_id  String           @db.Uuid
+  role             String
+  body             String
+  request_key      String           @db.Uuid
+  job_id           String?          @unique @db.Uuid
+  created_at       DateTime         @default(now()) @db.Timestamptz(6)
+  ai_conversations ai_conversations @relation(fields: [conversation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ai_jobs          ai_jobs?         @relation(fields: [job_id, conversation_id], references: [id, conversation_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([conversation_id, request_key])
+  @@unique([job_id, conversation_id])
+  @@index([conversation_id, sequence], map: "ai_message_thread")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ai_part_suggestions {
+  id                   String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  job_id               String             @db.Uuid
+  catalog_key          String?
+  name                 String
+  quantity             Int
+  estimated_unit_price Decimal?           @db.Decimal(14, 2)
+  currency             String?            @db.Char(3)
+  reason               String
+  catalog_parts        catalog_parts?     @relation(fields: [catalog_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
+  ai_jobs              ai_jobs            @relation(fields: [job_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_bom_items    project_bom_items?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ai_project_designs {
+  job_id        String  @id @db.Uuid
+  image_file_id String  @db.Uuid
+  length_mm     Decimal @db.Decimal
+  width_mm      Decimal @db.Decimal
+  height_mm     Decimal @db.Decimal
+  sizing_method String
+  assumptions   Json
+  is_estimate   Boolean @default(true)
+  files         files   @relation(fields: [image_file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ai_jobs       ai_jobs @relation(fields: [job_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ai_sources {
+  job_id      String    @db.Uuid
+  url         String
+  title       String
+  kind        String
+  verified_at DateTime? @db.Timestamptz(6)
+  ai_jobs     ai_jobs   @relation(fields: [job_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([job_id, url])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model audit_events {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor_id   String?   @db.Uuid
+  event_key  String
+  subject_id String?   @db.Uuid
+  payload    Json      @default("{}")
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  accounts   accounts? @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model auth_mail_outbox {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  account_id      String    @db.Uuid
+  payload         String
+  attempts        Int       @default(0)
+  sent_at         DateTime? @db.Timestamptz(6)
+  next_attempt_at DateTime  @default(now()) @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  accounts        accounts  @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model auth_sessions {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  account_id        String    @db.Uuid
+  access_hash       String    @unique @db.Char(64)
+  refresh_hash      String    @unique @db.Char(64)
+  access_expires_at DateTime  @db.Timestamptz(6)
+  expires_at        DateTime  @db.Timestamptz(6)
+  revoked_at        DateTime? @db.Timestamptz(6)
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  accounts          accounts  @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([account_id], map: "auth_session_account")
+}
+
+model catalog_categories {
+  id            String          @id
+  name_en       String
+  name_ar       String
+  sort_order    Int             @unique
+  catalog_parts catalog_parts[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model catalog_documents {
+  part_key           String
+  url                String
+  title              String
+  publisher          String
+  format             String
+  reference_scope    String
+  note               String        @default("")
+  source_verified_at DateTime?     @db.Timestamptz(6)
+  catalog_parts      catalog_parts @relation(fields: [part_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([part_key, url])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model catalog_guides {
+  part_key      String
+  version       Int
+  language      String
+  content       Json
+  catalog_parts catalog_parts @relation(fields: [part_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([part_key, version, language])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model catalog_models {
+  id                     String
+  version                Int
+  name                   String
+  definition             Json
+  render_units           String                  @default("MODEL_UNITS")
+  physical_dimensions_mm Json?
+  sealed                 Boolean                 @default(false)
+  catalog_parts          catalog_parts[]
+  catalog_pins           catalog_pins[]
+  circuit_version_parts  circuit_version_parts[]
+
+  @@id([id, version])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model catalog_parts {
+  key                    String                  @id
+  model_id               String
+  model_version          Int
+  category_id            String
+  name_en                String
+  name_ar                String
+  typical_supply_voltage Decimal?                @db.Decimal
+  description            String                  @default("")
+  active                 Boolean                 @default(true)
+  revision               Int                     @default(0)
+  ai_part_suggestions    ai_part_suggestions[]
+  catalog_documents      catalog_documents[]
+  catalog_guides         catalog_guides[]
+  catalog_categories     catalog_categories      @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalog_models         catalog_models          @relation(fields: [model_id, model_version], references: [id, version], onDelete: NoAction, onUpdate: NoAction)
+  learning_lesson_parts  learning_lesson_parts[]
+  market_offers          market_offers[]
+  project_bom_items      project_bom_items[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model catalog_pins {
+  model_id        String
+  model_version   Int
+  pin_index       Int
+  name            String
+  kind            String
+  direction       String
+  connector       String
+  voltage         Decimal?       @db.Decimal
+  physical_number Int?
+  functions       String         @default("")
+  catalog_models  catalog_models @relation(fields: [model_id, model_version], references: [id, version], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([model_id, model_version, pin_index])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model chat_message_files {
+  message_id    String        @db.Uuid
+  file_id       String        @db.Uuid
+  storage_key   String
+  original_name String
+  mime_type     String
+  byte_size     BigInt
+  sha256        String        @db.Char(64)
+  files         files         @relation(fields: [file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  chat_messages chat_messages @relation(fields: [message_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([message_id, file_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model chat_message_links {
+  message_id    String        @db.Uuid
+  url           String
+  label         String        @default("")
+  chat_messages chat_messages @relation(fields: [message_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([message_id, url])
+}
+
+model chat_message_stars {
+  message_id    String        @db.Uuid
+  account_id    String        @db.Uuid
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  accounts      accounts      @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  chat_messages chat_messages @relation(fields: [message_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([message_id, account_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model chat_messages {
+  id                                                                        String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sequence                                                                  BigInt                @unique @default(autoincrement())
+  conversation_id                                                           String                @db.Uuid
+  sender_id                                                                 String                @db.Uuid
+  request_key                                                               String                @db.Uuid
+  request_payload                                                           Json
+  body                                                                      String                @default("")
+  reply_to                                                                  String?               @db.Uuid
+  forward_from                                                              String?               @db.Uuid
+  created_at                                                                DateTime              @default(now()) @db.Timestamptz(6)
+  created_txid                                                              BigInt                @default(dbgenerated("txid_current()"))
+  chat_message_files                                                        chat_message_files[]
+  chat_message_links                                                        chat_message_links[]
+  chat_message_stars                                                        chat_message_stars[]
+  conversations                                                             conversations         @relation(fields: [conversation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  chat_messages_chat_messages_forward_fromTochat_messages                   chat_messages?        @relation("chat_messages_forward_fromTochat_messages", fields: [forward_from], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_chat_messages_chat_messages_forward_fromTochat_messages             chat_messages[]       @relation("chat_messages_forward_fromTochat_messages")
+  chat_messages_chat_messages_reply_to_conversation_idTochat_messages       chat_messages?        @relation("chat_messages_reply_to_conversation_idTochat_messages", fields: [reply_to, conversation_id], references: [id, conversation_id], onDelete: NoAction, onUpdate: NoAction)
+  other_chat_messages_chat_messages_reply_to_conversation_idTochat_messages chat_messages[]       @relation("chat_messages_reply_to_conversation_idTochat_messages")
+  accounts                                                                  accounts              @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  notification_events                                                       notification_events[]
+
+  @@unique([id, conversation_id])
+  @@unique([sender_id, request_key])
+  @@index([conversation_id, sequence(sort: Desc)], map: "chat_timeline")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model circuit_copy_requests {
+  id                                                  String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publication_id                                      String               @db.Uuid
+  student_id                                          String               @db.Uuid
+  status                                              String               @default("PENDING")
+  decided_by                                          String?              @db.Uuid
+  revision                                            Int                  @default(0)
+  created_at                                          DateTime             @default(now()) @db.Timestamptz(6)
+  accounts_circuit_copy_requests_decided_byToaccounts accounts?            @relation("circuit_copy_requests_decided_byToaccounts", fields: [decided_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  circuit_publications                                circuit_publications @relation(fields: [publication_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_circuit_copy_requests_student_idToaccounts accounts             @relation("circuit_copy_requests_student_idToaccounts", fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([publication_id, student_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model circuit_documents {
+  id                                                                               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                                                                         String?            @unique
+  owner_id                                                                         String             @db.Uuid
+  project_id                                                                       String?            @db.Uuid
+  name                                                                             String
+  team_shared                                                                      Boolean            @default(false)
+  request_key                                                                      String             @db.Uuid
+  request_payload                                                                  Json
+  head_version                                                                     String?            @db.Uuid
+  share_checkpoint_version                                                         String?            @db.Uuid
+  origin_version                                                                   String?            @db.Uuid
+  updated_by                                                                       String             @db.Uuid
+  revision                                                                         Int                @default(0)
+  created_at                                                                       DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at                                                                       DateTime           @default(now()) @db.Timestamptz(6)
+  circuit_versions_circuit_documents_head_version_idTocircuit_versions             circuit_versions?  @relation("circuit_documents_head_version_idTocircuit_versions", fields: [head_version, id], references: [id, circuit_id], onDelete: NoAction, onUpdate: NoAction)
+  circuit_versions_circuit_documents_origin_versionTocircuit_versions              circuit_versions?  @relation("circuit_documents_origin_versionTocircuit_versions", fields: [origin_version], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_circuit_documents_owner_idToaccounts                                    accounts           @relation("circuit_documents_owner_idToaccounts", fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects                                                                         projects?          @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  circuit_versions_circuit_documents_share_checkpoint_version_idTocircuit_versions circuit_versions?  @relation("circuit_documents_share_checkpoint_version_idTocircuit_versions", fields: [share_checkpoint_version, id], references: [id, circuit_id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_circuit_documents_updated_byToaccounts                                  accounts           @relation("circuit_documents_updated_byToaccounts", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  circuit_forks_circuit_forks_copy_idTocircuit_documents                           circuit_forks?     @relation("circuit_forks_copy_idTocircuit_documents")
+  circuit_forks_circuit_forks_copy_id_owner_idTocircuit_documents                  circuit_forks?     @relation("circuit_forks_copy_id_owner_idTocircuit_documents")
+  circuit_versions_circuit_versions_circuit_idTocircuit_documents                  circuit_versions[] @relation("circuit_versions_circuit_idTocircuit_documents")
+
+  @@unique([head_version, id])
+  @@unique([id, owner_id])
+  @@unique([owner_id, request_key])
+  @@unique([share_checkpoint_version, id])
+}
+
+model circuit_forks {
+  owner_id                                                                               String               @db.Uuid
+  request_key                                                                            String               @db.Uuid
+  publication_id                                                                         String               @db.Uuid
+  source_version                                                                         String               @db.Uuid
+  copy_id                                                                                String               @unique @db.Uuid
+  created_at                                                                             DateTime             @default(now()) @db.Timestamptz(6)
+  circuit_documents_circuit_forks_copy_idTocircuit_documents                             circuit_documents    @relation("circuit_forks_copy_idTocircuit_documents", fields: [copy_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  circuit_documents_circuit_forks_copy_id_owner_idTocircuit_documents                    circuit_documents    @relation("circuit_forks_copy_id_owner_idTocircuit_documents", fields: [copy_id, owner_id], references: [id, owner_id], onDelete: NoAction, onUpdate: NoAction)
+  accounts                                                                               accounts             @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  circuit_publications_circuit_forks_publication_idTocircuit_publications                circuit_publications @relation("circuit_forks_publication_idTocircuit_publications", fields: [publication_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  circuit_publications_circuit_forks_publication_id_source_versionTocircuit_publications circuit_publications @relation("circuit_forks_publication_id_source_versionTocircuit_publications", fields: [publication_id, source_version], references: [id, version_id], onDelete: NoAction, onUpdate: NoAction)
+  circuit_versions                                                                       circuit_versions     @relation(fields: [source_version], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([owner_id, request_key])
+  @@unique([copy_id, owner_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model circuit_publications {
+  id                                                                              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  circuit_id                                                                      String                  @db.Uuid
+  version_id                                                                      String                  @db.Uuid
+  published_by                                                                    String                  @db.Uuid
+  title                                                                           String
+  description                                                                     String                  @default("")
+  copy_mode                                                                       String
+  active                                                                          Boolean                 @default(true)
+  revision                                                                        Int                     @default(0)
+  published_at                                                                    DateTime                @default(now()) @db.Timestamptz(6)
+  circuit_copy_requests                                                           circuit_copy_requests[]
+  circuit_forks_circuit_forks_publication_idTocircuit_publications                circuit_forks[]         @relation("circuit_forks_publication_idTocircuit_publications")
+  circuit_forks_circuit_forks_publication_id_source_versionTocircuit_publications circuit_forks[]         @relation("circuit_forks_publication_id_source_versionTocircuit_publications")
+  accounts                                                                        accounts                @relation(fields: [published_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  circuit_versions                                                                circuit_versions        @relation(fields: [version_id, circuit_id], references: [id, circuit_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([circuit_id, version_id])
+  @@unique([id, version_id])
+  @@unique([version_id, circuit_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model circuit_version_parts {
+  version_id                                                                              String                  @db.Uuid
+  instance_key                                                                            String
+  model_id                                                                                String
+  model_version                                                                           Int
+  x                                                                                       Decimal                 @db.Decimal
+  z                                                                                       Decimal                 @db.Decimal
+  rotation                                                                                Int
+  properties                                                                              Json                    @default("{}")
+  catalog_models                                                                          catalog_models          @relation(fields: [model_id, model_version], references: [id, version], onDelete: NoAction, onUpdate: NoAction)
+  circuit_versions                                                                        circuit_versions        @relation(fields: [version_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  circuit_version_wires_circuit_version_wires_version_id_from_partTocircuit_version_parts circuit_version_wires[] @relation("circuit_version_wires_version_id_from_partTocircuit_version_parts")
+  circuit_version_wires_circuit_version_wires_version_id_to_partTocircuit_version_parts   circuit_version_wires[] @relation("circuit_version_wires_version_id_to_partTocircuit_version_parts")
+
+  @@id([version_id, instance_key])
+  @@index([model_id, version_id], map: "circuit_model_search")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model circuit_version_wires {
+  version_id                                                                              String                @db.Uuid
+  instance_key                                                                            String
+  from_part                                                                               String
+  from_pin                                                                                Int
+  to_part                                                                                 String
+  to_pin                                                                                  Int
+  wire_type                                                                               String
+  color                                                                                   String
+  gauge                                                                                   Int?
+  control_point                                                                           Json?
+  circuit_versions                                                                        circuit_versions      @relation(fields: [version_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  circuit_version_parts_circuit_version_wires_version_id_from_partTocircuit_version_parts circuit_version_parts @relation("circuit_version_wires_version_id_from_partTocircuit_version_parts", fields: [version_id, from_part], references: [version_id, instance_key], onDelete: NoAction, onUpdate: NoAction)
+  circuit_version_parts_circuit_version_wires_version_id_to_partTocircuit_version_parts   circuit_version_parts @relation("circuit_version_wires_version_id_to_partTocircuit_version_parts", fields: [version_id, to_part], references: [version_id, instance_key], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([version_id, instance_key])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model circuit_versions {
+  id                                                                                String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  circuit_id                                                                        String                  @db.Uuid
+  version_number                                                                    Int
+  label                                                                             String                  @default("")
+  data                                                                              Json
+  created_by                                                                        String                  @db.Uuid
+  created_at                                                                        DateTime                @default(now()) @db.Timestamptz(6)
+  circuit_documents_circuit_documents_head_version_idTocircuit_versions             circuit_documents?      @relation("circuit_documents_head_version_idTocircuit_versions")
+  circuit_documents_circuit_documents_origin_versionTocircuit_versions              circuit_documents[]     @relation("circuit_documents_origin_versionTocircuit_versions")
+  circuit_documents_circuit_documents_share_checkpoint_version_idTocircuit_versions circuit_documents?      @relation("circuit_documents_share_checkpoint_version_idTocircuit_versions")
+  circuit_forks                                                                     circuit_forks[]
+  circuit_publications                                                              circuit_publications?
+  circuit_version_parts                                                             circuit_version_parts[]
+  circuit_version_wires                                                             circuit_version_wires[]
+  circuit_documents_circuit_versions_circuit_idTocircuit_documents                  circuit_documents       @relation("circuit_versions_circuit_idTocircuit_documents", fields: [circuit_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts                                                                          accounts                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([circuit_id, version_number])
+  @@unique([id, circuit_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model conversation_members {
+  conversation_id    String        @db.Uuid
+  account_id         String        @db.Uuid
+  active             Boolean       @default(true)
+  starred            Boolean       @default(false)
+  muted              Boolean       @default(false)
+  last_read_sequence BigInt        @default(0)
+  revision           Int           @default(0)
+  joined_at          DateTime      @default(now()) @db.Timestamptz(6)
+  accounts           accounts      @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  conversations      conversations @relation(fields: [conversation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([conversation_id, account_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model conversations {
+  id                                          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                                    String?                @unique
+  kind                                        String
+  project_id                                  String?                @unique @db.Uuid
+  owner_id                                    String?                @unique @db.Uuid
+  peer_low                                    String?                @db.Uuid
+  peer_high                                   String?                @db.Uuid
+  name                                        String                 @default("")
+  photo_file_id                               String?                @db.Uuid
+  created_by                                  String                 @db.Uuid
+  revision                                    Int                    @default(0)
+  created_at                                  DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at                                  DateTime               @default(now()) @db.Timestamptz(6)
+  chat_messages                               chat_messages[]
+  conversation_members                        conversation_members[]
+  accounts_conversations_created_byToaccounts accounts               @relation("conversations_created_byToaccounts", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_conversations_owner_idToaccounts   accounts?              @relation("conversations_owner_idToaccounts", fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_conversations_peer_highToaccounts  accounts?              @relation("conversations_peer_highToaccounts", fields: [peer_high], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_conversations_peer_lowToaccounts   accounts?              @relation("conversations_peer_lowToaccounts", fields: [peer_low], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  files                                       files?                 @relation(fields: [photo_file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects                                    projects?              @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  meetings                                    meetings[]
+
+  @@unique([peer_low, peer_high])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model files {
+  id                        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  uploaded_by               String                      @db.Uuid
+  storage_key               String                      @unique
+  original_name             String
+  mime_type                 String
+  byte_size                 BigInt
+  sha256                    String?                     @db.Char(64)
+  status                    String                      @default("PENDING")
+  created_at                DateTime                    @default(now()) @db.Timestamptz(6)
+  ai_project_designs        ai_project_designs[]
+  chat_message_files        chat_message_files[]
+  conversations             conversations[]
+  accounts                  accounts                    @relation(fields: [uploaded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_expenses          project_expenses[]
+  projects                  projects[]
+  report_documents          report_documents[]
+  report_version_files      report_version_files[]
+  report_versions           report_versions[]
+  resale_sources            resale_sources[]
+  student_profiles          student_profiles[]
+  supervisor_profiles       supervisor_profiles[]
+  workshop_manager_profiles workshop_manager_profiles[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model learning_ai_snapshots {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id       String           @db.Uuid
+  conversation_id  String           @db.Uuid
+  title            String
+  cutoff_sequence  BigInt
+  snapshot         Json
+  created_at       DateTime         @default(now()) @db.Timestamptz(6)
+  ai_conversations ai_conversations @relation(fields: [conversation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts         accounts         @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([student_id, conversation_id, cutoff_sequence])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model learning_bookmarks {
+  student_id         String              @db.Uuid
+  lesson_id          String?             @db.Uuid
+  resource_id        String?             @db.Uuid
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at         DateTime            @default(now()) @db.Timestamptz(6)
+  learning_lessons   learning_lessons?   @relation(fields: [lesson_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  learning_resources learning_resources? @relation(fields: [resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts           accounts            @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model learning_lesson_parts {
+  lesson_id        String           @db.Uuid
+  catalog_key      String
+  catalog_parts    catalog_parts    @relation(fields: [catalog_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
+  learning_lessons learning_lessons @relation(fields: [lesson_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([lesson_id, catalog_key])
+}
+
+model learning_lesson_resources {
+  lesson_id          String             @db.Uuid
+  resource_id        String             @db.Uuid
+  learning_lessons   learning_lessons   @relation(fields: [lesson_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  learning_resources learning_resources @relation(fields: [resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([lesson_id, resource_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model learning_lessons {
+  id                        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug                      String
+  version                   Int
+  title_en                  String
+  title_ar                  String
+  content                   Json
+  circuit_data              Json
+  expected_result_en        String
+  expected_result_ar        String
+  published                 Boolean                     @default(true)
+  learning_bookmarks        learning_bookmarks[]
+  learning_lesson_parts     learning_lesson_parts[]
+  learning_lesson_resources learning_lesson_resources[]
+
+  @@unique([slug, version])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model learning_resources {
+  id                        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                  String?                     @unique
+  title_en                  String
+  title_ar                  String
+  kind                      String
+  url                       String                      @unique
+  publisher                 String
+  language                  String
+  source_verified_at        DateTime?                   @db.Timestamptz(6)
+  learning_bookmarks        learning_bookmarks[]
+  learning_lesson_resources learning_lesson_resources[]
+}
+
+model market_bookmarks {
+  student_id    String        @db.Uuid
+  offer_id      String        @db.Uuid
+  market_offers market_offers @relation(fields: [offer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts      accounts      @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([student_id, offer_id])
+}
+
+model market_offer_history {
+  offer_id      String        @db.Uuid
+  revision      Int
+  snapshot      Json
+  changed_by    String        @db.Uuid
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  accounts      accounts      @relation(fields: [changed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  market_offers market_offers @relation(fields: [offer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([offer_id, revision])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model market_offers {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key              String?                 @unique
+  seller_id             String                  @db.Uuid
+  source_id             String                  @db.Uuid
+  catalog_key           String?
+  part_name             String
+  variant               String                  @default("")
+  condition             String
+  unit_price            Decimal                 @db.Decimal(14, 2)
+  currency              String                  @db.Char(3)
+  quantity              Int
+  shipping_cost         Decimal?                @db.Decimal(14, 2)
+  valid_until           DateTime?               @db.Timestamptz(6)
+  status                String                  @default("ACTIVE")
+  updated_by            String                  @db.Uuid
+  revision              Int                     @default(0)
+  updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+  market_bookmarks      market_bookmarks[]
+  market_offer_history  market_offer_history[]
+  catalog_parts         catalog_parts?          @relation(fields: [catalog_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
+  market_sellers        market_sellers          @relation(fields: [seller_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  resale_sources        resale_sources          @relation(fields: [source_id, seller_id], references: [id, seller_id], onDelete: NoAction, onUpdate: NoAction)
+  accounts              accounts                @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_expense_lines project_expense_lines[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model market_sellers {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key         String?            @unique
+  kind             String
+  account_id       String?            @db.Uuid
+  name             String
+  city             String
+  latitude         Decimal?           @db.Decimal(9, 6)
+  longitude        Decimal?           @db.Decimal(9, 6)
+  phone            String?
+  website          String?
+  is_demo          Boolean            @default(false)
+  market_offers    market_offers[]
+  accounts         accounts?          @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_expenses project_expenses[]
+  resale_sources   resale_sources[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model meeting_participants {
+  meeting_id                                         String    @db.Uuid
+  account_id                                         String    @db.Uuid
+  invited_by                                         String    @db.Uuid
+  response                                           String    @default("PENDING")
+  responded_at                                       DateTime? @db.Timestamptz(6)
+  revision                                           Int       @default(0)
+  invited_at                                         DateTime  @default(now()) @db.Timestamptz(6)
+  accounts_meeting_participants_account_idToaccounts accounts  @relation("meeting_participants_account_idToaccounts", fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_meeting_participants_invited_byToaccounts accounts  @relation("meeting_participants_invited_byToaccounts", fields: [invited_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  meetings                                           meetings  @relation(fields: [meeting_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([meeting_id, account_id])
+  @@index([account_id, meeting_id], map: "meeting_participant_account")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model meetings {
+  id                                       String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                                 String?                @unique
+  organizer_id                             String                 @db.Uuid
+  project_id                               String?                @db.Uuid
+  conversation_id                          String?                @db.Uuid
+  request_key                              String                 @db.Uuid
+  request_payload                          Json
+  title                                    String
+  agenda                                   String                 @default("")
+  starts_at                                DateTime               @db.Timestamptz(6)
+  ends_at                                  DateTime               @db.Timestamptz(6)
+  location                                 String                 @default("")
+  meeting_url                              String?
+  status                                   String                 @default("SCHEDULED")
+  notes                                    String                 @default("")
+  revision                                 Int                    @default(0)
+  updated_by                               String                 @db.Uuid
+  created_at                               DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at                               DateTime               @default(now()) @db.Timestamptz(6)
+  meeting_participants                     meeting_participants[]
+  conversations                            conversations?         @relation(fields: [conversation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_meetings_organizer_idToaccounts accounts               @relation("meetings_organizer_idToaccounts", fields: [organizer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects                                 projects?              @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_meetings_updated_byToaccounts   accounts               @relation("meetings_updated_byToaccounts", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  notification_events                      notification_events[]
+
+  @@unique([organizer_id, request_key])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model notification_events {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_key          String               @unique
+  kind               String
+  actor_id           String               @db.Uuid
+  message_id         String?              @db.Uuid
+  meeting_id         String?              @db.Uuid
+  submission_id      String?              @db.Uuid
+  feedback_id        String?              @db.Uuid
+  document_id        String?              @db.Uuid
+  data               Json                 @default("{}")
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  workshop_record_id String?              @db.Uuid
+  accounts           accounts             @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_documents   report_documents?    @relation(fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_feedback    report_feedback?     @relation(fields: [feedback_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  meetings           meetings?            @relation(fields: [meeting_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  chat_messages      chat_messages?       @relation(fields: [message_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_submissions report_submissions?  @relation(fields: [submission_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workshop_records   workshop_records?    @relation(fields: [workshop_record_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  notification_inbox notification_inbox[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model notification_inbox {
+  event_id            String              @db.Uuid
+  recipient_id        String              @db.Uuid
+  read_at             DateTime?           @db.Timestamptz(6)
+  dismissed_at        DateTime?           @db.Timestamptz(6)
+  notification_events notification_events @relation(fields: [event_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts            accounts            @relation(fields: [recipient_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([event_id, recipient_id])
+}
+
+model password_reset_tokens {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  account_id String    @db.Uuid
+  token_hash String    @unique @db.Char(64)
+  expires_at DateTime  @db.Timestamptz(6)
+  used_at    DateTime? @db.Timestamptz(6)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  accounts   accounts  @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model personal_notes {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id String   @unique @db.Uuid
+  title      String   @default("My notes")
+  body       String   @default("")
+  revision   Int      @default(0)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  accounts   accounts @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model personal_reminders {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id   String    @db.Uuid
+  body         String
+  remind_at    DateTime  @db.Timestamptz(6)
+  dismissed_at DateTime? @db.Timestamptz(6)
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  accounts     accounts  @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model personal_tasks {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id   String    @db.Uuid
+  title        String
+  completed_at DateTime? @db.Timestamptz(6)
+  sort_order   Int       @default(0)
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime  @default(now()) @db.Timestamptz(6)
+  accounts     accounts  @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model presentation_templates {
+  id               String
+  version          Int
+  name             String
+  category         String
+  design           Json
+  is_active        Boolean            @default(true)
+  report_documents report_documents[]
+  report_versions  report_versions[]
+
+  @@id([id, version])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model project_bom_items {
+  id                                              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                                        String?                 @unique
+  project_id                                      String                  @db.Uuid
+  name                                            String
+  quantity_required                               Int
+  estimated_unit_price                            Decimal?                @db.Decimal(14, 2)
+  is_needed                                       Boolean                 @default(true)
+  not_needed_reason                               String                  @default("")
+  notes                                           String                  @default("")
+  created_by                                      String                  @db.Uuid
+  updated_by                                      String                  @db.Uuid
+  revision                                        Int                     @default(0)
+  created_at                                      DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                                      DateTime                @default(now()) @db.Timestamptz(6)
+  catalog_key                                     String?
+  ai_suggestion_id                                String?                 @unique @db.Uuid
+  ai_part_suggestions                             ai_part_suggestions?    @relation(fields: [ai_suggestion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalog_parts                                   catalog_parts?          @relation(fields: [catalog_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
+  accounts_project_bom_items_created_byToaccounts accounts                @relation("project_bom_items_created_byToaccounts", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_budgets                                 project_budgets         @relation(fields: [project_id], references: [project_id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_project_bom_items_updated_byToaccounts accounts                @relation("project_bom_items_updated_byToaccounts", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_expense_lines                           project_expense_lines[]
+
+  @@unique([id, project_id])
+  @@index([catalog_key], map: "bom_catalog_lookup")
+  @@index([project_id, is_needed], map: "bom_project_needed")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model project_budgets {
+  project_id                                    String              @id @db.Uuid
+  currency                                      String              @db.VarChar(3)
+  amount                                        Decimal             @db.Decimal(14, 2)
+  created_by                                    String              @db.Uuid
+  updated_by                                    String              @db.Uuid
+  revision                                      Int                 @default(0)
+  created_at                                    DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at                                    DateTime            @default(now()) @db.Timestamptz(6)
+  project_bom_items                             project_bom_items[]
+  accounts_project_budgets_created_byToaccounts accounts            @relation("project_budgets_created_byToaccounts", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects                                      projects            @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_project_budgets_updated_byToaccounts accounts            @relation("project_budgets_updated_byToaccounts", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_expenses                              project_expenses[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model project_expense_lines {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expense_id        String             @db.Uuid
+  project_id        String             @db.Uuid
+  bom_item_id       String?            @db.Uuid
+  label             String
+  quantity          Int
+  unit_price        Decimal            @db.Decimal(14, 2)
+  total             Decimal?           @default(dbgenerated("((quantity)::numeric * unit_price)")) @db.Decimal(24, 2)
+  market_offer_id   String?            @db.Uuid
+  project_bom_items project_bom_items? @relation(fields: [bom_item_id, project_id], references: [id, project_id], onDelete: NoAction, onUpdate: NoAction)
+  project_expenses  project_expenses   @relation(fields: [expense_id, project_id], references: [id, project_id], onDelete: NoAction, onUpdate: NoAction)
+  market_offers     market_offers?     @relation(fields: [market_offer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([expense_id], map: "expense_line_header")
+  @@index([bom_item_id, expense_id], map: "expense_line_item")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model project_expenses {
+  id                                             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id                                     String                  @db.Uuid
+  request_key                                    String                  @db.Uuid
+  request_payload                                Json
+  purchased_on                                   DateTime                @db.Date
+  seller_name                                    String                  @default("")
+  receipt_file_id                                String?                 @db.Uuid
+  status                                         String                  @default("DRAFT")
+  created_by                                     String                  @db.Uuid
+  updated_by                                     String                  @db.Uuid
+  voided_by                                      String?                 @db.Uuid
+  voided_at                                      DateTime?               @db.Timestamptz(6)
+  void_reason                                    String                  @default("")
+  revision                                       Int                     @default(0)
+  created_at                                     DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                                     DateTime                @default(now()) @db.Timestamptz(6)
+  market_seller_id                               String?                 @db.Uuid
+  project_expense_lines                          project_expense_lines[]
+  accounts_project_expenses_created_byToaccounts accounts                @relation("project_expenses_created_byToaccounts", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  market_sellers                                 market_sellers?         @relation(fields: [market_seller_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_budgets                                project_budgets         @relation(fields: [project_id], references: [project_id], onDelete: NoAction, onUpdate: NoAction)
+  files                                          files?                  @relation(fields: [receipt_file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_project_expenses_updated_byToaccounts accounts                @relation("project_expenses_updated_byToaccounts", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_project_expenses_voided_byToaccounts  accounts?               @relation("project_expenses_voided_byToaccounts", fields: [voided_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id, project_id])
+  @@unique([project_id, request_key])
+  @@index([project_id, status, purchased_on], map: "expenses_project_status_date")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model project_issues {
+  id                                            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                                      String?               @unique
+  project_id                                    String                @db.Uuid
+  created_by                                    String                @db.Uuid
+  updated_by                                    String                @db.Uuid
+  title                                         String
+  description                                   String                @default("")
+  priority                                      String                @default("MEDIUM")
+  status                                        String                @default("OPEN")
+  resolution                                    String                @default("")
+  resolved_by                                   String?               @db.Uuid
+  resolved_at                                   DateTime?             @db.Timestamptz(6)
+  revision                                      Int                   @default(0)
+  created_at                                    DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at                                    DateTime              @default(now()) @db.Timestamptz(6)
+  accounts_project_issues_created_byToaccounts  accounts              @relation("project_issues_created_byToaccounts", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects                                      projects              @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_project_issues_resolved_byToaccounts accounts?             @relation("project_issues_resolved_byToaccounts", fields: [resolved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_project_issues_updated_byToaccounts  accounts              @relation("project_issues_updated_byToaccounts", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_work_events                           project_work_events[]
+
+  @@index([project_id, status], map: "issue_project_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model project_students {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id          String              @db.Uuid
+  term_id             String              @db.Uuid
+  student_id          String              @db.Uuid
+  joined_at           DateTime            @default(now()) @db.Timestamptz(6)
+  left_at             DateTime?           @db.Timestamptz(6)
+  projects            projects            @relation(fields: [project_id, term_id], references: [id, term_id], onDelete: NoAction, onUpdate: NoAction)
+  student_enrollments student_enrollments @relation(fields: [student_id, term_id], references: [student_id, term_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([project_id, student_id])
+}
+
+model project_supervisors {
+  project_id    String   @db.Uuid
+  supervisor_id String   @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  projects      projects @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts      accounts @relation(fields: [supervisor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([project_id, supervisor_id])
+  @@index([supervisor_id, project_id], map: "supervisor_projects_lookup")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model project_tasks {
+  id                                           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                                     String?               @unique
+  project_id                                   String                @db.Uuid
+  created_by                                   String                @db.Uuid
+  assigned_to                                  String                @db.Uuid
+  updated_by                                   String                @db.Uuid
+  title                                        String
+  description                                  String                @default("")
+  due_on                                       DateTime?             @db.Date
+  status                                       String                @default("TODO")
+  needs_help                                   Boolean               @default(false)
+  completed_at                                 DateTime?             @db.Timestamptz(6)
+  revision                                     Int                   @default(0)
+  created_at                                   DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at                                   DateTime              @default(now()) @db.Timestamptz(6)
+  accounts_project_tasks_assigned_toToaccounts accounts              @relation("project_tasks_assigned_toToaccounts", fields: [assigned_to], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_project_tasks_created_byToaccounts  accounts              @relation("project_tasks_created_byToaccounts", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects                                     projects              @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_project_tasks_updated_byToaccounts  accounts              @relation("project_tasks_updated_byToaccounts", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_work_events                          project_work_events[]
+
+  @@index([project_id, assigned_to, status], map: "task_project_owner_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model project_work_events {
+  id             BigInt          @id @default(autoincrement())
+  project_id     String          @db.Uuid
+  actor_id       String          @db.Uuid
+  task_id        String?         @db.Uuid
+  issue_id       String?         @db.Uuid
+  event_key      String
+  before_state   Json?
+  after_state    Json
+  created_at     DateTime        @default(now()) @db.Timestamptz(6)
+  accounts       accounts        @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_issues project_issues? @relation(fields: [issue_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects       projects        @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_tasks  project_tasks?  @relation(fields: [task_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([project_id, created_at(sort: Desc), id(sort: Desc)], map: "work_activity_project")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model projects {
+  id                         String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                   String?                     @unique
+  term_id                    String                      @db.Uuid
+  name                       String                      @default("")
+  subtitle                   String                      @default("")
+  abstract                   String                      @default("")
+  cover_file_id              String?                     @db.Uuid
+  formed_by                  String                      @db.Uuid
+  status                     String                      @default("DRAFT")
+  created_at                 DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                    @default(now()) @db.Timestamptz(6)
+  ai_conversations           ai_conversations[]
+  circuit_documents          circuit_documents[]
+  conversations              conversations?
+  meetings                   meetings[]
+  project_budgets            project_budgets?
+  project_issues             project_issues[]
+  project_students           project_students[]
+  project_supervisors        project_supervisors[]
+  project_tasks              project_tasks[]
+  project_work_events        project_work_events[]
+  files                      files?                      @relation(fields: [cover_file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts                   accounts                    @relation(fields: [formed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  academic_terms             academic_terms              @relation(fields: [term_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_documents           report_documents[]
+  report_submission_windows  report_submission_windows[]
+  workshop_handovers         workshop_handovers[]
+  workshop_records           workshop_records[]
+  workshop_table_assignments workshop_table_assignments?
+  workshop_table_history     workshop_table_history[]
+
+  @@unique([id, term_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model report_check_runs {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  version_id      String          @db.Uuid
+  requested_by    String          @db.Uuid
+  kind            String
+  engine          String
+  model           String?
+  status          String          @default("PENDING")
+  result          Json?
+  error_text      String?
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  finished_at     DateTime?       @db.Timestamptz(6)
+  accounts        accounts        @relation(fields: [requested_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_versions report_versions @relation(fields: [version_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([version_id, created_at(sort: Desc)], map: "report_checks_version")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model report_documents {
+  id                                             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                                       String?                 @unique
+  project_id                                     String                  @db.Uuid
+  kind                                           String
+  period_id                                      String?                 @db.Uuid
+  state                                          String                  @default("DRAFT")
+  draft_content                                  Json                    @default("{}")
+  appearance                                     Json                    @default("{}")
+  template_id                                    String?
+  template_version                               Int?
+  imported_file_id                               String?                 @db.Uuid
+  created_by                                     String                  @db.Uuid
+  updated_by                                     String                  @db.Uuid
+  revision                                       Int                     @default(0)
+  deleted_at                                     DateTime?               @db.Timestamptz(6)
+  created_at                                     DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                                     DateTime                @default(now()) @db.Timestamptz(6)
+  notification_events                            notification_events[]
+  accounts_report_documents_created_byToaccounts accounts                @relation("report_documents_created_byToaccounts", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  files                                          files?                  @relation(fields: [imported_file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reporting_periods                              reporting_periods?      @relation(fields: [period_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects                                       projects                @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  presentation_templates                         presentation_templates? @relation(fields: [template_id, template_version], references: [id, version], onDelete: NoAction, onUpdate: NoAction)
+  accounts_report_documents_updated_byToaccounts accounts                @relation("report_documents_updated_byToaccounts", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_submissions                             report_submissions[]
+  report_versions                                report_versions[]
+
+  @@index([project_id, kind, updated_at(sort: Desc)], map: "reports_project_kind")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model report_feedback {
+  id                                                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  submission_id                                         String                @db.Uuid
+  request_key                                           String                @db.Uuid
+  request_payload                                       Json
+  kind                                                  String
+  decision                                              String?
+  body                                                  String
+  section_id                                            String?
+  page_number                                           Int?
+  slide_id                                              String?
+  created_by                                            String                @db.Uuid
+  updated_by                                            String                @db.Uuid
+  revision                                              Int                   @default(0)
+  seen_by_student_id                                    String?               @db.Uuid
+  seen_by_student_at                                    DateTime?             @db.Timestamptz(6)
+  created_at                                            DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at                                            DateTime              @default(now()) @db.Timestamptz(6)
+  notification_events                                   notification_events[]
+  accounts_report_feedback_created_byToaccounts         accounts              @relation("report_feedback_created_byToaccounts", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_report_feedback_seen_by_student_idToaccounts accounts?             @relation("report_feedback_seen_by_student_idToaccounts", fields: [seen_by_student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_submissions                                    report_submissions    @relation(fields: [submission_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_report_feedback_updated_byToaccounts         accounts              @relation("report_feedback_updated_byToaccounts", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([submission_id, request_key])
+  @@index([submission_id, created_at, id], map: "report_feedback_submission")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model report_submission_windows {
+  project_id String    @db.Uuid
+  kind       String
+  is_open    Boolean   @default(false)
+  closes_at  DateTime? @db.Timestamptz(6)
+  updated_by String    @db.Uuid
+  revision   Int       @default(0)
+  updated_at DateTime  @default(now()) @db.Timestamptz(6)
+  projects   projects  @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts   accounts  @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([project_id, kind])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model report_submissions {
+  id                                                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                                              String?               @unique
+  document_id                                           String                @db.Uuid
+  version_id                                            String                @db.Uuid
+  request_key                                           String                @db.Uuid
+  request_payload                                       Json
+  submitted_by                                          String                @db.Uuid
+  submitted_at                                          DateTime              @default(now()) @db.Timestamptz(6)
+  is_late                                               Boolean               @default(false)
+  student_note                                          String                @default("")
+  state                                                 String                @default("SUBMITTED")
+  first_viewed_by                                       String?               @db.Uuid
+  first_viewed_at                                       DateTime?             @db.Timestamptz(6)
+  changed_by                                            String                @db.Uuid
+  changed_at                                            DateTime?             @db.Timestamptz(6)
+  change_reason                                         String?
+  notification_events                                   notification_events[]
+  report_feedback                                       report_feedback[]
+  accounts_report_submissions_changed_byToaccounts      accounts              @relation("report_submissions_changed_byToaccounts", fields: [changed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_documents                                      report_documents      @relation(fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_report_submissions_first_viewed_byToaccounts accounts?             @relation("report_submissions_first_viewed_byToaccounts", fields: [first_viewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_report_submissions_submitted_byToaccounts    accounts              @relation("report_submissions_submitted_byToaccounts", fields: [submitted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_versions                                       report_versions       @relation(fields: [version_id, document_id], references: [id, document_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([document_id, request_key])
+  @@index([document_id, submitted_at(sort: Desc), id], map: "report_submission_history")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model report_version_files {
+  version_id      String          @db.Uuid
+  file_id         String          @db.Uuid
+  purpose         String
+  content_key     String          @default("")
+  attached_by     String          @db.Uuid
+  storage_key     String
+  original_name   String
+  mime_type       String
+  byte_size       BigInt
+  sha256          String          @db.Char(64)
+  accounts        accounts        @relation(fields: [attached_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  files           files           @relation(fields: [file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_versions report_versions @relation(fields: [version_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([version_id, file_id, purpose, content_key])
+  @@index([file_id], map: "report_file_lookup")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model report_versions {
+  id                     String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_id            String                  @db.Uuid
+  version_number         Int
+  document_revision      Int
+  content                Json
+  appearance             Json
+  template_id            String?
+  template_version       Int?
+  imported_file_id       String?                 @db.Uuid
+  created_by             String                  @db.Uuid
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
+  report_check_runs      report_check_runs[]
+  report_submissions     report_submissions[]
+  report_version_files   report_version_files[]
+  accounts               accounts                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_documents       report_documents        @relation(fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  files                  files?                  @relation(fields: [imported_file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  presentation_templates presentation_templates? @relation(fields: [template_id, template_version], references: [id, version], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([document_id, document_revision])
+  @@unique([document_id, version_number])
+  @@unique([id, document_id])
+  @@index([document_id, version_number(sort: Desc)], map: "report_version_history")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reporting_periods {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key         String?            @unique
+  term_id          String             @db.Uuid
+  week_number      Int
+  week_start       DateTime           @db.Date
+  opens_at         DateTime           @db.Timestamptz(6)
+  due_at           DateTime           @db.Timestamptz(6)
+  late_until       DateTime           @db.Timestamptz(6)
+  report_documents report_documents[]
+  academic_terms   academic_terms     @relation(fields: [term_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id, term_id])
+  @@unique([term_id, week_number])
+  @@unique([term_id, week_start])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model resale_sources {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key       String?         @unique
+  seller_id      String          @db.Uuid
+  kind           String
+  url            String?
+  file_id        String?         @db.Uuid
+  observed_at    DateTime        @db.Timestamptz(6)
+  content_hash   String?         @db.Char(64)
+  status         String          @default("PENDING")
+  reviewed_by    String?         @db.Uuid
+  reviewed_at    DateTime?       @db.Timestamptz(6)
+  market_offers  market_offers[]
+  files          files?          @relation(fields: [file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts       accounts?       @relation(fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  market_sellers market_sellers  @relation(fields: [seller_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id, seller_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model student_enrollments {
+  student_id                                         String                @db.Uuid
+  term_id                                            String                @db.Uuid
+  incomplete_until                                   DateTime?             @db.Timestamptz(6)
+  extended_by                                        String?               @db.Uuid
+  project_students                                   project_students[]
+  accounts_student_enrollments_extended_byToaccounts accounts?             @relation("student_enrollments_extended_byToaccounts", fields: [extended_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_student_enrollments_student_idToaccounts  accounts              @relation("student_enrollments_student_idToaccounts", fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  academic_terms                                     academic_terms        @relation(fields: [term_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workshop_attendance                                workshop_attendance[]
+  workshop_records                                   workshop_records[]
+
+  @@id([student_id, term_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model student_profiles {
+  account_id    String   @id @db.Uuid
+  university    String   @default("An-Najah National University")
+  major         String?
+  study_year    Int?     @db.SmallInt
+  birth_year    Int?     @db.SmallInt
+  phone         String?
+  github_url    String?
+  photo_file_id String?  @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+  accounts      accounts @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  files         files?   @relation(fields: [photo_file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model student_settings {
+  account_id         String   @id @db.Uuid
+  ui_locale          String   @default("en")
+  assistant_language String   @default("mixed")
+  motion             Boolean  @default(true)
+  background         Boolean  @default(true)
+  large_text         Boolean  @default(false)
+  message_previews   Boolean  @default(true)
+  enter_to_send      Boolean  @default(true)
+  meeting_reminders  Boolean  @default(true)
+  report_reminders   Boolean  @default(true)
+  team_updates       Boolean  @default(true)
+  updated_at         DateTime @default(now()) @db.Timestamptz(6)
+  accounts           accounts @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model supervisor_notification_reads {
+  supervisor_id    String   @db.Uuid
+  notification_key String
+  read_at          DateTime @default(now()) @db.Timestamptz(6)
+  accounts         accounts @relation(fields: [supervisor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([supervisor_id, notification_key])
+}
+
+model supervisor_profiles {
+  account_id     String   @id @db.Uuid
+  specialization String   @default("")
+  photo_file_id  String?  @db.Uuid
+  office_hours   String?
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @default(now()) @db.Timestamptz(6)
+  accounts       accounts @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  files          files?   @relation(fields: [photo_file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model supervisor_settings {
+  account_id               String   @id @db.Uuid
+  ui_locale                String   @default("en")
+  meeting_notifications    Boolean  @default(true)
+  report_notifications     Boolean  @default(true)
+  attendance_notifications Boolean  @default(true)
+  issue_notifications      Boolean  @default(true)
+  workshop_notifications   Boolean  @default(true)
+  email_summary            Boolean  @default(false)
+  updated_at               DateTime @default(now()) @db.Timestamptz(6)
+  accounts                 accounts @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model term_workshop_capacity {
+  term_id        String         @id @db.Uuid
+  team_capacity  Int            @default(25) @db.SmallInt
+  updated_at     DateTime       @default(now()) @db.Timestamptz(6)
+  academic_terms academic_terms @relation(fields: [term_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model workshop_absence_policies {
+  term_id        String         @id @db.Uuid
+  limit_percent  Decimal?       @db.Decimal(5, 2)
+  updated_by     String         @db.Uuid
+  revision       Int            @default(0)
+  academic_terms academic_terms @relation(fields: [term_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts       accounts       @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model workshop_attendance {
+  term_id             String              @db.Uuid
+  day                 DateTime            @db.Date
+  student_id          String              @db.Uuid
+  status              String
+  revision            Int                 @default(0)
+  updated_by          String              @db.Uuid
+  student_enrollments student_enrollments @relation(fields: [student_id, term_id], references: [student_id, term_id], onDelete: NoAction, onUpdate: NoAction)
+  workshop_days       workshop_days       @relation(fields: [term_id, day], references: [term_id, day], onDelete: NoAction, onUpdate: NoAction)
+  accounts            accounts            @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([term_id, day, student_id])
+  @@index([student_id, term_id, day], map: "attendance_student_term")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model workshop_availability {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  manager_id String    @db.Uuid
+  applies_on DateTime  @db.Date
+  status     String
+  away_from  DateTime? @db.Time(6)
+  away_until DateTime? @db.Time(6)
+  reason     String?
+  revision   Int       @default(0)
+  updated_at DateTime  @default(now()) @db.Timestamptz(6)
+  accounts   accounts  @relation(fields: [manager_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([manager_id, applies_on])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model workshop_days {
+  term_id             String                @db.Uuid
+  day                 DateTime              @db.Date
+  is_working          Boolean
+  opens               DateTime?             @db.Time(6)
+  closes              DateTime?             @db.Time(6)
+  reason              String                @default("")
+  revision            Int                   @default(0)
+  updated_by          String                @db.Uuid
+  workshop_attendance workshop_attendance[]
+  academic_terms      academic_terms        @relation(fields: [term_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts            accounts              @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([term_id, day])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model workshop_handover_items {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  handover_id        String             @db.Uuid
+  name               String
+  quantity           Int
+  returned_good      Int                @default(0)
+  returned_damaged   Int                @default(0)
+  missing            Int                @default(0)
+  note               String             @default("")
+  workshop_handovers workshop_handovers @relation(fields: [handover_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([handover_id, name])
+}
+
+model workshop_handovers {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                String?                   @unique
+  project_id              String                    @db.Uuid
+  issued_by               String                    @db.Uuid
+  issued_on               DateTime                  @db.Date
+  revision                Int                       @default(0)
+  request_key             String?                   @db.Uuid
+  request_payload         Json?
+  workshop_handover_items workshop_handover_items[]
+  accounts                accounts                  @relation(fields: [issued_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects                projects                  @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workshop_return_updates workshop_return_updates[]
+
+  @@unique([project_id, request_key])
+}
+
+model workshop_manager_profiles {
+  account_id    String   @id @db.Uuid
+  photo_file_id String?  @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+  accounts      accounts @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  files         files?   @relation(fields: [photo_file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model workshop_manager_settings {
+  account_id String   @id @db.Uuid
+  ui_locale  String   @default("en")
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  accounts   accounts @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model workshop_notification_reads {
+  manager_id       String   @db.Uuid
+  notification_key String
+  read_at          DateTime @default(now()) @db.Timestamptz(6)
+  accounts         accounts @relation(fields: [manager_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([manager_id, notification_key])
+}
+
+model workshop_record_recipients {
+  record_id        String           @db.Uuid
+  account_id       String           @db.Uuid
+  read_at          DateTime?        @db.Timestamptz(6)
+  accounts         accounts         @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workshop_records workshop_records @relation(fields: [record_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([record_id, account_id])
+  @@index([account_id, record_id], map: "workshop_record_recipient")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model workshop_records {
+  id                                             String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                                       String?                      @unique
+  term_id                                        String                       @db.Uuid
+  project_id                                     String?                      @db.Uuid
+  student_id                                     String?                      @db.Uuid
+  kind                                           String
+  category                                       String                       @default("general")
+  body                                           String
+  created_by                                     String                       @db.Uuid
+  updated_by                                     String                       @db.Uuid
+  revision                                       Int                          @default(0)
+  created_at                                     DateTime                     @default(now()) @db.Timestamptz(6)
+  notification_events                            notification_events[]
+  workshop_record_recipients                     workshop_record_recipients[]
+  accounts_workshop_records_created_byToaccounts accounts                     @relation("workshop_records_created_byToaccounts", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects                                       projects?                    @relation(fields: [project_id, term_id], references: [id, term_id], onDelete: NoAction, onUpdate: NoAction)
+  student_enrollments                            student_enrollments?         @relation(fields: [student_id, term_id], references: [student_id, term_id], onDelete: NoAction, onUpdate: NoAction)
+  academic_terms                                 academic_terms               @relation(fields: [term_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_workshop_records_updated_byToaccounts accounts                     @relation("workshop_records_updated_byToaccounts", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model workshop_return_updates {
+  handover_id        String             @db.Uuid
+  request_key        String             @db.Uuid
+  payload            Json
+  actor_id           String             @db.Uuid
+  created_at         DateTime           @default(now()) @db.Timestamptz(6)
+  accounts           accounts           @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workshop_handovers workshop_handovers @relation(fields: [handover_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([handover_id, request_key])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model workshop_table_assignments {
+  project_id                                                String          @id @db.Uuid
+  term_id                                                   String          @db.Uuid
+  table_id                                                  String
+  assigned_by                                               String          @db.Uuid
+  verified_by                                               String?         @db.Uuid
+  verified_at                                               DateTime?       @db.Timestamptz(6)
+  revision                                                  Int             @default(0)
+  updated_at                                                DateTime        @default(now()) @db.Timestamptz(6)
+  accounts_workshop_table_assignments_assigned_byToaccounts accounts        @relation("workshop_table_assignments_assigned_byToaccounts", fields: [assigned_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects                                                  projects        @relation(fields: [project_id, term_id], references: [id, term_id], onDelete: NoAction, onUpdate: NoAction)
+  workshop_tables                                           workshop_tables @relation(fields: [table_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_workshop_table_assignments_verified_byToaccounts accounts?       @relation("workshop_table_assignments_verified_byToaccounts", fields: [verified_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([project_id, term_id])
+}
+
+model workshop_table_history {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id      String          @db.Uuid
+  table_id        String
+  actor_id        String          @db.Uuid
+  revision        Int
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  accounts        accounts        @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects        projects        @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workshop_tables workshop_tables @relation(fields: [table_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([project_id, revision])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model workshop_tables {
+  id                         String                       @id
+  shape                      String
+  team_capacity              Int
+  geometry                   Json                         @default("{}")
+  workshop_table_assignments workshop_table_assignments[]
+  workshop_table_history     workshop_table_history[]
+}
