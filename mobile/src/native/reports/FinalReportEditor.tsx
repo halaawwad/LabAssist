@@ -1,3 +1,4 @@
+import { ReportCoverPreview } from "./ReportCoverPreview";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Image,
@@ -405,28 +406,7 @@ export function FinalReportEditor({
       </Panel>
       {selected === "cover" ? (
         <>
-          <ImageBackground source={stationery} style={s.cover} resizeMode="stretch">
-            <View style={s.coverText}>
-              <AppText style={s.coverTitle} align="center">
-                {meta.title || "Project title"}
-              </AppText>
-              <AppText align="center" style={s.serif}>
-                Graduation Project Report
-              </AppText>
-              <AppText align="center" style={s.serif}>
-                {meta.department || "Engineering department"}
-              </AppText>
-              <AppText align="center" style={s.serif}>
-                {meta.students.map((p) => p.name).join(" · ")}
-              </AppText>
-              <AppText align="center" style={s.serif}>
-                {meta.supervisor || "Supervisor name"}
-              </AppText>
-              <AppText align="center" style={s.serif}>
-                {meta.date}
-              </AppText>
-            </View>
-          </ImageBackground>
+          <ReportCoverPreview meta={meta} />
           <Panel>
             {field("Project title", meta.title, (v) => setMeta({ ...meta, title: v }))}
             {field(
@@ -991,16 +971,6 @@ const s = StyleSheet.create({
     backgroundColor: "#eff3e9",
   },
   toolText: { fontSize: 12, color: "#586d46" },
-  cover: {
-    width: "100%",
-    aspectRatio: 595 / 842,
-    borderRadius: 17,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#e1e4d6",
-  },
-  coverText: { paddingTop: "27%", paddingHorizontal: 28, gap: 18 },
-  coverTitle: { fontFamily: "Georgia", fontWeight: "700", fontSize: 23, lineHeight: 31 },
   serif: { fontFamily: "Georgia", fontSize: 14, lineHeight: 24, color: "#293126" },
   fieldLabel: { fontSize: 12, fontWeight: "600", color: "#58694b" },
   input: {

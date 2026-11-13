@@ -1,3 +1,4 @@
+﻿import { PresentationEditor } from "@/native/reports/PresentationEditor";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,6 +13,7 @@ import type { Report, ReportKind } from "@/domain/workspace";
 import { colors } from "@/theme";
 import templates from "../../../assets/data/templates.json";
 import { FinalReportEditor } from "@/native/reports/FinalReportEditor";
+import { WeeklyReportEditor } from "@/native/reports/WeeklyReportEditor";
 
 const labels: Record<string, [string, string]> = {
   completed: ["Completed work", "العمل المنجز"],
@@ -110,7 +112,7 @@ export function ReportsPanel({
         Capture what you learned, show what you built, and keep the evidence together.
       </AppText>
       <Svg width={170} height={110} viewBox="0 0 170 110" style={{ alignSelf: "flex-end" }}>
-        <G rotation={-7} origin="85,55">
+        <G transform="rotate(-7 85 55)">
           <Rect x={22} y={7} width={126} height={97} rx={12} fill="#fffff6" stroke="#bbcba5" />
           <Path d="M39 8V103M50 27H135M50 42H135M50 57H135M50 72H135M50 87H135" stroke="#d5dfc7" />
           <Path
@@ -131,6 +133,68 @@ export function ReportsPanel({
       </Svg>
     </Panel>
   );
+  if (kind === "weekly" && !supervisor && reports.length) {
+    const weeklyReport = report ?? [...reports].sort((a, b) => b.week - a.week)[0];
+    return (
+      <View style={kit.stack}>
+        {hero}
+        <Chips
+          options={[
+            { id: "weekly", label: t("Weekly", "أسبوعي") },
+            { id: "final", label: t("Final report", "النهائي") },
+            { id: "presentation", label: t("Presentation", "العرض") },
+          ]}
+          value={kind}
+          onChange={(v) => {
+            setKind(v as ReportKind);
+            setSelected(null);
+          }}
+        />
+        <WeeklyReportEditor key={weeklyReport.id} report={weeklyReport} onSelect={setSelected} />
+      </View>
+    );
+  }
+  if (kind === "presentation" && reports.length) {
+    const deckReport = report ?? reports[0];
+    return (
+      <View style={kit.stack}>
+        <Chips
+          value={kind}
+          onChange={(v) => {
+            setKind(v as ReportKind);
+            setSelected(null);
+          }}
+          options={[
+            { id: "weekly", label: "Weekly" },
+            { id: "final", label: "Final report" },
+            { id: "presentation", label: "Presentation" },
+          ]}
+        />
+        {supervisor && (
+          <Chips
+            value={deckReport.id}
+            onChange={(id) => {
+              const r = reports.find((r) => r.id === id);
+              if (r) open(r);
+            }}
+            options={reports.map((r) => ({
+              id: r.id,
+              label: state.projects.find((p) => p.id === r.projectId)?.title ?? r.projectId,
+            }))}
+          />
+        )}
+        <PresentationEditor
+          key={deckReport.id}
+          report={deckReport}
+          supervisor={supervisor}
+          onClose={() => {
+            setKind("weekly");
+            setSelected(null);
+          }}
+        />
+      </View>
+    );
+  }
   if (kind === "final" && reports.length) {
     const finalReport = report ?? reports[0];
     return (
