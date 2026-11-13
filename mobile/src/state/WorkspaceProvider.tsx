@@ -19,6 +19,7 @@ import {
 } from "@/domain/workspace";
 import { colors } from "@/theme";
 import { addPreviewData } from "@/domain/previewData";
+import { addMeetingPreviewData } from "@/domain/meetingPreview";
 
 const key = "labassist.mobile.workspace.v1";
 type ContextValue = {
@@ -61,7 +62,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           }
         }
         if (mounted) {
-          const enriched = addPreviewData(value);
+          const enriched = addMeetingPreviewData(addPreviewData(value));
           if (enriched !== value)
             queue.current = queue.current
               .then(() => AsyncStorage.setItem(key, JSON.stringify(enriched)))
@@ -73,7 +74,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (mounted) {
-          const value = addPreviewData(createWorkspace());
+          const value = addMeetingPreviewData(addPreviewData(createWorkspace()));
           current.current = value;
           setState(value);
           setStorageError(true);
@@ -111,7 +112,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
   async function reset() {
     await queue.current;
-    const next = createWorkspace();
+    const next = addMeetingPreviewData(addPreviewData(createWorkspace()));
     await AsyncStorage.setItem(key, JSON.stringify(next));
     const role = current.current?.users.find((u) => u.id === actorId)?.role ?? "student";
     current.current = next;

@@ -1,3 +1,4 @@
+import { PreferencesProvider } from "@/state/Preferences";
 import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import { ActivityIndicator, View } from "react-native";
@@ -14,12 +15,14 @@ export default function NativeLayout() {
       </View>
     );
   return (
-    <LanguageProvider>
-      <WorkspaceProvider>
-        <ProjectWorkspaceProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-        </ProjectWorkspaceProvider>
-      </WorkspaceProvider>
-    </LanguageProvider>
+    <PreferencesProvider>
+      <LanguageProvider>
+        <WorkspaceProvider>
+          <ProjectWorkspaceProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+          </ProjectWorkspaceProvider>
+        </WorkspaceProvider>
+      </LanguageProvider>
+    </PreferencesProvider>
   );
 }
