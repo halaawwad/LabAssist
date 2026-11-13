@@ -1,0 +1,28 @@
+﻿name: ${COMPOSE_PROJECT_NAME:-labassist-auth-sprint1}
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-labassist_owner}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in the root .env}
+      POSTGRES_DB: ${POSTGRES_DB:-labassist_auth_dev}
+      TZ: ${TZ:-Asia/Hebron}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5442}:5432'
+    volumes:
+      - auth_pgdata:/var/lib/postgresql/data
+      - ./backend/database/docker/10-baseline.sh:/docker-entrypoint-initdb.d/10-baseline.sh:ro
+      - ./backend/api/prisma/migrations/00000000000000_baseline/migration.sql:/labassist/baseline.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - '127.0.0.1:${MAILPIT_HTTP_PORT:-8026}:8025'
+      - '127.0.0.1:${SMTP_PORT:-1026}:1025'
+volumes:
+  auth_pgdata:

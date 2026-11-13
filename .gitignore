@@ -27,3 +27,5 @@ node_modules/
 .nitro/
 .tanstack/
 .vinxi/
+
+.local/
