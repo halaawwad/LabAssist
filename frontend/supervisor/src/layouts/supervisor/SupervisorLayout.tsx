@@ -1,3 +1,4 @@
+import { LocalStorageNotice } from "../../../../../shared/web/LocalStorageNotice";
 import { useEffect, useState, type ReactNode } from 'react'
 import { LabAssistBrand } from '../../../../../shared/web/LabAssistBrand'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
@@ -107,7 +108,7 @@ export function SupervisorLayout({ children }: SupervisorLayoutProps) {
         <nav className="sidebar-nav sidebar-nav-bottom">{footerItems.map(renderItem)}</nav>
       </aside>
 
-      <main className="dashboard-canvas">{children ?? <Outlet />}</main>
+      <main className="dashboard-canvas"><LocalStorageNotice />{children ?? <Outlet />}</main>
 
       {confirmLogout ? <LogoutDialog onClose={() => setConfirmLogout(false)} /> : null}
     </div>

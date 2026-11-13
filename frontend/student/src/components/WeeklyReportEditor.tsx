@@ -1,3 +1,4 @@
+import { demoTeam } from "../../../../shared/web/domain";
 import { WeeklyReportReadiness } from "@/components/WeeklyReportReadiness";
 import { WeeklyReportPaper } from "@/components/WeeklyReportPaper";
 import { useRef, useState } from "react";
@@ -79,10 +80,14 @@ export function WeeklyReportEditor() {
   const upload = useRef<HTMLInputElement>(null);
   const stored = reports.weekly[week] || blankWeekly(week, workspace.progress),
     report = editDraft || stored,
-    locked = !editDraft && (report.status === "Submitted" || report.status === "Reviewed");
+    locked =
+      stored.status === "Reviewed" ||
+      !!stored.firstViewedAt ||
+      !!stored.feedback ||
+      (!editDraft && report.status === "Submitted");
   const editable = !locked;
-  const canChange = stored.status === "Submitted";
-  const freshWindow = () => stored.status === "Submitted";
+  const canChange = stored.status === "Submitted" && !stored.firstViewedAt && !stored.feedback;
+  const freshWindow = () => canChange;
   const previousWeek = new Date(week + "T12:00:00Z");
   previousWeek.setUTCDate(previousWeek.getUTCDate() - 7);
   const baseline = reports.weekly[previousWeek.toISOString().slice(0, 10)];
@@ -91,7 +96,8 @@ export function WeeklyReportEditor() {
       ? report.fields.progress - baseline.fields.progress
       : null;
   const savedDrafts = Object.values(reports.weekly)
-    .filter((item) => item.status === "Draft" && item.savedAt)
+    .map((item) => (item.editableDraft ? { ...item, ...item.editableDraft } : item))
+    .filter((item) => (item.status === "Draft" && item.savedAt) || item.editableDraft)
     .sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""));
   const weeks = Array.from(
     new Set([
@@ -108,34 +114,50 @@ export function WeeklyReportEditor() {
     .reverse();
   const update = (fields: Partial<WeeklyFields>) => {
     if (locked) return;
-    if (editDraft) {
-      setEditDraft({ ...editDraft, fields: { ...editDraft.fields, ...fields } });
-      return;
+    setEditDraft({ ...report, fields: { ...report.fields, ...fields } });
+  };
+
+  const persistWeekly = (change: Parameters<typeof reports.setWeekly>[0]) => {
+    try {
+      reports.setWeekly(change);
+      return true;
+    } catch {
+      setNotice("Your report was not saved. Your input is preserved; try again.");
+      return false;
     }
-    reports.setWeekly((items) => ({
-      ...items,
-      [week]: {
-        ...(items[week] || report),
-        fields: { ...(items[week]?.fields || report.fields), ...fields },
-      },
-    }));
   };
   const save = () => {
-    reports.setWeekly((items) => ({
-      ...items,
-      [week]: {
-        ...(items[week] || report),
-        savedAt: new Date().toISOString(),
-        author: profile.name,
-      },
-    }));
+    if (locked) return;
+    if (
+      !persistWeekly((items) => ({
+        ...items,
+        [week]:
+          stored.status === "Submitted"
+            ? {
+                ...stored,
+                editableDraft: {
+                  fields: report.fields,
+                  attachments: report.attachments,
+                  savedAt: new Date().toISOString(),
+                },
+              }
+            : {
+                ...report,
+                projectId: demoTeam.id,
+                savedAt: new Date().toISOString(),
+                author: profile.name,
+              },
+      }))
+    )
+      return;
+    setEditDraft(null);
     setDraftsOpen(true);
     setNotice(
       "Draft saved. Find it under Saved Drafts on the left and continue whenever you need.",
     );
   };
   const submit = () => {
-    if (editDraft && !freshWindow()) {
+    if (editDraft && stored.status !== "Draft" && !freshWindow()) {
       setPreview(false);
       setEditDraft(null);
       setNotice("This report has been reviewed and can no longer be edited.");
@@ -155,17 +177,39 @@ export function WeeklyReportEditor() {
       return;
     }
     const at = new Date().toISOString();
-    reports.setWeekly((items) => ({
-      ...items,
-      [week]: {
-        ...report,
-        status: "Submitted",
-        submittedAt: editDraft ? stored.submittedAt || at : at,
-        savedAt: at,
-        author: profile.name,
-        versions: [...report.versions, { fields: { ...report.fields }, at, author: profile.name }],
-      },
-    }));
+    const submittedVersionId = crypto.randomUUID();
+    if (
+      !persistWeekly((items) => ({
+        ...items,
+        [week]: {
+          ...(Object.fromEntries(
+            Object.entries(report).filter(([key]) => key !== "editableDraft"),
+          ) as WeeklyReport),
+          status: "Submitted",
+          projectId: demoTeam.id,
+          submittedVersionId,
+          submittedAt: editDraft ? stored.submittedAt || at : at,
+          savedAt: at,
+          author: profile.name,
+          versions: [
+            ...report.versions.map((version) =>
+              version.state === "SUBMITTED"
+                ? { ...version, state: "SUPERSEDED" as const }
+                : version,
+            ),
+            {
+              state: "SUBMITTED",
+              id: submittedVersionId,
+              fields: { ...report.fields },
+              attachments: report.attachments.map((a) => ({ ...a })),
+              at,
+              author: profile.name,
+            },
+          ],
+        },
+      }))
+    )
+      return;
     if (week === thisWeek()) {
       workspace.setReport(report.fields.work);
       if (!workspace.submitted) workspace.submitReport();
@@ -173,7 +217,7 @@ export function WeeklyReportEditor() {
     setPreview(false);
     setEditDraft(null);
     setNotice(
-      editDraft
+      stored.status === "Submitted"
         ? "Submitted report updated."
         : "Report submitted. You can edit or withdraw it until it is reviewed.",
     );
@@ -221,13 +265,16 @@ export function WeeklyReportEditor() {
         );
         return;
       }
-      reports.setWeekly((items) => ({
-        ...items,
-        [week]: {
-          ...(items[week] || report),
-          attachments: [...(items[week]?.attachments || report.attachments), item],
-        },
-      }));
+      if (
+        !persistWeekly((items) => ({
+          ...items,
+          [week]: {
+            ...(items[week] || report),
+            attachments: [...(items[week]?.attachments || report.attachments), item],
+          },
+        }))
+      )
+        return;
     };
     reader.readAsDataURL(file);
   };
@@ -257,7 +304,9 @@ export function WeeklyReportEditor() {
           <CalendarDays size={18} />
           <h2>Your weeks</h2>
         </div>
-        <p>One shared report per project, each week.</p>
+        <p>
+          {demoTeam.label} - {demoTeam.title}. One shared report per project, each week.
+        </p>
         <section className="weekly-saved-drafts">
           <button
             type="button"
@@ -280,7 +329,7 @@ export function WeeklyReportEditor() {
                     className={week === draft.week ? "is-current-draft" : ""}
                     onClick={() => {
                       setWeek(draft.week);
-                      setEditDraft(null);
+                      setEditDraft(draft.editableDraft ? draft : null);
                       setPreview(false);
                       setNotice("");
                     }}
@@ -563,14 +612,16 @@ export function WeeklyReportEditor() {
                               ...editDraft,
                               attachments: editDraft.attachments.filter((item) => item.id !== a.id),
                             });
-                          else
-                            reports.setWeekly((items) => ({
+                          else if (
+                            !persistWeekly((items) => ({
                               ...items,
                               [week]: {
                                 ...report,
                                 attachments: report.attachments.filter((item) => item.id !== a.id),
                               },
-                            }));
+                            }))
+                          )
+                            return;
                         }}
                       >
                         <X size={13} />
@@ -582,22 +633,21 @@ export function WeeklyReportEditor() {
             </section>
             <footer className="weekly-form-actions">
               <span>This report belongs to the whole team.</span>
-              {editDraft ? (
+              {editDraft && (
                 <Button type="button" variant="secondary" onClick={() => setEditDraft(null)}>
                   Cancel editing
                 </Button>
-              ) : (
-                <Button type="button" variant="secondary" onClick={save}>
-                  <Save size={14} />
-                  Save as Draft
-                </Button>
               )}
+              <Button type="button" variant="secondary" onClick={save}>
+                <Save size={14} />
+                {stored.status === "Submitted" ? "Save editable draft" : "Save as Draft"}
+              </Button>
               <Button type="button" variant="secondary" onClick={review}>
                 Preview
               </Button>
               <Button type="submit" className="action-blue-solid">
                 <Send size={14} />
-                {editDraft ? "Review Changes" : "Submit Report"}
+                {stored.status === "Submitted" ? "Review Changes" : "Submit Report"}
               </Button>
             </footer>
           </form>
@@ -658,9 +708,17 @@ export function WeeklyReportEditor() {
                   setNotice("This report has been reviewed and can no longer be withdrawn.");
                   return;
                 }
-                const draft: WeeklyReport = { ...stored, status: "Draft" };
+                const draft: WeeklyReport = {
+                  ...stored,
+                  status: "Draft",
+                  versions: stored.versions.map((version, index) =>
+                    index === stored.versions.length - 1
+                      ? { ...version, state: "WITHDRAWN" }
+                      : version,
+                  ),
+                };
                 delete draft.submittedAt;
-                reports.setWeekly((items) => ({ ...items, [week]: draft }));
+                if (!persistWeekly((items) => ({ ...items, [week]: draft }))) return;
                 if (week === thisWeek()) workspace.withdrawReport();
                 setWithdrawOpen(false);
                 setEditDraft(null);
@@ -693,7 +751,7 @@ export function WeeklyReportEditor() {
             {!locked && (
               <Button onClick={submit}>
                 <Send size={15} />
-                {editDraft ? "Confirm Changes" : "Confirm Submission"}
+                {stored.status === "Submitted" ? "Confirm Changes" : "Confirm Submission"}
               </Button>
             )}
           </footer>

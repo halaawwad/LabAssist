@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Check, UserX } from 'lucide-react'
 import { students, teamById } from '../../data/teams'
-import { tableOfTeam } from '../../data/workshopTables'
 import { useI18n } from '../../i18n/i18nContext'
 import { useWorkshop } from '../../state/workshopContext'
 import { Avatar } from '../Avatar'
@@ -10,6 +9,8 @@ import { matchesStudent } from '../tableSearch'
 
 /** Lists students in the opposite state so one click moves each of them. */
 export function AttendanceDialog({ mode, onClose }: { mode: 'present' | 'absent'; onClose: () => void }) {
+  const { tables } = useWorkshop();
+  const tableOfTeam = (id: string) => tables.find(table => table.teamIds.includes(id));
   const { t } = useI18n()
   const { attendance, setAttendance } = useWorkshop()
   const [query, setQuery] = useState('')

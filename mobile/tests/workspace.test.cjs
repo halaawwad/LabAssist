@@ -95,11 +95,21 @@ test("all final report sections retain the original web structure and optional f
     path.join(__dirname, "../../frontend/student/src/lib/reports.tsx"),
     "utf8",
   );
-  const parsed = ts.createSourceFile("reports.tsx",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+  const parsed = ts.createSourceFile(
+    "reports.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
   let array;
-  function find(node){if(ts.isVariableDeclaration(node)&&node.name.getText(parsed)==="sectionTemplate")array=node.initializer.getText(parsed);ts.forEachChild(node,find);}
+  function find(node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(parsed) === "sectionTemplate")
+      array = node.initializer.getText(parsed);
+    ts.forEachChild(node, find);
+  }
   find(parsed);
-  assert.ok(array,"Web report section template must be present");
+  assert.ok(array, "Web report section template must be present");
   assert.deepEqual(sectionTemplate, JSON.parse(JSON.stringify(vm.runInNewContext(array))));
 });
 test("seed: 23 teams, 54 unique 8-digit students, 2–3 students/team, max 4 projects/supervisor", () => {
@@ -131,9 +141,13 @@ test("project visibility is scoped to team members and linked supervisors", () =
 test("only task owner can mark completion; project progress updates without mutating input", () => {
   const s = seed();
   const before = JSON.stringify(s);
-  assert.throws(() => act(s, "s2", { type: "task.toggle", id: "task-s1" }), /not_allowed/);
-  const n = act(s, "s1", { type: "task.toggle", id: "task-s1" });
-  assert.equal(projectProgress(n, "p1"), 67);
+  const task = s.tasks.find((t) => t.projectId === "p1" && t.ownerId === "s1");
+  assert.ok(task, "Canonical demo task must exist");
+  assert.equal(projectProgress(s, "p1"), 0);
+  assert.throws(() => act(s, "s2", { type: "task.toggle", id: task.id }), /not_allowed/);
+  const n = act(s, "s1", { type: "task.toggle", id: task.id });
+  assert.equal(projectProgress(n, "p1"), 33);
+  assert.equal(n.tasks.find((t) => t.id === task.id).done, true);
   assert.equal(JSON.stringify(s), before);
 });
 test("teammates may add tasks for each other, never for another team", () => {
@@ -154,7 +168,10 @@ test("supervisor can view project work but cannot edit student tasks or project 
     () => act(s, "d1", { type: "project.edit", id: "p1", title: "X", description: "Y" }),
     /not_allowed/,
   );
-  assert.throws(() => act(s, "d1", { type: "task.toggle", id: "task-s1" }), /not_allowed/);
+  assert.throws(
+    () => act(s, "d1", { type: "task.toggle", id: s.tasks.find((t) => t.ownerId === "s1").id }),
+    /not_allowed/,
+  );
 });
 test("one shared weekly draft per project/week; incomplete submission refused", () => {
   const s = act(seed(), "s1", { type: "weekly.create", projectId: "p1", week: 2 });
@@ -176,7 +193,7 @@ test("student submission → supervisor review → shared feedback and notificat
       progress: "Calibrated",
       tasks: "3 tests",
       delays: "",
-      problems: "",
+      problems: "None",
       plan: "Retest",
     },
   });
@@ -192,11 +209,16 @@ test("student submission → supervisor review → shared feedback and notificat
   s = act(s, "d1", {
     type: "report.review",
     id,
+    submissionId: s.reports.find((r) => r.id === id).history.at(-1).id,
     body: "Add calibration results.",
     section: "Results",
     status: "reviewed",
   });
   assert.equal(s.reports.find((r) => r.id === id).feedback[0].body, "Add calibration results.");
+  assert.equal(
+    s.reports.find((r) => r.id === id).feedback[0].submissionId,
+    s.reports.find((r) => r.id === id).history.at(-1).id,
+  );
   assert.equal(JSON.stringify(s.reports.find((r) => r.id === id).history), frozen);
   assert(s.alerts.some((a) => a.userId === "s2" && a.body.includes("feedback")));
 });
@@ -350,8 +372,9 @@ test("observations route only to supervisors, not student accounts", () => {
   assert.equal(s.alerts[0].userId, "d1");
   assert.throws(() => act(s, "s1", { type: "notice.view", id: s.notices[0].id }), /not_allowed/);
 });
-test("new team validates eight digits, uniqueness and 2–3 members; creates automatic conversation", () => {
-  let s = seed();
+test("students, supervisors and workshop managers cannot provision accounts or form groups", () => {
+  const s = seed();
+  const before = JSON.stringify(s);
   const a = {
     type: "project.create",
     title: "New team",
@@ -360,16 +383,9 @@ test("new team validates eight digits, uniqueness and 2–3 members; creates aut
       { name: "B", number: "13000002" },
     ],
   };
-  assert.throws(() => act(s, "d1", a), /capacity/);
-  assert.throws(
-    () => act(s, "d6", { ...a, students: [{ name: "A", number: "123" }] }),
-    /invalid_input/,
-  );
-  s = act(s, "d6", a);
-  assert.equal(s.projects.length, 24);
-  const p = s.projects.at(-1);
-  assert.equal(s.threads.find((t) => t.projectId === p.id).memberIds.length, 3);
-  assert.throws(() => act(s, "d6", a), /capacity|invalid_input/);
+  for (const actor of ["s1", "d1", "d6", "w1"])
+    assert.throws(() => act(s, actor, a), /Only the Department Head/);
+  assert.equal(JSON.stringify(s), before);
 });
 test("negative or non-finite budgets and quantities are rejected", () => {
   const s = seed();
@@ -450,7 +466,7 @@ test("JSON storage round-trip retains reports, messages, revisions and actor-spe
   const s = act(seed(), "s1", { type: "message.send", threadId: "self-s1", body: "Saved" });
   const restored = JSON.parse(JSON.stringify(s));
   assert.equal(restored.messages.at(-1).body, "Saved");
-  const update = { type: "task.toggle", id: "task-s1" };
+  const update = { type: "task.toggle", id: s.tasks.find((t) => t.ownerId === "s1").id };
   assert.deepEqual(
     applyAction(restored, "s1", update, "roundtrip", now),
     applyAction(s, "s1", update, "roundtrip", now),
@@ -620,11 +636,177 @@ test("presentation draft and submitted snapshot retain template, theme and movab
     200,
   );
 });
-test("workshop table moves are atomic, preserve other teams and enforce rectangular/round capacity",()=>{
- const {assignWorkshopTeam,removeWorkshopTeam}=load(path.join(__dirname,"../src/domain/workshopAllocation.ts"));
- const tables=[{code:"R1",shape:"rect",teamIds:["G01"]},{code:"R2",shape:"rect",teamIds:["G02"]},{code:"C1",shape:"round",teamIds:["G03"]}];
- assert.throws(()=>assignWorkshopTeam(tables,"G01","R2"),/full/);assert.deepEqual(tables[0].teamIds,["G01"]);
- const moved=assignWorkshopTeam(tables,"G01","C1");assert.deepEqual(moved[0].teamIds,[]);assert.deepEqual(moved[2].teamIds,["G03","G01"]);assert.deepEqual(tables[0].teamIds,["G01"]);
- assert.throws(()=>assignWorkshopTeam(moved,"G02","C1"),/full/);
- const removed=removeWorkshopTeam(moved,"G01","C1");assert.deepEqual(removed[2].teamIds,["G03"]);assert.deepEqual(removed[1].teamIds,["G02"]);
+test("workshop table moves are atomic, preserve other teams and enforce rectangular/round capacity", () => {
+  const { assignWorkshopTeam, removeWorkshopTeam } = load(
+    path.join(__dirname, "../src/domain/workshopAllocation.ts"),
+  );
+  const tables = [
+    { code: "R1", shape: "rect", teamIds: ["G01"] },
+    { code: "R2", shape: "rect", teamIds: ["G02"] },
+    { code: "C1", shape: "round", teamIds: ["G03"] },
+  ];
+  assert.throws(() => assignWorkshopTeam(tables, "G01", "R2"), /full/);
+  assert.deepEqual(tables[0].teamIds, ["G01"]);
+  const moved = assignWorkshopTeam(tables, "G01", "C1");
+  assert.deepEqual(moved[0].teamIds, []);
+  assert.deepEqual(moved[2].teamIds, ["G03", "G01"]);
+  assert.deepEqual(tables[0].teamIds, ["G01"]);
+  assert.throws(() => assignWorkshopTeam(moved, "G02", "C1"), /full/);
+  const removed = removeWorkshopTeam(moved, "G01", "C1");
+  assert.deepEqual(removed[2].teamIds, ["G03"]);
+  assert.deepEqual(removed[1].teamIds, ["G02"]);
+});
+
+test("Department group validation retains size, active-account, membership and supervisor-load constraints", () => {
+  const { validateGroup, withMembershipHistory, accountHasHistory } = load(
+    path.join(__dirname, "../../shared/web/domain.ts"),
+  );
+  const accounts = [
+    ...["a", "b", "c", "d"].map((id) => ({ id, role: "student", active: true })),
+    ...["sup1", "sup2"].map((id) => ({ id, role: "supervisor", active: true })),
+  ];
+  const group = { id: "project-new", studentIds: ["a", "b"], supervisorIds: ["sup1", "sup2"] };
+  assert.doesNotThrow(() => validateGroup(group, [], accounts));
+  assert.throws(() => validateGroup({ ...group, studentIds: ["a"] }, [], accounts), /2/);
+  assert.throws(
+    () => validateGroup({ ...group, studentIds: ["a", "b", "c", "d"] }, [], accounts),
+    /3/,
+  );
+  assert.throws(
+    () => validateGroup({ ...group, supervisorIds: ["sup1", "sup1"] }, [], accounts),
+    /Duplicate/,
+  );
+  assert.throws(
+    () =>
+      validateGroup(
+        group,
+        [],
+        accounts.map((a) => (a.id === "b" ? { ...a, active: false } : a)),
+      ),
+    /active/,
+  );
+  assert.throws(
+    () => validateGroup(group, [{ ...group, id: "another" }], accounts),
+    /already belongs/,
+  );
+  assert.throws(
+    () =>
+      validateGroup(
+        group,
+        Array.from({ length: 4 }, (_, i) => ({
+          id: "old" + i,
+          studentIds: ["x" + i, "y" + i],
+          supervisorIds: ["sup1"],
+        })),
+        accounts,
+      ),
+    /four/,
+  );
+  assert.throws(
+    () =>
+      validateGroup(
+        group,
+        Array.from({ length: 25 }, (_, i) => ({
+          id: "old" + i,
+          studentIds: ["x" + i, "y" + i],
+          supervisorIds: ["other" + i],
+        })),
+        accounts,
+      ),
+    /capacity/,
+  );
+  const moved = withMembershipHistory(group, { ...group, studentIds: ["a", "c"] });
+  assert.equal(moved.id, group.id);
+  assert.deepEqual(moved.membershipHistory[0].studentIds, ["a", "b"]);
+  assert(accountHasHistory("b", [moved]));
+});
+
+test("publishing is atomic, private edits preserve submitted content, stale-version feedback is rejected", () => {
+  let state = act(seed(), "s1", { type: "weekly.create", projectId: "p1", week: 2 });
+  const id = state.reports.at(-1).id;
+  const fields = {
+    completed: "Version one",
+    progress: "Bench tests",
+    tasks: "Reviewed wiring",
+    problems: "None",
+    plan: "Retest",
+    delays: "",
+    hasDelays: "false",
+    progressPercent: "10",
+  };
+  state = act(state, "s1", { type: "report.publish", id, fields });
+  const first = state.reports.find((r) => r.id === id);
+  const content = JSON.stringify(first.history);
+  state = act(state, "s1", {
+    type: "report.save",
+    id,
+    fields: { ...fields, completed: "Private version two" },
+    draftOnly: true,
+  });
+  let record = state.reports.find((r) => r.id === id);
+  assert.equal(JSON.stringify(record.history), content);
+  assert.equal(record.fields.completed, "Version one");
+  assert.equal(record.editableDraft.fields.completed, "Private version two");
+  const before = JSON.stringify(state);
+  assert.throws(
+    () => act(state, "s1", { type: "report.publish", id, fields: { ...fields, plan: "" } }),
+    /required_fields/,
+  );
+  assert.equal(JSON.stringify(state), before);
+  state = act(state, "s1", { type: "report.publish", id, fields: record.editableDraft.fields });
+  record = state.reports.find((r) => r.id === id);
+  assert.equal(record.history.length, 2);
+  assert.equal(record.history[0].state, "SUPERSEDED");
+  assert.equal(record.history[0].fields.completed, "Version one");
+  assert.equal(record.history[1].fields.completed, "Private version two");
+  state = act(state, "d1", { type: "report.view", id });
+  const review = {
+    type: "report.review",
+    id,
+    body: "Exact-version feedback",
+    section: "Tests",
+    status: "reviewed",
+  };
+  assert.throws(() => act(state, "d1", { ...review, submissionId: first.history[0].id }), /locked/);
+  state = act(state, "d1", { ...review, submissionId: record.history[1].id });
+  assert.equal(
+    state.reports.find((r) => r.id === id).feedback.at(-1).submissionId,
+    record.history[1].id,
+  );
+});
+
+test("table release frees capacity without deleting assignment, attendance or return history", () => {
+  let state = act(seed(), "w1", { type: "table.release", projectId: "p1" });
+  assert.equal(state.projects[0].table, "");
+  assert.equal(state.projects[0].tableHistory.at(-1).table, "R01");
+  assert.equal(state.projects[0].tableHistory.at(-1).releasedAt, now.toISOString());
+  state = act(state, "w1", { type: "table.assign", projectId: "p2", table: "R01" });
+  assert.equal(state.projects[1].table, "R01");
+  state = act(state, "w1", { type: "day.set", date: calendarDay(now), open: true });
+  state = act(state, "w1", {
+    type: "attendance.set",
+    userId: "s1",
+    date: calendarDay(now),
+    present: false,
+  });
+  state = act(state, "w1", {
+    type: "attendance.set",
+    userId: "s1",
+    date: calendarDay(now),
+    present: true,
+  });
+  assert.deepEqual(
+    state.attendanceHistory.map((h) => h.present),
+    [false, true],
+  );
+  state = act(state, "w1", {
+    type: "tool.issue",
+    projectId: "p1",
+    name: "History probe",
+    quantity: 2,
+  });
+  const id = state.tools.at(-1).id;
+  state = act(state, "w1", { type: "tool.return", id, returned: 1, damaged: 0, missing: 1 });
+  state = act(state, "w1", { type: "tool.return", id, returned: 2, damaged: 0, missing: 0 });
+  assert.equal(state.tools.find((t) => t.id === id).inspections.at(-1).returned, 1);
 });

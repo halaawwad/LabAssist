@@ -1,3 +1,4 @@
+import { demoTeam, demoStudents, demoSupervisor } from "../../../../shared/web/domain";
 // Mock data for the Supervisor "Final Reports" page. Each team's graduation report is generated from a
 // compact spec into pages that follow the An-Najah National University graduation report layout
 // (front matter in roman numerals, then numbered chapters). Shaped so it can be replaced by API data later.
@@ -95,6 +96,7 @@ export type PresentationFile = {
 }
 
 export type FinalReportFeedback = {
+  supervisorId?: string
   id: string
   text: string
   date: string
@@ -104,6 +106,8 @@ export type FinalReportFeedback = {
 }
 
 export type FinalReportProject = {
+  canonicalId?: string;
+  supervisorIds: string[];
   id: string
   name: string
   code: string
@@ -554,10 +558,7 @@ const specs: ProjectSpec[] = [
     name: 'CropBot',
     code: 'CPE-590',
     image: cropBotImage,
-    students: [
-      { name: 'Noor Owaissi', id: '12217844' },
-      { name: 'Hala Awwad', id: '12217669' },
-    ],
+    students: demoStudents.map(student => ({ name: student.name, id: student.number })),
     department: 'Computer Engineering',
     presentationSizeMb: 6.8,
     presentationAt: '2026-10-15T14:25',
@@ -992,6 +993,8 @@ const fileSlug = (name: string) => name.replace(/[^A-Za-z0-9]+/g, '_').replace(/
 
 export const finalReportProjects: FinalReportProject[] = specs.map((spec) => ({
   id: spec.id,
+  ...(spec.id === "cropbot" ? { canonicalId: demoTeam.id } : {}),
+  supervisorIds: [demoSupervisor.id],
   name: spec.name,
   code: spec.code,
   image: spec.image,

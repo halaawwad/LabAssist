@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react'
-import { readStored, writeStored } from './storage'
+import { useCallback, useRef, useState, type SetStateAction } from 'react'
+import { readStored, writeStoredOrThrow } from './storage'
 
-/** Local mock records survive route changes and reloads; storage failures keep session state usable. */
+/** Persist before committing visible state, so failed saves cannot announce success. */
 export function useLocalState<T>(key: string, fallback: T) {
-  const [value, setValue] = useState<T>(() => readStored(key, fallback))
-  useEffect(() => {
-    writeStored(key, value)
-  }, [key, value])
+  const [value, update] = useState<T>(() => readStored(key, fallback))
+  const current = useRef(value)
+  const setValue = useCallback((action: SetStateAction<T>) => {
+    const next = typeof action === 'function' ? (action as (value: T) => T)(current.current) : action
+    writeStoredOrThrow(key, next)
+    current.current = next
+    update(next)
+  }, [key])
   return [value, setValue] as const
 }

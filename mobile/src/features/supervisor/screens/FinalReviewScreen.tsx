@@ -1,3 +1,5 @@
+import { demoSupervisor } from "../../../../../shared/web/domain";
+import { useWorkspace } from "@/state/WorkspaceProvider";
 import { useState } from "react";
 import { Image, Modal, ScrollView, Switch, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -97,26 +99,35 @@ function Block({ block }: { block: ReportBlock }) {
   );
 }
 export function FinalReviewScreen() {
-  const [chosen, setChosen] = useState(finalReportProjects[0].id),
+  const { state, actorId, retryLoading } = useWorkspace();
+  const { value: reviews, setValue: setReviews, ready, error } = useLocalPreview("labassist.mobile.supervisor.final-reviews.web", finalReportReviews);
+  const actor = state.users.find(user => user.id === actorId);
+  const supervisorId = actor?.role === "supervisor" ? actor.canonicalId ?? (actor.id === "d1" ? demoSupervisor.id : actor.id) : "";
+  const projects = finalReportProjects.filter(project => project.supervisorIds.includes(supervisorId) && reviews.some(review => review.id === project.id && review.submissions.at(-1)?.status !== "draft"));
+  if (!ready) return <AppText>Loading saved reviews...</AppText>;
+  if (error) return <Panel title="Could not load reviews"><AppText>{error}</AppText><Button title="Retry" onPress={retryLoading} /></Panel>;
+  if (!projects.length) return <AppText>No submitted reports from linked project groups. Private drafts are not available.</AppText>;
+  return <LinkedFinalReviewScreen key={supervisorId + projects.map(p => p.id).join(",")} projects={projects} reviews={reviews} setReviews={setReviews} />;
+}
+function LinkedFinalReviewScreen({ projects, reviews, setReviews }: { projects: typeof finalReportProjects; reviews: typeof finalReportReviews; setReviews: (value: typeof finalReportReviews | ((current: typeof finalReportReviews) => typeof finalReportReviews)) => Promise<boolean> }) {
+  const { state, actorId } = useWorkspace();
+  const [chosen, setChosen] = useState(projects[0].id),
     [tab, setTab] = useState("Report"),
     [page, setPage] = useState(0),
     [slide, setSlide] = useState(0),
     [full, setFull] = useState(false),
     [body, setBody] = useState(""),
     [notice, setNotice] = useState("");
-  const { value: reviews, setValue: setReviews } = useLocalPreview(
-    "labassist.mobile.supervisor.final-reviews.web",
-    finalReportReviews,
-  );
-  const p = finalReportProjects.find((p) => p.id === chosen)!,
+  const p = projects.find((p) => p.id === chosen)!,
     review = reviews.find((r) => r.id === chosen)!,
     submission = review.submissions.at(-1)!,
     reportPage = p.pages[Math.min(page, p.pages.length - 1)],
     currentSlide = p.slides[Math.min(slide, p.slides.length - 1)];
   const submitted = submission.status !== "draft";
-  function feedback(kind: "comment" | "revision" | "approval") {
+  async function feedback(kind: "comment" | "revision" | "approval") {
     if (!submitted || (!body.trim() && kind !== "approval")) return;
-    setReviews(
+    if (kind !== "comment" && submission.status !== "submitted") return;
+    if ((await setReviews(
       reviews.map((r) =>
         r.id === chosen
           ? {
@@ -139,6 +150,7 @@ export function FinalReviewScreen() {
                 ...r.feedback,
                 {
                   id: String(Date.now()),
+                  supervisorId: state.users.find(user => user.id === actorId)?.canonicalId ?? actorId,
                   text: body.trim() || "Approved.",
                   kind,
                   date: new Date().toISOString().slice(0, 10),
@@ -148,7 +160,7 @@ export function FinalReviewScreen() {
             }
           : r,
       ),
-    );
+    )) === false) return false;
     setBody("");
     setNotice(kind === "approval" ? "Report approved." : "Feedback saved.");
   }
@@ -181,7 +193,7 @@ export function FinalReviewScreen() {
           setSlide(0);
           setBody("");
         }}
-        options={finalReportProjects.map((p) => ({ id: p.id, label: p.name }))}
+        options={projects.map((p) => ({ id: p.id, label: p.name }))}
       />
       <Panel>
         <Image
@@ -284,9 +296,9 @@ export function FinalReviewScreen() {
               <Button
                 title="Save slide comment"
                 disabled={!body.trim()}
-                onPress={() => {
+                onPress={async () => {
                   setBody(`Slide ${slide + 1}: ${body}`);
-                  setReviews(
+                  if ((await setReviews(
                     reviews.map((r) =>
                       r.id === chosen
                         ? {
@@ -304,7 +316,7 @@ export function FinalReviewScreen() {
                           }
                         : r,
                     ),
-                  );
+                  )) === false) return false;
                   setBody("");
                   setNotice("Slide comment saved.");
                 }}
@@ -321,13 +333,13 @@ export function FinalReviewScreen() {
                   </View>
                   <Switch
                     value={review.criteria[id] ?? !review.missing.includes(id)}
-                    onValueChange={(v) =>
-                      setReviews(
+                    onValueChange={async (v) => {
+                      await setReviews(
                         reviews.map((r) =>
                           r.id === chosen ? { ...r, criteria: { ...r.criteria, [id]: v } } : r,
                         ),
-                      )
-                    }
+                      );
+                    }}
                   />
                 </View>
               ))}
@@ -358,18 +370,19 @@ export function FinalReviewScreen() {
                   <Button
                     title="Add comment"
                     disabled={!body.trim()}
-                    onPress={() => feedback("comment")}
+                    onPress={async () => await feedback("comment")}
                   />
                   <Button
                     title="Request changes"
                     variant="soft"
-                    disabled={!body.trim()}
-                    onPress={() => feedback("revision")}
+                    disabled={!body.trim() || submission.status !== "submitted"}
+                    onPress={async () => await feedback("revision")}
                   />
                   <Button
                     title="Approve report"
                     variant="soft"
-                    onPress={() => feedback("approval")}
+                    disabled={submission.status !== "submitted"}
+                    onPress={async () => await feedback("approval")}
                   />
                 </View>
               </Panel>

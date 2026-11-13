@@ -6,7 +6,7 @@ import { BookOpen, CalendarDays, FileText, Menu, Presentation } from "lucide-rea
 import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
 import { WeeklyReportEditor } from "@/components/WeeklyReportEditor";
 import { FinalReportEditor } from "@/components/FinalReportEditor";
-import { project } from "@/lib/projectWorkspace";
+import { useProjectWorkspace } from "@/lib/projectWorkspace";
 export const Route = createFileRoute("/reports")({
   validateSearch: (
     search: Record<string, unknown>,
@@ -22,6 +22,7 @@ export const Route = createFileRoute("/reports")({
   component: ReportsPage,
 });
 function ReportsPage() {
+  const workspace = useProjectWorkspace();
   const navigate = useNavigate(),
     { type } = Route.useSearch(),
     [menu, setMenu] = useState(false);
@@ -63,7 +64,7 @@ function ReportsPage() {
             </div>
             <span className="reports-project-chip">
               <FileText size={14} />
-              {project.name}
+              {workspace.details.name}
             </span>
           </header>
           <section className="reports-intro">

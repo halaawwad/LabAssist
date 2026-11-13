@@ -1,9 +1,9 @@
+import { useState } from 'react';
 import { BellRing, PackageCheck } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { FilterChips } from '../components/FilterChips'
 import { PageHeader } from '../components/PageHeader'
-import { teamById } from '../data/teams'
-import { tableOfTeam } from '../data/workshopTables'
+import { teamById, teams } from '../data/teams'
 import { useI18n } from '../i18n/i18nContext'
 import { useDialogs } from '../state/dialogContext'
 import { useWorkshop } from '../state/workshopContext'
@@ -12,8 +12,14 @@ type View = 'all' | 'pending' | 'checked'
 const views: View[] = ['all', 'pending', 'checked']
 
 export function HandoverPage() {
-  const { t, formatDate } = useI18n()
-  const { handover } = useWorkshop()
+  const { tables } = useWorkshop();
+  const tableOfTeam = (id: string) => tables.find(table => table.teamIds.includes(id));
+  const { t, formatDate, language } = useI18n()
+  const { handover, recordHandover } = useWorkshop()
+  const [newHandover, setNewHandover] = useState(false)
+  const [team, setTeam] = useState("")
+  const [items, setItems] = useState("")
+  const [saveError, setSaveError] = useState("")
   const { openDialog } = useDialogs()
   const [params, setParams] = useSearchParams()
   const view = (views as string[]).includes(params.get('view') ?? '') ? (params.get('view') as View) : 'all'
@@ -27,6 +33,17 @@ export function HandoverPage() {
   return (
     <div className="page">
       <PageHeader title={t('handover.title')} subtitle={t('handover.subtitle')} />
+      <button className="btn btn-primary" onClick={() => setNewHandover(!newHandover)}>{language === 'ar' ? 'تسجيل تسليم' : 'Record handover'}</button>
+      {newHandover && <form className="panel form-stack" onSubmit={event => {
+        event.preventDefault();
+        try { recordHandover(team, items.split(",").map(item => item.trim()).filter(Boolean)); setNewHandover(false); setItems(""); setSaveError(""); }
+        catch (cause) { setSaveError(cause instanceof Error ? cause.message : "Could not save. Try again."); }
+      }}>
+        <label>{language === 'ar' ? 'مجموعة المشروع' : 'Project group'}<select aria-label={language === "ar" ? "\u0645\u062c\u0645\u0648\u0639\u0629 \u0627\u0644\u0645\u0634\u0631\u0648\u0639" : "Project group"} className="input" value={team} onChange={event => setTeam(event.target.value)}><option value="">{language === 'ar' ? 'اختر المشروع' : 'Select a project'}</option>{teams.map(t => <option key={t.id} value={t.id}>{t.id} - {t.project}</option>)}</select></label>
+        <label>{language === 'ar' ? 'أسماء الأدوات (قطعة من كل نوع، مفصولة بفاصلة)' : 'Item names (one of each, separated by commas)'}<input className="input" value={items} onChange={event => setItems(event.target.value)} /></label>
+        {saveError && <p role="alert">{saveError}</p>}
+        <button className="btn btn-primary" disabled={!team || !items.trim()}>{language === 'ar' ? 'حفظ التسليم' : 'Save handover'}</button>
+      </form>}
       <div className="page-toolbar">
         <FilterChips
           label={t('handover.title')}

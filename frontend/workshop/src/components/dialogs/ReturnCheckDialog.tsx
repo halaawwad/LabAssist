@@ -14,14 +14,17 @@ export function ReturnCheckDialog({ teamId, onClose }: { teamId: string; onClose
   const record = handover.find((item) => item.teamId === teamId)
   const [condition, setCondition] = useState<ItemCondition>(record?.condition ?? 'good')
   const [note, setNote] = useState(record?.note ?? '')
+  const [error, setError] = useState('')
 
   if (!record) return null
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    checkReturn(teamId, condition, note.trim())
-    showToast(t('handover.checkedToast', { team: teamId }))
-    onClose()
+    try {
+      checkReturn(teamId, condition, note.trim())
+      showToast(t('handover.checkedToast', { team: teamId }))
+      onClose()
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save. Try again.') }
   }
 
   return (
@@ -44,6 +47,7 @@ export function ReturnCheckDialog({ teamId, onClose }: { teamId: string; onClose
       }
     >
       <form id="return-form" className="form-stack" onSubmit={submit}>
+        {error && <p role="alert">{error}</p>}
         <div className="field">
           <span className="field-label">
             {t('handover.items')} · {t('handover.dateGiven', { date: formatDate(record.dateGiven) })}

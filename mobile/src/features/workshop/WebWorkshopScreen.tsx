@@ -1,3 +1,4 @@
+import { recordHandover } from "../../../../shared/web/handover";
 import { assignWorkshopTeam, removeWorkshopTeam } from "@/domain/workshopAllocation";
 import { useState } from "react";
 import { Image, Modal, Pressable, ScrollView, View, StyleSheet } from "react-native";
@@ -35,7 +36,7 @@ const noticeText = (n: Notice) =>
 const route = (page: string) =>
   router.push(`/native/workshop/${page}` as import("expo-router").Href);
 export function WebWorkshopScreen({ page }: { page: string }) {
-  const { state, act } = useWorkspace();
+  const { state, act, error: saveError } = useWorkspace();
   const {
     value: tables,
     setValue: setTables,
@@ -50,7 +51,10 @@ export function WebWorkshopScreen({ page }: { page: string }) {
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
     [selected, setSelected] = useState("");
-  const { value: handover, setValue: setHandover } = useLocalPreview(
+  const [handoverForm, setHandoverForm] = useState(false);
+  const [handoverTeam, setHandoverTeam] = useState(teams[0]!.id);
+  const [handoverItems, setHandoverItems] = useState("");
+  const { value: handover, setValue: setHandover, error: handoverError } = useLocalPreview(
     "labassist.mobile.workshop.handover.web",
     handoverSeed,
   );
@@ -92,8 +96,8 @@ export function WebWorkshopScreen({ page }: { page: string }) {
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
-  function notify(kind: Notice["kind"], audience = "all", message = "") {
-    setNotices([
+  async function notify(kind: Notice["kind"], audience = "all", message = "") {
+    if ((await setNotices([
       {
         id: `notice-${Date.now()}`,
         kind,
@@ -110,7 +114,7 @@ export function WebWorkshopScreen({ page }: { page: string }) {
         sentAt: new Date().toISOString(),
       },
       ...notices,
-    ]);
+    ])) === false) return false;
     setFeedback("Notice saved in the local preview.");
     setSheet(null);
   }
@@ -279,9 +283,9 @@ export function WebWorkshopScreen({ page }: { page: string }) {
           <Button
             title="Back on duty"
             size="sm"
-            onPress={() => {
-              setDuty({ ...duty, status: "onDuty" });
-              act({ type: "availability.set", value: "open" });
+            onPress={async () => {
+              if ((await setDuty({ ...duty, status: "onDuty" })) === false) return false;
+              await act({ type: "availability.set", value: "open" });
             }}
           />
         )}
@@ -386,6 +390,19 @@ export function WebWorkshopScreen({ page }: { page: string }) {
       {page === "attendance" && <AttendancePanel />}
       {page === "handover" && (
         <>
+          <Button title="Record handover" onPress={() => setHandoverForm(!handoverForm)} />
+          {handoverForm && <Panel title="New handover">
+            <Chips value={handoverTeam} onChange={setHandoverTeam} options={teams.map(team => ({ id: team.id, label: team.id }))} />
+            <Field label="Item names (one of each, separated by commas)" value={handoverItems} onChangeText={setHandoverItems} />
+            <Button title="Save handover" disabled={!handoverItems.trim()} onPress={async () => {
+              try {
+                const items = handoverItems.split(",").map(item => item.trim()).filter(Boolean);
+                const next = recordHandover(handover, handoverTeam, items, calendarDay());
+                if (await setHandover(next)) { setHandoverForm(false); setHandoverItems(""); setFeedback("Handover saved on this device."); }
+              } catch (cause) { setFeedback(cause instanceof Error ? cause.message : "Could not save handover."); }
+            }} />
+          </Panel>}
+          {!!handoverError && <AppText accessibilityRole="alert">{handoverError}</AppText>}
           <Chips
             value={filter}
             onChange={setFilter}
@@ -530,7 +547,7 @@ export function WebWorkshopScreen({ page }: { page: string }) {
             title="Mark all as read"
             disabled={notifications.every((n) => n.read)}
             variant="soft"
-            onPress={() => setNotifications(notifications.map((n) => ({ ...n, read: true })))}
+            onPress={async () => await setNotifications(notifications.map((n) => ({ ...n, read: true })))}
           />
           <Chips
             value={filter}
@@ -568,10 +585,10 @@ export function WebWorkshopScreen({ page }: { page: string }) {
                     title="Open notification"
                     size="sm"
                     variant="soft"
-                    onPress={() => {
-                      setNotifications(
+                    onPress={async () => {
+                      if ((await setNotifications(
                         notifications.map((x) => (x.id === n.id ? { ...x, read: true } : x)),
-                      );
+                      )) === false) return false;
                       route(n.to.includes("supervisor") ? "observations" : n.to.replace("/", ""));
                     }}
                   />
@@ -580,8 +597,8 @@ export function WebWorkshopScreen({ page }: { page: string }) {
                     size="sm"
                     disabled={n.read}
                     variant="ghost"
-                    onPress={() =>
-                      setNotifications(
+                    onPress={async () =>
+                      await setNotifications(
                         notifications.map((x) => (x.id === n.id ? { ...x, read: true } : x)),
                       )
                     }
@@ -592,6 +609,7 @@ export function WebWorkshopScreen({ page }: { page: string }) {
         </>
       )}
       <Modal visible={!!sheet} animationType="slide" onRequestClose={() => setSheet(null)}>
+        {!!saveError && <AppText accessibilityRole="alert" tone="danger">{saveError}</AppText>}
         <ScrollView
           contentContainerStyle={{ padding: 22, paddingTop: 50, gap: 16 }}
           keyboardShouldPersistTaps="handled"
@@ -615,8 +633,8 @@ export function WebWorkshopScreen({ page }: { page: string }) {
                     size="sm"
                     variant="danger"
                     disabled={!tablesReady}
-                    onPress={() => {
-                      setTables(removeWorkshopTeam(tables, id, activeTable.code));
+                    onPress={async () => {
+                      if ((await setTables(removeWorkshopTeam(tables, id, activeTable.code))) === false) return false;
                       setAllocationError("");
                     }}
                   />
@@ -659,9 +677,9 @@ export function WebWorkshopScreen({ page }: { page: string }) {
                 <Button
                   title="Save table assignment"
                   disabled={!assignTeam || !tablesReady}
-                  onPress={() => {
+                  onPress={async () => {
                     try {
-                      setTables(assignWorkshopTeam(tables, assignTeam, activeTable.code));
+                      if ((await setTables(assignWorkshopTeam(tables, assignTeam, activeTable.code))) === false) return false;
                       setAssignTeam("");
                       setAllocationError("");
                       setFeedback("Table allocation saved.");
@@ -695,14 +713,14 @@ export function WebWorkshopScreen({ page }: { page: string }) {
               <Button
                 title="Save return check"
                 disabled={condition !== "good" && !note.trim()}
-                onPress={() => {
-                  setHandover(
+                onPress={async () => {
+                  if ((await setHandover(
                     handover.map((h) =>
                       h.teamId === selected
-                        ? { ...h, checked: true, checkedOn: calendarDay(), condition, note }
+                        ? { ...h, checked: true, checkedOn: calendarDay(), condition, note, history: [...(h.history ?? []), { ...h, history: undefined }] }
                         : h,
                     ),
-                  );
+                  )) === false) return false;
                   setSheet(null);
                   setFeedback("Return inspection recorded.");
                 }}
@@ -744,9 +762,9 @@ export function WebWorkshopScreen({ page }: { page: string }) {
               <Button
                 title="Save notice"
                 disabled={!body.trim()}
-                onPress={() => {
+                onPress={async () => {
                   if (sheet === "observation") {
-                    setObservations([
+                    if ((await setObservations([
                       {
                         id: `ob-${Date.now()}`,
                         teamId: audience,
@@ -757,17 +775,17 @@ export function WebWorkshopScreen({ page }: { page: string }) {
                         status: "sent",
                       },
                       ...observations,
-                    ]);
+                    ])) === false) return false;
                     setSheet(null);
                   } else if (selected && notices.some((n) => n.id === selected)) {
-                    setNotices(
+                    if ((await setNotices(
                       notices.map((n) =>
                         n.id === selected ? { ...n, message: body, audience, kind } : n,
                       ),
-                    );
+                    )) === false) return false;
                     setSelected("");
                     setSheet(null);
-                  } else notify(kind, audience, body);
+                  } else if ((await notify(kind, audience, body)) === false) return false;
                 }}
               />
             </>
@@ -782,24 +800,24 @@ export function WebWorkshopScreen({ page }: { page: string }) {
                   <Field
                     label="From (HH:mm)"
                     value={duty.from}
-                    onChangeText={(from) => setDuty({ ...duty, from })}
+                    onChangeText={async (from) => await setDuty({ ...duty, from })}
                   />
                   <Field
                     label="Until (HH:mm)"
                     value={duty.until}
-                    onChangeText={(until) => setDuty({ ...duty, until })}
+                    onChangeText={async (until) => await setDuty({ ...duty, until })}
                   />
                 </>
               )}
               <Field
                 label="Reason / note"
                 value={duty.reason}
-                onChangeText={(reason) => setDuty({ ...duty, reason })}
+                onChangeText={async (reason) => await setDuty({ ...duty, reason })}
                 multiline
               />
               <Button
                 title="Save availability & notice"
-                onPress={() => {
+                onPress={async () => {
                   if (
                     sheet === "away" &&
                     (!/^([01]\d|2[0-3]):[0-5]\d$/.test(duty.from) ||
@@ -809,9 +827,9 @@ export function WebWorkshopScreen({ page }: { page: string }) {
                     setFeedback("Choose a valid absence time range.");
                     return;
                   }
-                  setDuty({ ...duty, status: sheet === "away" ? "away" : "absent" });
-                  act({ type: "availability.set", value: "closed" });
-                  notify(sheet === "away" ? "unavailable" : "fullDay");
+                  if ((await setDuty({ ...duty, status: sheet === "away" ? "away" : "absent" })) === false) return false;
+                  await act({ type: "availability.set", value: "closed" });
+                  if ((await notify(sheet === "away" ? "unavailable" : "fullDay")) === false) return false;
                 }}
               />
             </>

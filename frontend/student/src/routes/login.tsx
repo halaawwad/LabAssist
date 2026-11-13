@@ -1,4 +1,5 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { demoStudents } from "../../../../shared/web/domain";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
 import { LabAssistBrand } from "../../../../shared/web/LabAssistBrand";
@@ -19,7 +20,7 @@ const roles = [
     id: "student",
     label: "Student",
     identifier: "University email",
-    example: "noor@demo.com",
+    example: demoStudents[0]!.email,
     number: "8-digit student number",
   },
   {

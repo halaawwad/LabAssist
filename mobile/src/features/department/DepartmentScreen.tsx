@@ -1,3 +1,4 @@
+import { accountHasHistory, effectiveAccountStatus, toggleAccountAccess, demoSupervisor, type AccountStatus, createLocalId, validateGroup, withMembershipHistory, type ProjectGroup } from "../../../../shared/web/domain";
 import { useState } from "react";
 import { ImageBackground, Modal, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,11 +15,13 @@ type Account = {
   email: string;
   role: "student" | "supervisor" | "workshop";
   active: boolean;
+  status?: AccountStatus;
+  disabledFrom?: AccountStatus;
 };
-type Group = { id: string; studentIds: string[]; supervisorIds: string[] };
+type Group = ProjectGroup;
 export default function DepartmentScreen() {
-  const { state } = useWorkspace();
-  const { value: accounts, setValue: setAccounts } = useLocalPreview<Account[]>(
+  const { state, retryLoading } = useWorkspace();
+  const { value: accounts, setValue: setAccounts, ready: accountsReady, error: accountStorageError, saving: accountsSaving } = useLocalPreview<Account[]>(
     "labassist.mobile.department.accounts",
     state.users.map((u, i) => ({
       id: u.id,
@@ -28,22 +31,24 @@ export default function DepartmentScreen() {
         (u.role === "student"
           ? String(12000000 + i)
           : u.role === "supervisor"
-            ? String(1000 + i)
+            ? u.id === "d1" ? demoSupervisor.number : String(1000 + i)
             : "10001"),
       email: u.email,
       role: u.role,
       active: true,
     })),
   );
-  const { value: groups, setValue: setGroups } = useLocalPreview<Group[]>(
+  const { value: groups, setValue: setGroups, ready: groupsReady, error: groupStorageError, saving: groupsSaving } = useLocalPreview<Group[]>(
     "labassist.mobile.department.groups",
     state.projects.map((p) => ({
       id: p.id,
+      canonicalId: p.canonicalId,
+      termId: p.termId,
       studentIds: p.studentIds,
       supervisorIds: p.supervisorIds,
     })),
   );
-  const { value: messages, setValue: setMessages } = useLocalPreview<
+  const { value: messages, setValue: setMessages, error: messageStorageError, ready: messagesReady, saving: messagesSaving } = useLocalPreview<
     { id: string; person: string; body: string; time: string }[]
   >("labassist.mobile.department.messages", []);
   const [page, setPage] = useState("Overview"),
@@ -72,34 +77,38 @@ export default function DepartmentScreen() {
     setError("");
     setSheet("account");
   }
-  function saveAccount() {
+  async function saveAccount() {
+    if (!accountsReady || accountsSaving) return;
+    const previous = accounts.find(a => a.id === editing);
+    if (previous && (previous.role !== role || (previous.role === "student" && previous.number !== number) || previous.email !== email)) return setError("Account identity cannot be edited.");
     const length = role === "student" ? 8 : role === "supervisor" ? 4 : 5;
     if (!name.trim() || !new RegExp(`^\\d{${length}}$`).test(number))
       return setError(`Enter a name and a ${length}-digit university number.`);
     const address = role === "student" ? `s${number}@stu.najah.edu` : email.trim().toLowerCase();
     if (!/^[^@\s]+@najah\.edu$/.test(address) && role !== "student")
       return setError("Use a university email ending @najah.edu.");
-    if (accounts.some((a) => a.id !== editing && (a.number === number || a.email === address)))
+    if (accounts.some((a) => a.id !== editing && (a.number === number || a.email.toLowerCase() === address)))
       return setError("This university number or email already exists.");
     if (
       role === "workshop" &&
-      accounts.some((a) => a.id !== editing && a.role === "workshop" && a.active)
+      accounts.some((a) => a.id !== editing && a.role === "workshop" && effectiveAccountStatus(a) !== "DISABLED")
     )
       return setError("Only one workshop manager can be active.");
     const value = {
-      id: editing || `account-${Date.now()}`,
+      ...previous,
+      id: editing || createLocalId(),
       name: name.trim(),
       number,
       email: address,
       role,
-      active: true,
+      active: previous?.active ?? false,
+      status: previous ? effectiveAccountStatus(previous) : "PENDING_ACTIVATION" as AccountStatus,
     };
-    setAccounts(
-      editing ? accounts.map((a) => (a.id === editing ? value : a)) : [...accounts, value],
-    );
-    setSheet(null);
+    if (await setAccounts(editing ? accounts.map(a => a.id === editing ? value : a) : [...accounts, value])) setSheet(null);
+    else setError("Could not save the account. Your input is preserved; try again.");
   }
-  function saveGroup() {
+  async function saveGroup() {
+    if (!groupsReady || groupsSaving) return;
     if (
       supervisors.some(
         (id) => groups.filter((g) => g.id !== editing && g.supervisorIds.includes(id)).length >= 4,
@@ -111,12 +120,16 @@ export default function DepartmentScreen() {
     if (groups.some((g) => g.id !== editing && g.studentIds.some((id) => students.includes(id))))
       return setError("A selected student already belongs to another team.");
     const value = {
-      id: editing || `group-${Date.now()}`,
+      id: editing || createLocalId(),
       studentIds: students,
       supervisorIds: supervisors,
     };
-    setGroups(editing ? groups.map((g) => (g.id === editing ? value : g)) : [...groups, value]);
-    setSheet(null);
+    try {
+      validateGroup(value, groups, accounts);
+      const saved = withMembershipHistory(groups.find(g => g.id === editing), value);
+      if (await setGroups(editing ? groups.map(g => g.id === editing ? saved : g) : [...groups, saved])) setSheet(null);
+      else setError("Could not save the project group. Your selections are preserved; try again.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save group."); }
   }
   const toggle = (id: string, items: string[], set: (v: string[]) => void) =>
     set(items.includes(id) ? items.filter((x) => x !== id) : [...items, id]);
@@ -141,6 +154,8 @@ export default function DepartmentScreen() {
         </View>
         <ScrollView contentContainerStyle={{ padding: 18, gap: 16 }}>
           <AppText variant="title">{page}</AppText>
+          {(!accountsReady || !groupsReady) && <AppText>Loading saved records…</AppText>}
+          {!!(accountStorageError || groupStorageError || messageStorageError) && <View><AppText accessibilityRole="alert">{accountStorageError || groupStorageError || messageStorageError}</AppText><Button title="Retry loading / إعادة التحميل" onPress={retryLoading} /></View>}
           <AppText tone="muted">Department Head</AppText>
           {page === "Overview" && (
             <>
@@ -196,7 +211,7 @@ export default function DepartmentScreen() {
                     </AppText>
                     <AppText variant="caption">{a.email}</AppText>
                     <AppText tone={a.active ? "primary" : "muted"}>
-                      {a.active ? "Active" : "Disabled"}
+                      {effectiveAccountStatus(a) === "PENDING_ACTIVATION" ? "Pending activation" : a.active ? "Active" : "Disabled"}
                     </AppText>
                     <View style={kit.wrap}>
                       <Button title="Edit" size="sm" variant="soft" onPress={() => edit(a)} />
@@ -207,19 +222,19 @@ export default function DepartmentScreen() {
                         onPress={() => setRemoveId(a.id)}
                       />
                       <Button
-                        title={a.active ? "Disable" : "Enable"}
+                        title={effectiveAccountStatus(a) === "DISABLED" ? "Enable" : "Disable"}
                         size="sm"
                         variant="ghost"
-                        onPress={() => {
+                        onPress={async () => {
                           if (
-                            !a.active &&
+                            effectiveAccountStatus(a) === "DISABLED" &&
                             a.role === "workshop" &&
-                            accounts.some((x) => x.active && x.role === "workshop")
+                            accounts.some((x) => effectiveAccountStatus(x) !== "DISABLED" && x.role === "workshop")
                           )
                             return setError("Disable the current workshop manager first.");
-                          setAccounts(
-                            accounts.map((x) => (x.id === a.id ? { ...x, active: !x.active } : x)),
-                          );
+                          if ((await setAccounts(
+                            accounts.map((x) => (x.id === a.id ? toggleAccountAccess(x) : x)),
+                          )) === false) return false;
                         }}
                       />
                     </View>
@@ -302,9 +317,9 @@ export default function DepartmentScreen() {
                     />
                     <Button
                       title="Send"
-                      disabled={!body.trim()}
-                      onPress={() => {
-                        setMessages([
+                      disabled={!body.trim() || !messagesReady || messagesSaving}
+                      onPress={async () => {
+                        if ((await setMessages([
                           ...messages,
                           {
                             id: String(Date.now()),
@@ -312,7 +327,7 @@ export default function DepartmentScreen() {
                             body: body.trim(),
                             time: new Date().toLocaleTimeString(),
                           },
-                        ]);
+                        ])) === false) return false;
                         setBody("");
                       }}
                     />
@@ -381,17 +396,18 @@ export default function DepartmentScreen() {
               <Button
                 title="Confirm removal"
                 variant="danger"
-                onPress={() => {
+                onPress={async () => {
                   const linked =
-                    groups.some(
-                      (g) => g.studentIds.includes(removeId) || g.supervisorIds.includes(removeId),
-                    ) || messages.some((m) => m.person === removeId);
-                  setAccounts(
+                    accountHasHistory(removeId, groups) || messages.some(m => m.person === removeId) ||
+                    state.projects.some(p => p.studentIds.includes(removeId) || p.supervisorIds.includes(removeId)) ||
+                    state.messages.some(m => m.senderId === removeId) ||
+                    (state.users.some(u => u.id === removeId && u.role === "workshop") && state.tools.length > 0);
+                  const saved = await setAccounts(
                     linked
-                      ? accounts.map((a) => (a.id === removeId ? { ...a, active: false } : a))
+                      ? accounts.map((a) => (a.id === removeId ? { ...a, active: false, status: "DISABLED" as const, disabledFrom: effectiveAccountStatus(a) } : a))
                       : accounts.filter((a) => a.id !== removeId),
                   );
-                  setRemoveId("");
+                  if (saved) setRemoveId("");
                 }}
               />
             </Panel>
@@ -411,7 +427,7 @@ export default function DepartmentScreen() {
                 <>
                   <Chips
                     value={role}
-                    onChange={(v) => setRole(v as Account["role"])}
+                    onChange={(v) => { if (!editing) setRole(v as Account["role"]); }}
                     options={["student", "supervisor", "workshop"].map((id) => ({ id, label: id }))}
                   />
                   <Field label="Full name" value={name} onChangeText={setName} />
@@ -427,6 +443,7 @@ export default function DepartmentScreen() {
                     <Field
                       label="University email"
                       value={email}
+                      editable={!editing}
                       onChangeText={setEmail}
                       autoCapitalize="none"
                       keyboardType="email-address"
@@ -436,7 +453,7 @@ export default function DepartmentScreen() {
                     Account activation is completed by the account holder. Passwords are not
                     assigned here.
                   </AppText>
-                  <Button title="Save account" onPress={saveAccount} />
+                  <Button title="Save account" disabled={!accountsReady || accountsSaving} onPress={saveAccount} />
                 </>
               ) : (
                 <>
@@ -462,7 +479,7 @@ export default function DepartmentScreen() {
                         onPress={() => toggle(a.id, supervisors, setSupervisors)}
                       />
                     ))}
-                  <Button title="Save team" onPress={saveGroup} />
+                  <Button title="Save team" disabled={!groupsReady || groupsSaving} onPress={saveGroup} />
                 </>
               )}
               {!!error && (

@@ -18,13 +18,14 @@ export function WeeklyReportEditor({
   report: Report;
   onSelect: (id: string) => void;
 }) {
-  const { state, act } = useWorkspace();
+  const { state, act, error: saveError } = useWorkspace();
   const t = useCopy();
   const project = state.projects.find((p) => p.id === report.projectId)!;
+  const draftFields = report.status === "submitted" && !report.openedBy.length ? report.editableDraft?.fields ?? report.fields : report.fields;
   const [fields, setFields] = useState<Record<string, string>>({
-    ...report.fields,
+    ...(draftFields),
     progressPercent:
-      report.fields.progressPercent ??
+      draftFields.progressPercent ??
       String(
         Math.round(
           (state.tasks.filter(
@@ -35,12 +36,12 @@ export function WeeklyReportEditor({
         ),
       ),
     hasDelays:
-      report.fields.hasDelays ??
-      (report.fields.delays && !/^(none|no)$/i.test(report.fields.delays) ? "true" : "false"),
-    recovery: report.fields.recovery ?? "",
+      draftFields.hasDelays ??
+      (draftFields.delays && !/^(none|no)$/i.test(draftFields.delays) ? "true" : "false"),
+    recovery: draftFields.recovery ?? "",
   });
-  const [attachments, setAttachments] = useState<ReportAttachment[]>(report.attachments ?? []),
-    [editing, setEditing] = useState(false),
+  const [attachments, setAttachments] = useState<ReportAttachment[]>(report.editableDraft?.attachments ?? report.attachments ?? []),
+    [editing, setEditing] = useState(!!report.editableDraft && report.status === "submitted" && !report.openedBy.length),
     [preview, setPreview] = useState(false),
     [draftsOpen, setDraftsOpen] = useState(false),
     [notice, setNotice] = useState(""),
@@ -51,7 +52,7 @@ export function WeeklyReportEditor({
   const all = state.reports
       .filter((r) => r.projectId === report.projectId && r.kind === "weekly")
       .sort((a, b) => b.week - a.week),
-    drafts = all.filter((r) => r.status === "draft" && r.savedAt);
+    drafts = all.filter((r) => (r.status === "draft" && r.savedAt) || r.editableDraft);
   const tasks = fields.tasks?.split("\n").filter((line) => line.trim()) ?? [];
   const percent = Number(fields.progressPercent);
   const previous = all.find((r) => r.week === report.week - 1 && r.status !== "draft"),
@@ -111,9 +112,9 @@ export function WeeklyReportEditor({
       .map((e) => e.label);
     return missing.length ? `Please complete: ${missing.join(", ")}.` : "";
   };
-  function save() {
-    if (!editable || editing) return false;
-    if (act({ type: "report.save", id: report.id, fields, attachments })) {
+  async function save() {
+    if (!editable) return false;
+    if (await act({ type: "report.save", id: report.id, fields, attachments, draftOnly: editing })) {
       setDraftsOpen(true);
       setNotice(
         t(
@@ -134,7 +135,7 @@ export function WeeklyReportEditor({
     setNotice("");
     setPreview(true);
   }
-  function submit() {
+  async function submit() {
     const error = validate();
     if (error) {
       setNotice(error);
@@ -145,9 +146,7 @@ export function WeeklyReportEditor({
       setPreview(false);
       return;
     }
-    if (editing && !act({ type: "report.withdraw", id: report.id })) return;
-    if (!act({ type: "report.save", id: report.id, fields, attachments })) return;
-    if (act({ type: "report.submit", id: report.id })) {
+    if (await act({ type: "report.publish", id: report.id, fields, attachments })) {
       setPreview(false);
       setEditing(false);
       setNotice("Report submitted. You can edit or withdraw it until supervisor review.");
@@ -371,9 +370,9 @@ export function WeeklyReportEditor({
         <Button
           title="Start next weekly report"
           variant="soft"
-          onPress={() => {
+          onPress={async () => {
             const week = Math.max(...all.map((r) => r.week)) + 1;
-            if (act({ type: "weekly.create", projectId: project.id, week }))
+            if (await act({ type: "weekly.create", projectId: project.id, week }))
               onSelect("");
           }}
         />
@@ -529,6 +528,7 @@ export function WeeklyReportEditor({
           </Panel>
           <AppText tone="muted">This report belongs to the whole team.</AppText>
           <View style={kit.wrap}>
+            {editing && <Button title="Save editable draft" variant="soft" onPress={save} />}
             {editing ? (
               <Button
                 title="Cancel editing"
@@ -602,6 +602,7 @@ export function WeeklyReportEditor({
               <X color="#526443" />
             </Pressable>
           </View>
+          {!!saveError && <AppText accessibilityRole="alert" tone="danger">{saveError}</AppText>}
           <ScrollView contentContainerStyle={{ padding: 10 }}>{paper}</ScrollView>
           <View style={s.modalFooter}>
             <Button title="Back to editing" variant="soft" onPress={() => setPreview(false)} />
@@ -624,8 +625,8 @@ export function WeeklyReportEditor({
             <Button title="Keep submission" variant="soft" onPress={() => setWithdraw(false)} />
             <Button
               title="Confirm withdrawal"
-              onPress={() => {
-                if (act({ type: "report.withdraw", id: report.id })) {
+              onPress={async () => {
+                if (await act({ type: "report.withdraw", id: report.id })) {
                   setWithdraw(false);
                   setEditing(false);
                   setNotice("Submission withdrawn. Your report is saved as a draft.");

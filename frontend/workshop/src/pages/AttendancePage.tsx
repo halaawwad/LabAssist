@@ -5,7 +5,6 @@ import { FilterChips } from '../components/FilterChips'
 import { PageHeader } from '../components/PageHeader'
 import { matchesStudent } from '../components/tableSearch'
 import { repeatedAbsenceThreshold, students, teamById } from '../data/teams'
-import { tableOfTeam } from '../data/workshopTables'
 import { useI18n } from '../i18n/i18nContext'
 import { useDialogs } from '../state/dialogContext'
 import { useWorkshop, type AttendanceStatus } from '../state/workshopContext'
@@ -13,11 +12,23 @@ import { useWorkshop, type AttendanceStatus } from '../state/workshopContext'
 type Filter = AttendanceStatus | 'all'
 
 export function AttendancePage() {
-  const { t, tp } = useI18n()
-  const { attendance, setAttendance } = useWorkshop()
+  const { tables } = useWorkshop();
+  const tableOfTeam = (id: string) => tables.find(table => table.teamIds.includes(id));
+  const { t, tp, language } = useI18n()
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Hebron', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+  const earliest = new Date(today + 'T12:00:00Z')
+  earliest.setUTCDate(earliest.getUTCDate() - 7)
+  const [day, setDay] = useState(today)
+  const { attendanceForDay, setAttendance } = useWorkshop()
+  const attendance = attendanceForDay(day)
   const { openDialog } = useDialogs()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
+  const [saveError, setSaveError] = useState('')
+  const markAttendance = (studentId: string, status: AttendanceStatus) => {
+    try { setAttendance([studentId], status, day); setSaveError('') }
+    catch (cause) { setSaveError(cause instanceof Error ? cause.message : 'Attendance was not saved. Please retry.') }
+  }
 
   const count = (status: AttendanceStatus) => students.filter((student) => attendance[student.id] === status).length
   const rows = students.filter(
@@ -31,7 +42,9 @@ export function AttendancePage() {
         subtitle={t('attendancePage.subtitle')}
         search={{ value: query, onChange: setQuery }}
       />
+      {saveError && <p role="alert">{saveError}</p>}
       <div className="page-toolbar">
+        <label>{language === 'ar' ? 'تاريخ الحضور' : 'Attendance date'}<input className="input" type="date" value={day} min={earliest.toISOString().slice(0, 10)} max={today} onChange={event => { if (event.target.value) setDay(event.target.value) }} /></label>
         <FilterChips
           label={t('attendancePage.title')}
           value={filter}
@@ -80,7 +93,7 @@ export function AttendancePage() {
                     role="radio"
                     aria-checked={status === 'present'}
                     className={status === 'present' ? 'is-present' : ''}
-                    onClick={() => setAttendance([student.id], 'present')}
+                    onClick={() => markAttendance(student.id, 'present')}
                   >
                     {t('table.present')}
                   </button>
@@ -89,7 +102,7 @@ export function AttendancePage() {
                     role="radio"
                     aria-checked={status === 'absent'}
                     className={status === 'absent' ? 'is-absent' : ''}
-                    onClick={() => setAttendance([student.id], 'absent')}
+                    onClick={() => markAttendance(student.id, 'absent')}
                   >
                     {t('table.absent')}
                   </button>

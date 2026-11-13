@@ -4,6 +4,7 @@ export type ItemCondition = 'good' | 'damaged' | 'missing'
 
 /** What a team received at the start of the semester and whether its return was checked. Not inventory. */
 export type HandoverRecord = {
+  history?: Omit<HandoverRecord, "history">[];
   teamId: string
   items: string[]
   dateGiven: string

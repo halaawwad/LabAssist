@@ -1,6 +1,7 @@
+import { useWorkshop } from "../state/workshopContext";
 import type { CSSProperties } from 'react'
 import floorPlan from '../assets/workshop-floor-plan.webp'
-import { floorSize, tableStatus, workshopTables, type TableStatus } from '../data/workshopTables'
+import { floorSize, tableStatus, type TableStatus } from '../data/workshopTables'
 import { useI18n } from '../i18n/i18nContext'
 import { tableMatches } from './tableSearch'
 
@@ -14,6 +15,7 @@ const percent = (value: number, total: number) => `${(value / total) * 100}%`
 
 /** The workshop floor from above with a clickable hotspot, code and status marker on each table. */
 export function WorkshopFloor({ query = '', filter = 'all', onSelect }: WorkshopFloorProps) {
+  const { tables: workshopTables } = useWorkshop();
   const { t } = useI18n()
   const searching = query.trim() !== ''
 

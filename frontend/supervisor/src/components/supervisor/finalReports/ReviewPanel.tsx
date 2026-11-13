@@ -51,7 +51,7 @@ export function ReviewPanel({
   onRequestRevision,
   onSimulateResubmission,
 }: ReviewPanelProps) {
-  const { formatDate, formatTime } = useI18n()
+  const { formatDate, formatTime, language } = useI18n()
   const [text, setText] = useState('')
   const [error, setError] = useState('')
   const submission = currentSubmission(review)
@@ -70,9 +70,13 @@ export function ReviewPanel({
   }
 
   const act = (action: (value: string) => void) => {
+    try {
     action(trimmed)
     setText('')
     setError('')
+    } catch {
+      setError(language === 'ar' ? 'لم تُحفظ الملاحظات. حاول مجدداً.' : 'Feedback was not saved. Please try again.')
+    }
   }
 
   return (
@@ -249,9 +253,9 @@ export function ReviewPanel({
             <p>
               {fill(l.revisionPending, { version: submission.version, next: nextMajorVersion(submission.version) })}
             </p>
-            <button type="button" className="fr-simulate" title={l.simulateHint} onClick={onSimulateResubmission}>
+            <button type="button" className="fr-simulate" disabled title="Student group submission requires the backend" onClick={onSimulateResubmission}>
               <Upload size={14} aria-hidden="true" />
-              {fill(l.simulateResubmission, { next: nextMajorVersion(submission.version) })}
+              {language === 'ar' ? 'بانتظار تسليم الفريق عبر الخادم' : 'Awaiting student submission through the backend'}
             </button>
           </div>
         ) : null}

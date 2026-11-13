@@ -48,8 +48,8 @@ function Dashboard() {
   const [menu, setMenu] = useState(false);
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState<string | null>(null);
-  const today = teammates[0]!;
-  const doneToday = today.tasks.filter((_, i) => workspace.completed.includes(`0-${i}`)).length;
+  const today = { tasks: workspace.teamTasks.filter((task) => task.owner === 0) };
+  const doneToday = today.tasks.filter((task) => workspace.completed.includes(task.id)).length;
   const recentActivity = [
     ...(workspace.issues.length
       ? [
@@ -75,7 +75,7 @@ function Dashboard() {
       ? navigate({ to: "/reports" })
       : navigate({ to: "/project", search: { tab } });
   const matches = [
-    { name: `${project.name} — ${project.subtitle}`, tab: "overview" as const },
+    { name: `${workspace.details.name} — ${workspace.details.subtitle}`, tab: "overview" as const },
     { name: "Team & today's tasks", tab: "team" as const },
     { name: "Components & budget", tab: "components" as const },
     { name: "Weekly report & supervisor feedback", tab: "reports" as const },
@@ -223,8 +223,8 @@ function Dashboard() {
                 <div className="insight-project-copy">
                   <p className="insight-eyebrow">ONE PROJECT. A LOT OF POSSIBILITIES.</p>
                   <h2>
-                    {project.name}
-                    <span>{project.subtitle}</span>
+                    {workspace.details.name}
+                    <span>{workspace.details.subtitle}</span>
                   </h2>
                   <span className="project-badge">
                     <span className="insight-dot" />
@@ -265,15 +265,15 @@ function Dashboard() {
                 </div>
                 <div className="insight-focus-list">
                   {today.tasks.map((task, i) => {
-                    const done = workspace.completed.includes(`0-${i}`);
+                    const done = workspace.completed.includes(task.id);
                     return (
                       <button
-                        key={task}
+                        key={task.id}
                         onClick={() => {
-                          workspace.toggleTask(`0-${i}`);
+                          workspace.toggleTask(task.id);
                           workspace.logTeamActivity(
                             0,
-                            `${done ? "Reopened" : "Completed"} “${task}”`,
+                            `${done ? "Reopened" : "Completed"} “${task.title}”`,
                           );
                         }}
                         aria-pressed={done}
@@ -282,7 +282,7 @@ function Dashboard() {
                           {done ? <Check size={13} /> : <span />}
                         </span>
                         <span className={done ? "line-through text-muted-foreground" : ""}>
-                          {task}
+                          {task.title}
                           <small>
                             {i === 0
                               ? "Design · My assigned task"

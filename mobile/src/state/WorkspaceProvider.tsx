@@ -13,6 +13,7 @@ import { ActivityIndicator, View } from "react-native";
 import {
   applyAction,
   createWorkspace,
+  migrateWorkspace,
   type Action,
   type Role,
   type Workspace,
@@ -27,10 +28,14 @@ type ContextValue = {
   actorId: string;
   setActor: (id: string) => void;
   selectRole: (role: Role) => void;
-  act: (action: Action) => boolean;
+  act: (action: Action) => Promise<boolean>;
   error: string | null;
   clearError: () => void;
   storageError: boolean;
+  saving: boolean;
+  storageRevision: number;
+  retryLoading: () => void;
+  reportStorageError: (message: string) => void;
   reset: () => Promise<void>;
 };
 const Context = createContext<ContextValue | null>(null);
@@ -42,8 +47,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [storageError, setStorageError] = useState(false);
   const queue = useRef(Promise.resolve());
   const sequence = useRef(0);
+  const inFlight = useRef(new Set<string>());
+  const writable = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [storageRevision, setStorageRevision] = useState(0);
+  const reportStorageError = useCallback((message: string) => { setError(message); setStorageError(true); }, []);
   useEffect(() => {
     let mounted = true;
+    writable.current = false;
     AsyncStorage.getItem(key)
       .then((raw) => {
         let value = createWorkspace();
@@ -56,17 +67,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               Array.isArray(parsed.projects) &&
               Array.isArray(parsed.circuits)
             )
-              value = parsed;
+              { value = parsed; writable.current = true; }
+            else throw new Error("Unrecognized saved workspace. Existing records are preserved.");
           } catch {
-            setStorageError(true);
+            writable.current = false; setStorageError(true);
+            setError("Saved records could not be loaded. Existing data is preserved; allow storage and retry loading.");
           }
         }
+        if (raw === null) writable.current = true;
         if (mounted) {
-          const enriched = addMeetingPreviewData(addPreviewData(value));
-          if (enriched !== value)
+          const enriched = migrateWorkspace(addMeetingPreviewData(addPreviewData(value)));
+          if (writable.current) { setStorageError(false); setError(null); }
+          if (enriched !== value && writable.current)
             queue.current = queue.current
               .then(() => AsyncStorage.setItem(key, JSON.stringify(enriched)))
-              .catch(() => setStorageError(true));
+              .catch(() => reportStorageError("Could not save prepared demo records. Existing stored data is preserved; retry loading."));
           value = enriched;
           current.current = value;
           setState(value);
@@ -77,39 +92,33 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           const value = addMeetingPreviewData(addPreviewData(createWorkspace()));
           current.current = value;
           setState(value);
-          setStorageError(true);
+          writable.current = false; setStorageError(true);
+          setError("Saved records could not be loaded. Existing data is preserved; allow storage and retry loading.");
         }
       });
     return () => {
       mounted = false;
     };
-  }, []);
-  function persist(next: Workspace) {
-    queue.current = queue.current
-      .catch(() => {})
-      .then(() => AsyncStorage.setItem(key, JSON.stringify(next)))
-      .then(() => setStorageError(false))
-      .catch(() => setStorageError(true));
-  }
+  }, [storageRevision, reportStorageError]);
   function act(action: Action) {
-    if (!current.current) return false;
-    try {
-      const next = applyAction(
-        current.current,
-        actorId,
-        action,
-        `${Date.now()}-${++sequence.current}`,
-      );
-      current.current = next;
-      setState(next);
-      setError(null);
-      persist(next);
+    if (!current.current || !writable.current) { reportStorageError("Saved records could not be loaded. Allow storage and retry loading; no data was overwritten."); return Promise.resolve(false); }
+    const request = JSON.stringify([actorId, action]);
+    if (inFlight.current.has(request)) return Promise.resolve(false);
+    inFlight.current.add(request);
+    setSaving(true);
+    const job = queue.current.then(async () => {
+      let next: Workspace;
+      try { next = applyAction(current.current!, actorId, action, `${Date.now()}-${++sequence.current}`); }
+      catch (cause) { setError(cause instanceof Error ? cause.message : "Invalid operation."); return false; }
+      try { await AsyncStorage.setItem(key, JSON.stringify(next)); }
+      catch { reportStorageError("Could not save on this device. Your input is preserved; try Save again."); return false; }
+      current.current = next; setState(next); setError(null); setStorageError(false);
       return true;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "invalid_input");
-      return false;
-    }
+    });
+    queue.current = job.then(() => {});
+    return job.finally(() => { inFlight.current.delete(request); if (!inFlight.current.size) setSaving(false); });
   }
+
   async function reset() {
     await queue.current;
     const next = addMeetingPreviewData(addPreviewData(createWorkspace()));
@@ -146,6 +155,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         error,
         clearError: () => setError(null),
         storageError,
+        saving, storageRevision, retryLoading: () => setStorageRevision(value => value + 1), reportStorageError,
         reset,
       }}
     >

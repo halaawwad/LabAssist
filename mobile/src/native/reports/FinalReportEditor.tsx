@@ -184,7 +184,7 @@ export function FinalReportEditor({
       sections: sections.map((s) => (s.id === selected ? { ...s, blocks } : s)),
     });
   };
-  function save() {
+  async function save() {
     if (!editable) return false;
     const savedAt = new Date().toISOString();
     const fields: Record<string, string> = { ...report.fields };
@@ -196,7 +196,7 @@ export function FinalReportEditor({
       );
       if (s) fields[key] = s.blocks.map((b) => b.text).join("\n");
     }
-    const success = act({
+    const success = await act({
       type: "report.save",
       id: report.id,
       fields,
@@ -241,9 +241,9 @@ export function FinalReportEditor({
       setNotice(t("Could not add this image.", "تعذر إضافة الصورة."));
     }
   }
-  function generate(mode: "preview" | "download" | "submit") {
+  async function generate(mode: "preview" | "download" | "submit") {
     if (busy) return;
-    if (editable && !save()) return;
+    if (editable && !await save()) return;
     setBusy(true);
     setExportMode(mode);
     setNotice(
@@ -335,8 +335,8 @@ export function FinalReportEditor({
       <Button
         title={t("All reports", "كل التقارير")}
         variant="ghost"
-        onPress={() => {
-          if (!dirty || !editable || save()) onClose();
+        onPress={async () => {
+          if (!dirty || !editable || await save()) onClose();
         }}
       />
       <Panel tint="#edf2e5">
@@ -361,12 +361,12 @@ export function FinalReportEditor({
             variant="soft"
             loading={busy}
             disabled={busy}
-            onPress={() => generate("preview")}
+            onPress={async () => await generate("preview")}
           />
           <Button
             title={t("Export PDF", "تصدير PDF")}
             disabled={busy}
-            onPress={() => generate("download")}
+            onPress={async () => await generate("download")}
           />
         </View>
         <AppText variant="caption" tone="muted">
@@ -774,7 +774,7 @@ export function FinalReportEditor({
             title={t("Review before submitting", "مراجعة قبل التسليم")}
             variant="soft"
             disabled={busy}
-            onPress={() => generate("submit")}
+            onPress={async () => await generate("submit")}
           />
         </View>
       )}
@@ -801,10 +801,11 @@ export function FinalReportEditor({
                 key={status}
                 title={status === "reviewed" ? "Reviewed" : "Needs changes"}
                 disabled={!feedback.trim()}
-                onPress={() => {
+                onPress={async () => {
                   if (
-                    act({
+                    await act({
                       type: "report.review",
+                        submissionId: report.history?.at(-1)?.id ?? "",
                       id: report.id,
                       body: feedback,
                       section: feedbackSection,
@@ -818,7 +819,7 @@ export function FinalReportEditor({
             <Button
               title="Reopen for this team"
               variant="soft"
-              onPress={() => act({ type: "report.reopen", id: report.id })}
+              onPress={async () => await act({ type: "report.reopen", id: report.id })}
             />
           </View>
         </Panel>
@@ -937,8 +938,8 @@ export function FinalReportEditor({
             {exportMode === "submit" && editable && (
               <Button
                 title="Confirm submission"
-                onPress={() => {
-                  if (act({ type: "report.submit", id: report.id })) setPreview(false);
+                onPress={async () => {
+                  if (await act({ type: "report.submit", id: report.id })) setPreview(false);
                 }}
               />
             )}

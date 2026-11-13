@@ -1,3 +1,4 @@
+import { useWorkshop } from "../state/workshopContext";
 import { useState } from 'react'
 import { Map as MapIcon } from 'lucide-react'
 import { AttendancePanel } from '../components/AttendancePanel'
@@ -8,13 +9,13 @@ import { ReportPanel } from '../components/ReportPanel'
 import { SummaryStrip } from '../components/SummaryStrip'
 import { tableMatches } from '../components/tableSearch'
 import { MapLegend, WorkshopFloor } from '../components/WorkshopFloor'
-import { workshopTables } from '../data/workshopTables'
 import { useI18n } from '../i18n/i18nContext'
 import { useDialogs } from '../state/dialogContext'
 
-const singleTables = workshopTables.filter((table) => table.shape === 'rect').length
 
 export function WorkshopDashboard() {
+  const { tables: workshopTables } = useWorkshop();
+  const singleTables = workshopTables.filter(table => table.shape === "rect").length;
   const { t, tp } = useI18n()
   const { openDialog } = useDialogs()
   const [query, setQuery] = useState('')

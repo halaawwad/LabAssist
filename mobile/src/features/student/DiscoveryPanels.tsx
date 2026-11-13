@@ -111,7 +111,7 @@ export function LearningPanel() {
                           : t("Save lesson", "حفظ الدرس")
                       }
                       variant="soft"
-                      onPress={() => act({ type: "bookmark.toggle", id: l.id })}
+                      onPress={async () => await act({ type: "bookmark.toggle", id: l.id })}
                     />
                     <Button
                       title={t("Original reference", "المرجع الأصلي")}

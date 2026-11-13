@@ -48,6 +48,7 @@ function TeamPage() {
     [description, setDescription] = useState(""),
     [owner, setOwner] = useState(0),
     [due, setDue] = useState("");
+  const [saveError, setSaveError] = useState("");
   const today = new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Asia/Hebron",
     year: "numeric",
@@ -56,8 +57,8 @@ function TeamPage() {
   }).format(new Date());
   const members = teammates.map((p, index) => {
     const assigned = workspace.teamTasks.filter((t) => t.owner === index),
-      done = p.done + assigned.filter((t) => workspace.completed.includes(t.id)).length,
-      total = p.done + p.remaining + Math.max(0, assigned.length - 2),
+      done = assigned.filter((t) => workspace.completed.includes(t.id)).length,
+      total = assigned.length,
       inProgress = assigned.filter(
         (t) => t.inProgress && !workspace.completed.includes(t.id),
       ).length;
@@ -69,13 +70,15 @@ function TeamPage() {
       total,
       inProgress,
       remaining: total - done - inProgress,
-      progress: Math.round((done / total) * 100),
+      progress: Math.round((done / Math.max(1, total)) * 100),
       assigned,
     };
   });
   const average = Math.round(members.reduce((sum, m) => sum + m.progress, 0) / members.length),
     openCount = members.reduce((sum, m) => sum + m.total - m.done, 0),
-    late = workspace.teamTasks.filter((t) => !workspace.completed.includes(t.id) && t.due < today),
+    late = workspace.teamTasks.filter(
+      (t) => !workspace.completed.includes(t.id) && !!t.due && t.due < today,
+    ),
     help = workspace.teamTasks.filter((t) => t.help && !workspace.completed.includes(t.id)),
     task = workspace.teamTasks.find((t) => t.id === selected);
   const showTask = (t: TeamTask) => {
@@ -85,23 +88,7 @@ function TeamPage() {
   const status = (t: TeamTask) =>
     workspace.completed.includes(t.id) ? "Completed" : t.inProgress ? "In Progress" : "To Do";
   const updateStatus = (t: TeamTask, value: string) => {
-    const wasDone = workspace.completed.includes(t.id);
-    if ((value === "Completed") !== wasDone) workspace.toggleTask(t.id);
-    workspace.setTeamTasks((list) =>
-      list.map((item) =>
-        item.id === t.id
-          ? {
-              ...item,
-              inProgress: value === "In Progress",
-              help: value === "Completed" ? false : item.help,
-            }
-          : item,
-      ),
-    );
-    workspace.logTeamActivity(
-      t.owner,
-      `${value === "Completed" ? "Completed" : "Updated"} “${t.title}”`,
-    );
+    workspace.updateTaskStatus(t.id, value);
   };
   const toggleHelp = (t: TeamTask) => {
     workspace.setTeamTasks((list) =>
@@ -181,7 +168,7 @@ function TeamPage() {
             <div>
               <span className="team-project-tag">
                 <Users size={13} />
-                {project.name} · {members.length} students
+                {workspace.details.name} · {members.length} students
               </span>
               <h2>
                 Different strengths.
@@ -312,6 +299,7 @@ function TeamPage() {
                     >
                       <button
                         className="team-task-check"
+                        disabled={t.owner !== 0}
                         aria-label={`Complete ${t.title}`}
                         aria-pressed={workspace.completed.includes(t.id)}
                         onClick={() =>
@@ -331,7 +319,7 @@ function TeamPage() {
                               <HandHelping size={10} />
                               Needs a hand
                             </>
-                          ) : !workspace.completed.includes(t.id) && t.due < today ? (
+                          ) : !workspace.completed.includes(t.id) && !!t.due && t.due < today ? (
                             <>
                               <CircleAlert size={10} />
                               Overdue · {t.due.slice(5)}
@@ -466,22 +454,28 @@ function TeamPage() {
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!title.trim()) return;
-                workspace.setTeamTasks((list) => [
-                  ...list,
-                  {
-                    id: crypto.randomUUID(),
-                    title: title.trim(),
-                    description: description.trim(),
-                    owner,
-                    due,
-                    inProgress: false,
-                    help: false,
-                  },
-                ]);
-                workspace.logTeamActivity(owner, `Added “${title.trim()}”`);
-                setModal(null);
+                try {
+                  workspace.setTeamTasks((list) => [
+                    ...list,
+                    {
+                      id: crypto.randomUUID(),
+                      title: title.trim(),
+                      description: description.trim(),
+                      owner,
+                      due,
+                      inProgress: false,
+                      help: false,
+                    },
+                  ]);
+                  workspace.logTeamActivity(owner, `Added “${title.trim()}”`);
+                  setModal(null);
+                  setSaveError("");
+                } catch {
+                  setSaveError("Task was not saved. Your input is preserved; please retry.");
+                }
               }}
             >
+              {saveError && <p role="alert">{saveError}</p>}
               <label htmlFor="team-task-name">
                 Task title
                 <input
@@ -551,6 +545,7 @@ function TeamPage() {
                 Status
                 <select
                   id="team-task-status"
+                  disabled={task.owner !== 0}
                   value={status(task)}
                   onChange={(e) => updateStatus(task, e.target.value)}
                 >
@@ -562,7 +557,7 @@ function TeamPage() {
               <button
                 className={`team-help-toggle ${task.help ? "is-requested" : ""}`}
                 aria-pressed={task.help}
-                disabled={workspace.completed.includes(task.id)}
+                disabled={task.owner !== 0 || workspace.completed.includes(task.id)}
                 onClick={() => toggleHelp(task)}
               >
                 <HandHelping size={18} />
@@ -594,7 +589,10 @@ function TeamPage() {
                     (t) =>
                       filter === "all" ||
                       (filter === "open" && !workspace.completed.includes(t.id)) ||
-                      (filter === "late" && !workspace.completed.includes(t.id) && t.due < today) ||
+                      (filter === "late" &&
+                        !workspace.completed.includes(t.id) &&
+                        !!t.due &&
+                        t.due < today) ||
                       (filter === "help" && t.help && !workspace.completed.includes(t.id)),
                   )
                   .map((t) => (
@@ -613,7 +611,10 @@ function TeamPage() {
                   (t) =>
                     filter === "all" ||
                     (filter === "open" && !workspace.completed.includes(t.id)) ||
-                    (filter === "late" && !workspace.completed.includes(t.id) && t.due < today) ||
+                    (filter === "late" &&
+                      !workspace.completed.includes(t.id) &&
+                      !!t.due &&
+                      t.due < today) ||
                     (filter === "help" && t.help && !workspace.completed.includes(t.id)),
                 ) && <p className="messages-no-results">No tasks in this view.</p>}
               </div>

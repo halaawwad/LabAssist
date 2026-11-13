@@ -17,8 +17,13 @@ export type Availability = {
 export type Toast = { id: number; text: string }
 
 export type WorkshopContextValue = {
+  tables: import('../data/workshopTables').WorkshopTable[]
+  assignTable: (teamId: string, code: string) => void
+  releaseTable: (teamId: string, code: string) => void
+  recordHandover: (teamId: string, items: string[]) => void
   attendance: Record<string, AttendanceStatus>
-  setAttendance: (studentIds: string[], status: AttendanceStatus) => void
+  attendanceForDay: (day: string) => Record<string, AttendanceStatus>
+  setAttendance: (studentIds: string[], status: AttendanceStatus, day?: string) => void
 
   availability: Availability
   notifyTemporaryAbsence: (from: string, until: string, reason: string) => void

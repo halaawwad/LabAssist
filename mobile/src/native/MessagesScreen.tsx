@@ -127,7 +127,7 @@ export function NativeMessages() {
           state.messages.some((m) => m.threadId === th.id && m.starredBy.includes(actorId))),
     )
     .sort((a, b) => Number(b.memberIds.length === 1) - Number(a.memberIds.length === 1));
-  function open(th: Thread) {
+  async function open(th: Thread) {
     setSelected(th.id);
     setInfo(false);
     setText("");
@@ -136,14 +136,14 @@ export function NativeMessages() {
     setMessageQuery("");
     setSearchOpen(false);
     setError("");
-    act({ type: "message.read", threadId: th.id });
+    await act({ type: "message.read", threadId: th.id });
   }
-  function start(userId: string) {
+  async function start(userId: string) {
     const existing = threads.find(
       (x) => !x.projectId && x.memberIds.length === 2 && x.memberIds.includes(userId),
     );
-    if (existing) open(existing);
-    else if (act({ type: "thread.create", userId })) {
+    if (existing) await open(existing);
+    else if (await act({ type: "thread.create", userId })) {
       setSelected("person:" + userId);
       setText("");
       setReply(null);
@@ -152,10 +152,10 @@ export function NativeMessages() {
     setNewChat(false);
     setPersonQuery("");
   }
-  function send() {
+  async function send() {
     if (!thread || (!text.trim() && !attachment)) return;
     if (
-      act({
+      await act({
         type: "message.send",
         threadId: thread.id,
         body: text.trim(),
@@ -237,7 +237,7 @@ export function NativeMessages() {
       });
       if (result.canceled) return;
       const photo = await persistPickedFile(result.assets[0].uri, "group.jpg");
-      act({ type: "thread.edit", id: thread.id, name: thread.name, photo });
+      await act({ type: "thread.edit", id: thread.id, name: thread.name, photo });
     } catch {
       Alert.alert(t("Could not save the photo.", "تعذر حفظ الصورة."));
     }
@@ -386,7 +386,7 @@ export function NativeMessages() {
                         key={th.id}
                         accessibilityRole="button"
                         accessibilityLabel={displayName(th)}
-                        onPress={() => open(th)}
+                        onPress={async () => await open(th)}
                         style={[s.conversation, th.projectId && s.projectConversation]}
                       >
                         {avatar(th)}
@@ -747,7 +747,7 @@ export function NativeMessages() {
                           : t("Write a message…", "اكتب رسالة…")
                       }
                       multiline={!preferences.enterToSend}
-                      onSubmitEditing={() => preferences.enterToSend && send()}
+                      onSubmitEditing={async () => preferences.enterToSend && await send()}
                       submitBehavior={preferences.enterToSend ? "submit" : "newline"}
                       maxLength={4000}
                       value={text}
@@ -794,9 +794,9 @@ export function NativeMessages() {
             </AppText>
             <Pressable
               accessibilityRole="button"
-              onPress={() => {
+              onPress={async () => {
                 const th = threads.find((x) => x.memberIds.length === 1);
-                if (th) open(th);
+                if (th) await open(th);
                 setNewChat(false);
               }}
               style={s.selfChoice}
@@ -846,7 +846,7 @@ export function NativeMessages() {
                   key={u.id}
                   accessibilityRole="button"
                   accessibilityLabel={t("Message ", "مراسلة ") + u.name}
-                  onPress={() => start(u.id)}
+                  onPress={async () => await start(u.id)}
                   style={s.conversation}
                 >
                   <Portrait userId={u.id} />
@@ -957,7 +957,7 @@ export function NativeMessages() {
                     : t("Star conversation", "تمييز المحادثة")
                 }
                 variant="soft"
-                onPress={() => act({ type: "thread.star", id: thread.id })}
+                onPress={async () => await act({ type: "thread.star", id: thread.id })}
               />
               <View style={s.detailSection}>
                 <AppText variant="heading">
@@ -1056,8 +1056,8 @@ export function NativeMessages() {
               <Button
                 title={t("Save Group", "حفظ المجموعة")}
                 disabled={!groupName.trim()}
-                onPress={() => {
-                  if (act({ type: "thread.edit", id: thread.id, name: groupName.trim() }))
+                onPress={async () => {
+                  if (await act({ type: "thread.edit", id: thread.id, name: groupName.trim() }))
                     setEditGroup(false);
                 }}
               />
@@ -1131,10 +1131,10 @@ export function NativeMessages() {
                   <Pressable
                     key={th.id}
                     accessibilityRole="button"
-                    onPress={() => {
+                    onPress={async () => {
                       if (
                         actionMessage &&
-                        act({
+                        await act({
                           type: "message.send",
                           threadId: th.id,
                           body: actionMessage.body,
@@ -1143,7 +1143,7 @@ export function NativeMessages() {
                         })
                       ) {
                         setTool(null);
-                        open(th);
+                        await open(th);
                       }
                     }}
                     style={s.conversation}
@@ -1183,8 +1183,8 @@ export function NativeMessages() {
                           ? t("Unstar message", "إلغاء تمييز الرسالة")
                           : t("Star message", "تمييز الرسالة")
                       }
-                      onPress={() => {
-                        act({ type: "message.star", id: actionMessage.id });
+                      onPress={async () => {
+                        await act({ type: "message.star", id: actionMessage.id });
                         setTool(null);
                       }}
                     />
@@ -1192,8 +1192,8 @@ export function NativeMessages() {
                       <Action
                         icon={<Trash2 color="#b15b4e" size={21} />}
                         title={t("Delete message", "حذف الرسالة")}
-                        onPress={() => {
-                          act({ type: "message.delete", id: actionMessage.id });
+                        onPress={async () => {
+                          await act({ type: "message.delete", id: actionMessage.id });
                           setTool(null);
                         }}
                       />

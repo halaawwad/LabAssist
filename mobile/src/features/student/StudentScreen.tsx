@@ -110,7 +110,7 @@ export default function StudentScreen({ page }: { page: string }) {
                   key={task.id}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: task.done }}
-                  onPress={() => act({ type: "task.toggle", id: task.id })}
+                  onPress={async () => await act({ type: "task.toggle", id: task.id })}
                   style={[kit.row, { paddingVertical: 10 }]}
                 >
                   <View

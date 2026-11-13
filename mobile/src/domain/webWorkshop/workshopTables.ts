@@ -2,6 +2,7 @@ export type TableShape = 'rect' | 'round'
 export type TableStatus = 'assigned' | 'free' | 'shared'
 
 export type WorkshopTable = {
+  assignmentHistory?: import("../../../../shared/web/workshopAllocation").AllocationHistory[];
   code: string
   shape: TableShape
   /** Center and size in pixels of the floor-plan image, so hotspots sit exactly on the drawn tables. */

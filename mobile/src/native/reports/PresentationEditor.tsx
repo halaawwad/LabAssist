@@ -196,7 +196,7 @@ export function PresentationEditor({
       slides: d.slides.map((s) => (s.id === slide.id ? patchSlideObject(s, id, change) : s)),
     }));
   }
-  function save() {
+  async function save() {
     if (!editable) return false;
     if (!validDeck(deck)) {
       setNotice("Check slide content and object dimensions before saving.");
@@ -205,7 +205,7 @@ export function PresentationEditor({
     const fields = Object.fromEntries(
       deck.slides.map((s, i) => [`Slide ${i + 1}: ${s.title}`, s.body || s.notes || s.title]),
     );
-    const ok = act({
+    const ok = await act({
       type: "report.save",
       id: report.id,
       fields,
@@ -334,9 +334,9 @@ export function PresentationEditor({
       }
     }
   }
-  function exportFile(operation: "pdf" | "pptx") {
+  async function exportFile(operation: "pdf" | "pptx") {
     if (busy) return;
-    if (editable && !save()) return;
+    if (editable && !await save()) return;
     setBusy(true);
     setRequest({ id: String(Date.now()), operation, deck });
   }
@@ -358,14 +358,14 @@ export function PresentationEditor({
           variant="soft"
           size="sm"
           disabled={busy}
-          onPress={() => exportFile("pptx")}
+          onPress={async () => await exportFile("pptx")}
         />
         <Button
           title="Export PDF"
           variant="soft"
           size="sm"
           disabled={busy}
-          onPress={() => exportFile("pdf")}
+          onPress={async () => await exportFile("pdf")}
         />
         {editable && (
           <Button
@@ -746,7 +746,7 @@ export function PresentationEditor({
         </Panel>
       )}
       {editable && (
-        <Button title="Submit presentation" onPress={() => save() && setConfirm(true)} />
+        <Button title="Submit presentation" onPress={async () => await save() && setConfirm(true)} />
       )}
       {supervisor && (
         <Panel title="Supervisor feedback">
@@ -759,10 +759,11 @@ export function PresentationEditor({
           <Button
             title="Send feedback"
             disabled={!feedback.trim()}
-            onPress={() => {
+            onPress={async () => {
               if (
-                act({
+                await act({
                   type: "report.review",
+                        submissionId: report.history?.at(-1)?.id ?? "",
                   status: "reviewed",
                   id: report.id,
                   body: feedback,
@@ -820,8 +821,8 @@ export function PresentationEditor({
             <Button title="Keep editing" variant="ghost" onPress={() => setConfirm(false)} />
             <Button
               title="Confirm submission"
-              onPress={() => {
-                if (act({ type: "report.submit", id: report.id })) {
+              onPress={async () => {
+                if (await act({ type: "report.submit", id: report.id })) {
                   setConfirm(false);
                   setNotice("Presentation submitted.");
                 }

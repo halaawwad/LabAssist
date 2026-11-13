@@ -1,4 +1,5 @@
-﻿import { createContext, useContext, useState, type ReactNode } from "react";
+import { demoStudents } from "../../../../shared/web/domain";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import defaultAvatar from "@/assets/student-avatar.jpg";
 export type StudentProfile = {
   name: string;
@@ -16,14 +17,14 @@ type PersonalTask = { id: string; text: string; done: boolean };
 type Reminder = { id: string; text: string; when: string };
 function useProfileState() {
   const [profile, updateProfile] = useState<StudentProfile>({
-    name: "NOOR OWASSI",
+    name: demoStudents[0]!.name,
     university: "",
     major: "",
     year: "",
     birthYear: "",
     phone: "",
-    studentNumber: "",
-    email: "",
+    studentNumber: demoStudents[0]!.number,
+    email: demoStudents[0]!.email,
     github: "https://github.com/NOOROWAISSI",
     photo: defaultAvatar,
   });

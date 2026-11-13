@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { demoSupervisor } from "../../../../../shared/web/domain";
+import { useWorkspace } from "@/state/WorkspaceProvider";
 import { Image, Modal, Pressable, ScrollView, View, StyleSheet } from "react-native";
 import Svg, { Line, Polyline, Circle, Text as SvgText } from "react-native-svg";
 import { AppText, Button } from "@/components";
@@ -42,13 +44,15 @@ export function WebSupervisorPanels({
 }: {
   page: "projects" | "students" | "progress" | "tasks";
 }) {
+  const { state, actorId } = useWorkspace();
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("All"),
     [chosen, setChosen] = useState(0),
     [details, setDetails] = useState(false),
     [notice, setNotice] = useState(""),
     [note, setNote] = useState("");
-  const { value: notes, setValue: setNotes } = useLocalPreview<Record<string, string>>(
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const { value: notes, setValue: setNotes, error: notesError } = useLocalPreview<Record<string, string>>(
     "labassist.mobile.supervisor.progress.notes",
     {},
   );
@@ -83,6 +87,10 @@ export function WebSupervisorPanels({
           ["Urgent", "High", "Medium", "Low"].indexOf(b.priority)
         : a.dueDate.localeCompare(b.dueDate),
     );
+  // These legacy preview collections are explicitly assigned to SUP01.
+  const actor = state.users.find(user => user.id === actorId);
+  if (actor?.role !== "supervisor" || (actor.canonicalId ?? (actor.id === "d1" ? demoSupervisor.id : actor.id)) !== demoSupervisor.id)
+    return <Panel title="Linked projects"><AppText>No linked projects in this local preview.</AppText></Panel>;
   return (
     <View style={kit.stack}>
       <AppText variant="title">
@@ -361,16 +369,17 @@ export function WebSupervisorPanels({
             )}
           </Panel>
           <Panel title="Supervisor note">
+            {!!notesError && <AppText accessibilityRole="alert">{notesError}</AppText>}
             <Field
               label="Note for this project"
               multiline
-              value={notes[progress.code] ?? progress.note}
-              onChangeText={(value) => setNotes({ ...notes, [progress.code]: value })}
+              value={noteDrafts[progress.code] ?? notes[progress.code] ?? progress.note}
+              onChangeText={value => setNoteDrafts(drafts => ({ ...drafts, [progress.code]: value }))}
             />
             <Button
               title="Save note"
               size="sm"
-              onPress={() => setNotice("Project note saved on this device.")}
+              onPress={async () => { if (await setNotes({ ...notes, [progress.code]: noteDrafts[progress.code] ?? notes[progress.code] ?? progress.note })) setNotice("Project note saved on this device."); }}
             />
           </Panel>
         </>
@@ -462,8 +471,8 @@ export function WebSupervisorPanels({
                   title={task.status === "Completed" ? "Mark pending" : "Mark complete"}
                   variant="soft"
                   size="sm"
-                  onPress={() =>
-                    setTasks(
+                  onPress={async () =>
+                    await setTasks(
                       tasks.map((t) =>
                         t.id === task.id
                           ? { ...t, status: t.status === "Completed" ? "Pending" : "Completed" }
@@ -536,15 +545,15 @@ export function WebSupervisorPanels({
                 disabled={
                   !editing.title?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(editing.dueDate ?? "")
                 }
-                onPress={() => {
+                onPress={async () => {
                   const task = {
                     ...editing,
                     id: editing.id ?? `task-${Date.now()}`,
                     status: editing.status ?? "Pending",
                   } as SupervisorTask;
-                  setTasks(
+                  if ((await setTasks(
                     editing.id ? tasks.map((t) => (t.id === task.id ? task : t)) : [...tasks, task],
-                  );
+                  )) === false) return false;
                   setEditing(null);
                 }}
               />
@@ -578,12 +587,12 @@ export function WebSupervisorPanels({
               <Button
                 title="Save feedback"
                 disabled={!note.trim()}
-                onPress={() => {
-                  setNotes({
+                onPress={async () => {
+                  if ((await setNotes({
                     ...notes,
                     [page === "students" ? supervisedStudents[chosen].universityId : progress.code]:
                       note,
-                  });
+                  })) === false) return false;
                   setDetails(false);
                   setNotice("Feedback saved in this local preview.");
                 }}

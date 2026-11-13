@@ -135,8 +135,8 @@ export function AttendancePanel() {
           <AppText style={kit.grow}>{t("Actual working day", "يوم دوام فعلي")}</AppText>
           <Switch
             value={open}
-            onValueChange={(value) => {
-              act({ type: "day.set", date, open: value });
+            onValueChange={async (value) => {
+              await act({ type: "day.set", date, open: value });
             }}
           />
         </View>
@@ -176,14 +176,14 @@ export function AttendancePanel() {
                   title={t("Present", "حاضر")}
                   disabled={!open}
                   variant={value === true ? "primary" : "ghost"}
-                  onPress={() => act({ type: "attendance.set", userId: u.id, date, present: true })}
+                  onPress={async () => await act({ type: "attendance.set", userId: u.id, date, present: true })}
                 />
                 <Button
                   title={t("Absent", "غائب")}
                   disabled={!open}
                   variant={value === false ? "danger" : "ghost"}
-                  onPress={() =>
-                    act({ type: "attendance.set", userId: u.id, date, present: false })
+                  onPress={async () =>
+                    await act({ type: "attendance.set", userId: u.id, date, present: false })
                   }
                 />
               </View>
@@ -202,6 +202,7 @@ export function TablesPanel({ readonly = false }: { readonly?: boolean }) {
   const width = 600 * zoom;
   return (
     <>
+      {!readonly && state.users.find(u => u.id === actorId)?.role === "workshop" && state.projects.some(p => !!p.table) && <Panel title="Release table / Free capacity">{state.projects.filter(p => p.table).map(p => <Button key={p.id} title={`${p.title} - ${p.table}`} variant="ghost" onPress={async () => { await act({ type: "table.release", projectId: p.id }); }} />)}</Panel>}
       <AppText tone="muted">
         {t(
           "Tap a table to view its teams. Rectangular tables hold one team; round tables hold two.",
@@ -291,7 +292,7 @@ export function TablesPanel({ readonly = false }: { readonly?: boolean }) {
                   <Button
                     title={t("Verify table move", "تأكيد تغيير الطاولة")}
                     variant="soft"
-                    onPress={() => act({ type: "table.verify", projectId: p.id })}
+                    onPress={async () => await act({ type: "table.verify", projectId: p.id })}
                   />
                 )}
                 <AppText tone="muted">
@@ -313,7 +314,7 @@ export function TablesPanel({ readonly = false }: { readonly?: boolean }) {
               />
               <Button
                 title={t("Assign selected team", "تعيين الفريق المختار")}
-                onPress={() => act({ type: "table.assign", projectId: team, table: selected })}
+                onPress={async () => await act({ type: "table.assign", projectId: team, table: selected })}
               />
             </>
           )}
@@ -321,9 +322,9 @@ export function TablesPanel({ readonly = false }: { readonly?: boolean }) {
             <Button
               title={t("Move my team here", "نقل فريقي إلى هنا")}
               variant="soft"
-              onPress={() => {
+              onPress={async () => {
                 const p = state.projects.find((p) => p.studentIds.includes(actorId))!;
-                act({ type: "table.assign", projectId: p.id, table: selected });
+                await act({ type: "table.assign", projectId: p.id, table: selected });
               }}
             />
           )}
@@ -363,9 +364,9 @@ function HandoversPanel() {
         <Button
           title={t("Record handover", "تسجيل التسليم")}
           disabled={!toolName.trim()}
-          onPress={() => {
+          onPress={async () => {
             if (
-              act({
+              await act({
                 type: "tool.issue",
                 projectId: team,
                 name: toolName,
@@ -387,10 +388,10 @@ function HandoversPanel() {
                 `المسلّم: ${tool.quantity} · المسترد: ${tool.returned} · التالف: ${tool.damaged} · المفقود: ${tool.missing}`,
               )}
             </AppText>
-            <AppText tone={tool.quantity - tool.returned - tool.damaged ? "danger" : "primary"}>
+            <AppText tone={tool.quantity - tool.returned - tool.damaged - tool.missing ? "danger" : "primary"}>
               {t(
-                `Outstanding: ${tool.quantity - tool.returned - tool.damaged}`,
-                `المتبقي بعهدة الفريق: ${tool.quantity - tool.returned - tool.damaged}`,
+                `Outstanding: ${tool.quantity - tool.returned - tool.damaged - tool.missing}`,
+                `المتبقي بعهدة الفريق: ${tool.quantity - tool.returned - tool.damaged - tool.missing}`,
               )}
             </AppText>
             <Button
@@ -425,9 +426,9 @@ function HandoversPanel() {
                 />
                 <Button
                   title={t("Save inspection", "حفظ الفحص")}
-                  onPress={() => {
+                  onPress={async () => {
                     if (
-                      act({
+                      await act({
                         type: "tool.return",
                         id: tool.id,
                         returned: Number(good),
@@ -478,9 +479,9 @@ function NoticeEditor({ observations }: { observations: boolean }) {
         <Button
           title={t("Publish", "نشر")}
           disabled={!body.trim()}
-          onPress={() => {
+          onPress={async () => {
             if (
-              act({
+              await act({
                 type: "notice.add",
                 body,
                 projectId: team === "all" ? undefined : team,

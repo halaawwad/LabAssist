@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from 'react'
+import { demoSupervisor } from '../../../../../shared/web/domain'
+import { useAccount } from '../../state/supervisor/accountContext'
 import { useSearchParams } from 'react-router-dom'
 import {
   CalendarDays,
@@ -34,9 +36,12 @@ const todayIso = () => new Date().toISOString().slice(0, 10)
 
 export function WeeklyReports() {
   const { t, formatDate } = useI18n()
+  const { profile } = useAccount()
+  const linkedTeams = reportTeams.filter(team => team.supervisorIds.includes(profile.accountId ?? demoSupervisor.id))
   const [searchParams, setSearchParams] = useSearchParams()
-  const linkedReport = weeklyTeamReports.find((report) => report.id === searchParams.get('report'))
-  const [reports, setReports] = useLocalState('reports.v1', weeklyTeamReports)
+  const linkedReport = weeklyTeamReports.find((report) => report.id === searchParams.get('report') && linkedTeams.some(team => team.id === report.team.id))
+  const [storedReports, setReports] = useLocalState('reports.v1', weeklyTeamReports)
+  const reports = storedReports.filter(report => linkedTeams.some(team => team.id === report.team.id))
   const [project, setProject] = useState('all')
   const [teamId, setTeamId] = useState('all')
   const [weekId, setWeekId] = useState(linkedReport?.weekId ?? latestWeek.id)
@@ -62,9 +67,9 @@ export function WeeklyReports() {
 
   const week = reportWeeks.find((item) => item.id === weekId) ?? latestWeek
   const projects = [
-    ...new Map(reportTeams.map((team) => [team.projectCode, team.projectName])).entries(),
+    ...new Map(linkedTeams.map((team) => [team.projectCode, team.projectName])).entries(),
   ]
-  const teamOptions = reportTeams.filter(
+  const teamOptions = linkedTeams.filter(
     (team) => project === 'all' || team.projectCode === project,
   )
   // Project and team drive the chart; status and search only narrow the list.
@@ -101,11 +106,11 @@ export function WeeklyReports() {
   }
 
   const sendFeedback = (text: string) => {
-    if (!selected) return
+    if (!selected || !text.trim()) return
     updateReport(selected.id, (report) => ({
       feedback: [
         ...report.feedback,
-        { id: `${report.id}-fb-${report.feedback.length + 1}`, from: 'me', text, date: todayIso() },
+        { id: crypto.randomUUID(), submissionId: report.id, supervisorId: profile.accountId ?? demoSupervisor.id, from: 'me', text: text.trim(), date: todayIso() },
       ],
     }))
     setNotice(t('reports.notices.feedback', { name: selected.team.name }))
