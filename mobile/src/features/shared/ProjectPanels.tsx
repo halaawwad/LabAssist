@@ -51,8 +51,8 @@ export function TasksPanel({ readonly = false }: { readonly?: boolean }) {
           <Button
             title={t("Add task", "إضافة المهمة")}
             disabled={!title.trim()}
-            onPress={() => {
-              if (act({ type: "task.add", projectId: p.id, title, ownerId: owner })) setTitle("");
+            onPress={async () => {
+              if (await act({ type: "task.add", projectId: p.id, title, ownerId: owner })) setTitle("");
             }}
           />
         </Panel>
@@ -68,7 +68,7 @@ export function TasksPanel({ readonly = false }: { readonly?: boolean }) {
               disabled: readonly || task.ownerId !== actorId,
             }}
             disabled={readonly || task.ownerId !== actorId}
-            onPress={() => act({ type: "task.toggle", id: task.id })}
+            onPress={async () => await act({ type: "task.toggle", id: task.id })}
           >
             <Panel tint={task.done ? colors.primaryWash : undefined}>
               <AppText weight="semibold">
@@ -112,8 +112,8 @@ export function IssuesPanel({ readonly = false }: { readonly?: boolean }) {
           <Button
             title={t("Add issue", "إضافة المشكلة")}
             disabled={!title.trim()}
-            onPress={() => {
-              if (act({ type: "issue.add", projectId: team, title })) setTitle("");
+            onPress={async () => {
+              if (await act({ type: "issue.add", projectId: team, title })) setTitle("");
             }}
           />
         </Panel>
@@ -128,7 +128,7 @@ export function IssuesPanel({ readonly = false }: { readonly?: boolean }) {
               <Button
                 title={i.resolved ? t("Reopen", "إعادة فتح") : t("Mark resolved", "تم حل المشكلة")}
                 variant="soft"
-                onPress={() => act({ type: "issue.toggle", id: i.id })}
+                onPress={async () => await act({ type: "issue.toggle", id: i.id })}
               />
             )}
           </Panel>
@@ -160,7 +160,7 @@ export function FinancePanel({ parts = false }: { parts?: boolean }) {
         <Button
           title={t("Update budget", "تعديل الميزانية")}
           variant="ghost"
-          onPress={() => act({ type: "budget.set", projectId: p.id, amount: Number(budget) })}
+          onPress={async () => await act({ type: "budget.set", projectId: p.id, amount: Number(budget) })}
         />
         <AppText variant="heading">{t("Project budget", "ميزانية المشروع")}</AppText>
         <AppText variant="title">₪{(p.budget - spent).toFixed(2)}</AppText>
@@ -201,9 +201,9 @@ export function FinancePanel({ parts = false }: { parts?: boolean }) {
         <Button
           title={t("Add", "إضافة")}
           disabled={!name.trim() || !amount}
-          onPress={() => {
+          onPress={async () => {
             if (
-              act(
+              await act(
                 parts
                   ? {
                       type: "part.add",
@@ -232,8 +232,8 @@ export function FinancePanel({ parts = false }: { parts?: boolean }) {
                 </AppText>
                 <Chips
                   value={part.status}
-                  onChange={(status) =>
-                    act({ type: "part.status", id: part.id, status: status as typeof part.status })
+                  onChange={async (status) =>
+                    await act({ type: "part.status", id: part.id, status: status as typeof part.status })
                   }
                   options={[
                     { id: "needed", label: t("Needed", "مطلوبة") },
@@ -285,9 +285,9 @@ function PartEstimate({ id }: { id: string }) {
           />
           <Button
             title={t("Save estimate", "حفظ التقدير")}
-            onPress={() => {
+            onPress={async () => {
               if (
-                act({
+                await act({
                   type: "part.update",
                   id,
                   quantity: Number(quantity),
@@ -383,8 +383,8 @@ export function ProjectDetails({
               />
               <Button
                 title={t("Save", "حفظ")}
-                onPress={() => {
-                  if (act({ type: "project.edit", id: project.id, title, description }))
+                onPress={async () => {
+                  if (await act({ type: "project.edit", id: project.id, title, description }))
                     setEdit(false);
                 }}
               />
@@ -403,8 +403,8 @@ export function ProjectDetails({
             <AppText style={kit.grow}>{t("Final report", "التقرير النهائي")}</AppText>
             <Switch
               value={project.finalOpen}
-              onValueChange={(open) => {
-                act({ type: "project.gate", id: project.id, kind: "final", open });
+              onValueChange={async (open) => {
+                await act({ type: "project.gate", id: project.id, kind: "final", open });
               }}
             />
           </View>
@@ -412,8 +412,8 @@ export function ProjectDetails({
             <AppText style={kit.grow}>{t("Presentation", "العرض التقديمي")}</AppText>
             <Switch
               value={project.presentationOpen}
-              onValueChange={(open) => {
-                act({ type: "project.gate", id: project.id, kind: "presentation", open });
+              onValueChange={async (open) => {
+                await act({ type: "project.gate", id: project.id, kind: "presentation", open });
               }}
             />
           </View>
@@ -427,80 +427,9 @@ export function SupervisorProjectsPanel() {
   const t = useCopy();
   const projects = state.projects.filter((p) => p.supervisorIds.includes(actorId));
   const [selected, setSelected] = useState("");
-  const [create, setCreate] = useState(false);
-  const [title, setTitle] = useState("");
-  const [students, setStudents] = useState([
-    { name: "", number: "" },
-    { name: "", number: "" },
-  ]);
   return (
     <View style={kit.stack}>
-      <Button
-        title={create ? t("Close", "إغلاق") : t("Register a new team", "تسجيل فريق جديد")}
-        variant="soft"
-        onPress={() => setCreate(!create)}
-      />
-      {create && (
-        <Panel>
-          <Field
-            label={t("Project working title", "عنوان مبدئي للمشروع")}
-            value={title}
-            onChangeText={setTitle}
-          />
-          {students.map((u, i) => (
-            <View key={i} style={kit.stack}>
-              <Field
-                label={t(`Student ${i + 1} name`, `اسم الطالب ${i + 1}`)}
-                value={u.name}
-                onChangeText={(name) =>
-                  setStudents((s) => s.map((u, j) => (j === i ? { ...u, name } : u)))
-                }
-              />
-              <Field
-                label={t("University number (8 digits)", "الرقم الجامعي (8 خانات)")}
-                value={u.number}
-                onChangeText={(number) =>
-                  setStudents((s) => s.map((u, j) => (j === i ? { ...u, number } : u)))
-                }
-                keyboardType="number-pad"
-                maxLength={8}
-              />
-            </View>
-          ))}
-          <Button
-            title={
-              students.length === 2
-                ? t("Add third student", "إضافة طالب ثالث")
-                : t("Remove third student", "إزالة الطالب الثالث")
-            }
-            variant="ghost"
-            onPress={() =>
-              setStudents((s) =>
-                s.length === 2 ? [...s, { name: "", number: "" }] : s.slice(0, 2),
-              )
-            }
-          />
-          <AppText variant="caption" tone="muted">
-            {t(
-              "Creates sample accounts and the shared team conversation on this device. Activation emails require the backend.",
-              "ينشئ حسابات تجريبية ومحادثة الفريق على هذا الجهاز. إرسال التفعيل يحتاج الباك.",
-            )}
-          </AppText>
-          <Button
-            title={t("Save team", "حفظ الفريق")}
-            onPress={() => {
-              if (act({ type: "project.create", title, students })) {
-                setCreate(false);
-                setTitle("");
-                setStudents([
-                  { name: "", number: "" },
-                  { name: "", number: "" },
-                ]);
-              }
-            }}
-          />
-        </Panel>
-      )}
+      <AppText>{t("Accounts and groups are provisioned by the Department Head.", "\u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062d\u0633\u0627\u0628\u0627\u062a \u0648\u0627\u0644\u0645\u062c\u0645\u0648\u0639\u0627\u062a \u0645\u0646 \u0635\u0644\u0627\u062d\u064a\u0627\u062a \u0631\u0626\u064a\u0633 \u0627\u0644\u0642\u0633\u0645.")}</AppText>
       <Chips
         value={selected}
         onChange={setSelected}

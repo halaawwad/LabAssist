@@ -79,6 +79,8 @@ function ProjectPage() {
       search.action === "issue" ? "issue" : null,
     ),
     [abstractDraft, setAbstractDraft] = useState(""),
+    [titleDraft, setTitleDraft] = useState(""),
+    [subtitleDraft, setSubtitleDraft] = useState(""),
     [issueDraft, setIssueDraft] = useState("");
   const [bom, setBom] =
     useState<
@@ -163,8 +165,8 @@ function ProjectPage() {
                 {project.status}
               </span>
               <h2>
-                {project.name}
-                <span>{project.subtitle}</span>
+                {workspace.details.name}
+                <span>{workspace.details.subtitle}</span>
               </h2>
               <p className="project-cover-meta">
                 <span>
@@ -251,6 +253,8 @@ function ProjectPage() {
                       className="action-blue-soft"
                       onClick={() => {
                         setAbstractDraft(workspace.abstract);
+                        setTitleDraft(workspace.details.name);
+                        setSubtitleDraft(workspace.details.subtitle);
                         setModal("abstract");
                       }}
                     >
@@ -544,18 +548,42 @@ function ProjectPage() {
             <DialogTitle>
               {modal === "abstract" ? "Edit Project Abstract" : "Add Issue"}
             </DialogTitle>
-            <DialogDescription>Changes stay in your current workspace session.</DialogDescription>
+            <DialogDescription>
+              Changes are saved on this device after a successful save.
+            </DialogDescription>
           </DialogHeader>
           {modal === "abstract" ? (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!abstractDraft.trim()) return;
-                workspace.setAbstract(abstractDraft.trim());
+                workspace.saveProjectDetails({
+                  name: titleDraft,
+                  subtitle: subtitleDraft,
+                  abstract: abstractDraft,
+                });
                 setModal(null);
               }}
               className="space-y-4"
             >
+              <label className="text-xs font-semibold">
+                Project title
+                <input
+                  className="w-full"
+                  maxLength={220}
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  required
+                />
+              </label>
+              <label className="text-xs font-semibold">
+                Subtitle
+                <input
+                  className="w-full"
+                  value={subtitleDraft}
+                  onChange={(e) => setSubtitleDraft(e.target.value)}
+                />
+              </label>
               <label htmlFor="abstract-editor" className="text-xs font-semibold">
                 Project abstract
               </label>

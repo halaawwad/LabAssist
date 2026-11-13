@@ -43,7 +43,7 @@ export function ProfilePanel() {
                 quality: 0.8,
               });
               if (!result.canceled)
-                act({
+                await act({
                   type: "profile.edit",
                   name: user.name,
                   bio: user.bio,
@@ -68,7 +68,7 @@ export function ProfilePanel() {
         />
         <Button
           title={t("Save profile", "حفظ الملف الشخصي")}
-          onPress={() => setSaved(act({ type: "profile.edit", name, bio }))}
+          onPress={async () => setSaved(await act({ type: "profile.edit", name, bio }))}
         />
         {saved && <AppText tone="primary">{t("Profile saved", "تم الحفظ")}</AppText>}
       </Panel>
@@ -120,8 +120,8 @@ export function SettingsPanel() {
             </AppText>
             <Switch
               value={state.availability === "open"}
-              onValueChange={(value) => {
-                act({ type: "availability.set", value: value ? "open" : "closed" });
+              onValueChange={async (value) => {
+                await act({ type: "availability.set", value: value ? "open" : "closed" });
               }}
               trackColor={{ true: colors.primary }}
             />
@@ -134,8 +134,8 @@ export function SettingsPanel() {
           />
           <Button
             title={t("Save threshold", "حفظ النسبة")}
-            onPress={() =>
-              act({ type: "threshold.set", value: threshold.trim() ? Number(threshold) : null })
+            onPress={async () =>
+              await act({ type: "threshold.set", value: threshold.trim() ? Number(threshold) : null })
             }
           />
           <AppText variant="caption" tone="muted">
@@ -199,7 +199,7 @@ export function NotificationsPanel() {
             title={a.read ? t("Read", "مقروء") : t("Mark as read", "تحديد كمقروء")}
             disabled={a.read}
             variant="ghost"
-            onPress={() => act({ type: "alert.read", id: a.id })}
+            onPress={async () => await act({ type: "alert.read", id: a.id })}
           />
         </Panel>
       ))}
@@ -329,7 +329,7 @@ export function NoticesPanel() {
             }
             variant="ghost"
             disabled={n.seenBy.includes(actorId)}
-            onPress={() => act({ type: "notice.view", id: n.id })}
+            onPress={async () => await act({ type: "notice.view", id: n.id })}
           />
         </Panel>
       ))}

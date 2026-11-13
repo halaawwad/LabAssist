@@ -132,8 +132,8 @@ export const en = {
     preview: 'Students will receive',
     invalidRange: 'The return time must be after the start time.',
     send: 'Send Notice',
-    sentTemporary: 'Students notified: away {from} – {until}.',
-    sentFullDay: 'Students notified of your full-day absence.',
+    sentTemporary: 'Absence {from} – {until} saved locally. Backend delivery is pending.',
+    sentFullDay: 'Full-day absence saved locally. Backend delivery is pending.',
     backToast: 'You are back on duty. Students see you as available.',
   },
   notices: {
@@ -149,7 +149,7 @@ export const en = {
     type: 'Notice type',
     message: 'Message',
     send: 'Send Notice',
-    sent: 'Notice sent to {audience}.',
+    sent: 'Notice for {audience} saved locally. Backend delivery is pending.',
     recent: 'Sent notices',
     quick: 'Quick notices',
     empty: 'No notices sent yet.',
@@ -218,7 +218,7 @@ export const en = {
     note: 'Short note',
     notePlaceholder: 'What did you observe?',
     send: 'Send Observation',
-    sent: 'Observation sent to {supervisor}.',
+    sent: 'Observation for {supervisor} saved locally. Backend delivery is pending.',
     types: {
       repeatedAbsence: 'Repeated absence',
       notWorking: 'Not actively working',

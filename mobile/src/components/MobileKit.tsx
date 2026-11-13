@@ -67,7 +67,7 @@ export function Page({
   children: ReactNode;
   back?: boolean;
 }) {
-  const { error, clearError, storageError, actorId, state } = useWorkspace();
+  const { error, clearError, storageError, retryLoading, saving, actorId, state } = useWorkspace();
   const role = state.users.find((user) => user.id === actorId)?.role ?? "student";
   const unread = state.alerts.filter((alert) => alert.userId === actorId && !alert.read).length;
   const t = useCopy();
@@ -170,6 +170,8 @@ export function Page({
           )}
         </AppText>
       )}
+      {saving && <AppText accessibilityLiveRegion="polite">Saving changes...</AppText>}
+      {storageError && <Pressable onPress={retryLoading}><AppText>Retry loading saved records</AppText></Pressable>}
       {children}
     </ScreenContainer>
   );

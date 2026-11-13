@@ -167,9 +167,10 @@ export default function StudentDashboard() {
       target: "Components",
     },
   ];
-  const completedToday = teammates[0].tasks.filter((_, i) =>
-    workspace.completed.includes(`0-${i}`),
-  ).length;
+  const ownTasks = workspace.teamTasks.filter(
+    (task) => workspace.members[task.owner]?.id === workspace.actorId,
+  );
+  const completedToday = ownTasks.filter((task) => workspace.completed.includes(task.id)).length;
   if (!ready) return null;
   return (
     <SafeAreaView style={s.root} edges={["top", "bottom"]}>
@@ -271,7 +272,7 @@ export default function StudentDashboard() {
           </View>
           <Paper>
             <AppText style={s.eyebrow}>ONE PROJECT. A LOT OF POSSIBILITIES.</AppText>
-            <AppText style={s.projectTitle}>{project.name}</AppText>
+            <AppText style={s.projectTitle}>{workspace.details.title}</AppText>
             <AppText tone="muted" style={{ fontSize: 19 }}>
               {project.subtitle}
             </AppText>
@@ -305,21 +306,32 @@ export default function StudentDashboard() {
           <Paper>
             <View style={s.between}>
               <View>
+                {!!workspace.error && (
+                  <View>
+                    <AppText accessibilityRole="alert">{workspace.error}</AppText>
+                    <Button title="Retry loading" onPress={workspace.retryLoading} />
+                  </View>
+                )}
                 <AppText style={s.eyebrow}>MAKE TODAY COUNT</AppText>
                 <AppText variant="heading">Your focus today</AppText>
               </View>
-              <AppText style={s.pill}>{completedToday} / 2</AppText>
+              <AppText style={s.pill}>
+                {completedToday} / {ownTasks.length}
+              </AppText>
             </View>
-            {teammates[0].tasks.map((title, i) => {
-              const done = workspace.completed.includes(`0-${i}`);
+            {ownTasks.map((task, i) => {
+              const done = workspace.completed.includes(task.id);
               return (
                 <Pressable
-                  key={title}
+                  key={task.id}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: done }}
-                  onPress={() => {
-                    workspace.toggleTask(`0-${i}`);
-                    workspace.logTeamActivity(0, `${done ? "Reopened" : "Completed"} “${title}”`);
+                  onPress={async () => {
+                    if (!(await workspace.toggleTask(task.id))) return;
+                    workspace.logTeamActivity(
+                      0,
+                      `${done ? "Reopened" : "Completed"} “${task.title}”`,
+                    );
                   }}
                   style={s.task}
                 >
@@ -332,7 +344,7 @@ export default function StudentDashboard() {
                         done ? { textDecorationLine: "line-through", color: "#8a927f" } : undefined
                       }
                     >
-                      {title}
+                      {task.title}
                     </AppText>
                     <AppText variant="caption" tone="muted">
                       {i === 0 ? "Design" : "Documentation"} · My assigned task
@@ -616,8 +628,8 @@ export default function StudentDashboard() {
                 <Button
                   title="Add issue"
                   disabled={!issue.trim()}
-                  onPress={() => {
-                    workspace.addIssue(issue.trim());
+                  onPress={async () => {
+                    if (!(await workspace.addIssue(issue.trim()))) return;
                     setIssue("");
                     setDestination("");
                   }}
@@ -641,7 +653,7 @@ export default function StudentDashboard() {
   );
 }
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#eee8dc", overflow: 'hidden' },
+  root: { flex: 1, backgroundColor: "#eee8dc", overflow: "hidden" },
   fill: { flex: 1, minWidth: 0 },
   wash: {
     position: "absolute",

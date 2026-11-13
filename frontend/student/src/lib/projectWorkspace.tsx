@@ -1,7 +1,10 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { useStoredState } from "./useStoredState";
+import { demoTeam, demoStudents, demoTasks } from "../../../../shared/web/domain";
+import { createContext, useContext, useState, type SetStateAction, type ReactNode } from "react";
 
 export const project = {
-  name: "Smart Car",
+  id: demoTeam.id,
+  name: demoTeam.title,
   subtitle: "Autonomous Navigation",
   status: "In Progress",
   deadline: "Oct 24, 2026",
@@ -12,28 +15,28 @@ export const project = {
 };
 export const teammates = [
   {
-    name: "NOOR OWASSI",
+    name: demoStudents[0]!.name,
     initials: "NO",
-    done: 19,
-    remaining: 6,
+    done: 0,
+    remaining: 1,
     tone: "mint",
-    tasks: ["Finalize sensor connections", "Document circuit changes"],
+    tasks: [demoTasks[0]!.title],
   },
   {
-    name: "Omar Khalil",
+    name: demoStudents[1]!.name,
     initials: "OK",
-    done: 17,
-    remaining: 8,
+    done: 0,
+    remaining: 1,
     tone: "blue",
-    tasks: ["Test motor driver response", "Check power consumption"],
+    tasks: [demoTasks[1]!.title],
   },
   {
-    name: "Lina Nasser",
+    name: demoStudents[2]!.name,
     initials: "LN",
-    done: 16,
-    remaining: 9,
+    done: 0,
+    remaining: 1,
     tone: "rose",
-    tasks: ["Calibrate obstacle detection", "Record test results"],
+    tasks: [demoTasks[2]!.title],
   },
 ];
 export const projectBom = [
@@ -97,20 +100,36 @@ export type TeamTask = {
 };
 export type TeamActivity = { id: string; owner: number; text: string; time: string };
 function useWorkspaceState() {
-  const [teamTasks, setTeamTasks] = useState<TeamTask[]>(
-    teammates.flatMap((p, owner) =>
-      p.tasks.map((title, i) => ({
-        id: `${owner}-${i}`,
-        owner,
-        title,
-        description:
-          "Complete the work, document the outcome and share any blockers with the team.",
-        due: owner === 2 && i === 0 ? "2026-10-11" : "2026-10-13",
-        inProgress: i === 0,
-        help: false,
-      })),
-    ),
+  const [taskData, persistTaskData] = useStoredState<{ tasks: TeamTask[]; completed: string[] }>(
+    "labassist.student.team-work.v1",
+    {
+      tasks: teammates.flatMap((p, owner) =>
+        p.tasks.map((title, i) => ({
+          id: demoTasks[owner]!.id,
+          owner,
+          title,
+          description:
+            "Complete the work, document the outcome and share any blockers with the team.",
+          due: "",
+          inProgress: false,
+          help: false,
+        })),
+      ),
+      completed: [],
+    },
   );
+  const teamTasks = taskData.tasks;
+  const completed = taskData.completed;
+  const persistTasks = (action: SetStateAction<TeamTask[]>) =>
+    persistTaskData((current) => ({
+      ...current,
+      tasks: typeof action === "function" ? action(current.tasks) : action,
+    }));
+  const setCompleted = (action: SetStateAction<string[]>) =>
+    persistTaskData((current) => ({
+      ...current,
+      completed: typeof action === "function" ? action(current.completed) : action,
+    }));
   const [teamActivity, setTeamActivity] = useState<TeamActivity[]>([
     { id: "seed1", owner: 0, text: "Updated the circuit design", time: "Sample activity" },
     { id: "seed2", owner: 1, text: "Added motor driver test notes", time: "Sample activity" },
@@ -132,20 +151,84 @@ function useWorkspaceState() {
         ...items,
       ].slice(0, 30),
     );
-  const [abstract, setAbstract] = useState(defaultAbstract);
-  const [completed, setCompleted] = useState<string[]>([]);
+  const [details, setDetails] = useStoredState("labassist.student.project-details.v1", {
+    name: project.name,
+    subtitle: project.subtitle,
+    abstract: defaultAbstract,
+  });
+  const abstract = details.abstract;
+  const setAbstract = (value: string) => setDetails((current) => ({ ...current, abstract: value }));
+  const saveProjectDetails = (value: typeof details) => {
+    if (!value.name.trim() || value.name.trim().length > 220 || !value.abstract.trim())
+      throw new Error("Enter a title (up to 220 characters) and project abstract.");
+    setDetails({
+      name: value.name.trim(),
+      subtitle: value.subtitle.trim(),
+      abstract: value.abstract.trim(),
+    });
+  };
   const [issues, setIssues] = useState<string[]>([]);
   const [report, setReport] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const toggleTask = (id: string) =>
+  const setTeamTasks: typeof persistTasks = (action) =>
+    persistTasks((items) => {
+      const next = typeof action === "function" ? action(items) : action;
+      if (
+        next.some((task) => task.owner < 0 || task.owner >= teammates.length || !task.title.trim())
+      )
+        throw new Error("Choose a teammate and task title.");
+      if (
+        items.some(
+          (old) =>
+            old.owner !== 0 &&
+            JSON.stringify(next.find((t) => t.id === old.id)) !== JSON.stringify(old),
+        )
+      )
+        throw new Error("Only the task assignee may edit their task.");
+      if (
+        items.some(
+          (old) =>
+            next.find((t) => t.id === old.id)?.owner !== old.owner &&
+            next.some((t) => t.id === old.id),
+        )
+      )
+        throw new Error("Task reassignment is not implemented.");
+      return next;
+    });
+  const toggleTask = (id: string) => {
+    if (teamTasks.find((task) => task.id === id)?.owner !== 0)
+      throw new Error("Only the task assignee may update their task.");
     setCompleted((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
     );
-  const completedCount = teammates.reduce((sum, person) => sum + person.done, 0) + completed.length;
-  const taskCount =
-    teammates.reduce((sum, person) => sum + person.done + person.remaining, 0) +
-    Math.max(0, teamTasks.length - 6);
+  };
+  const updateTaskStatus = (id: string, status: string) =>
+    persistTaskData((current) => {
+      const task = current.tasks.find((item) => item.id === id);
+      if (!task || task.owner !== 0 || !["To Do", "In Progress", "Completed"].includes(status))
+        throw new Error("Only the task assignee may update their task.");
+      return {
+        tasks: current.tasks.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                inProgress: status === "In Progress",
+                help: status === "Completed" ? false : item.help,
+              }
+            : item,
+        ),
+        completed: [
+          ...current.completed.filter((value) => value !== id),
+          ...(status === "Completed" ? [id] : []),
+        ],
+      };
+    });
+  const completedCount = teamTasks.filter((task) => completed.includes(task.id)).length;
+  const taskCount = teamTasks.length;
   return {
+    details,
+    saveProjectDetails,
+    updateTaskStatus,
     teamTasks,
     setTeamTasks,
     teamActivity,
@@ -161,7 +244,7 @@ function useWorkspaceState() {
     submitted,
     submitReport: () => setSubmitted(true),
     withdrawReport: () => setSubmitted(false),
-    progress: Math.round((completedCount / taskCount) * 100),
+    progress: Math.round((completedCount / Math.max(1, taskCount)) * 100),
     completedCount,
     taskCount,
   };

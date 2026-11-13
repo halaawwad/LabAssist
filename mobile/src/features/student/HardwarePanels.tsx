@@ -80,8 +80,8 @@ export function CircuitLabPanel() {
         { from: a, fromPin: ap, to: b, toPin: bp, color, kind: wireKind },
       ]);
   }
-  function save() {
-    if (act({ type: "circuit.save", id, name, nodes, wires })) {
+  async function save() {
+    if (await act({ type: "circuit.save", id, name, nodes, wires })) {
       if (!id) {
         setNotice(
           t(
@@ -315,8 +315,8 @@ export function CircuitLabPanel() {
                         : t("Share with team", "مشاركة مع الفريق")
                     }
                     variant="ghost"
-                    onPress={() =>
-                      act({
+                    onPress={async () =>
+                      await act({
                         type: "circuit.share",
                         id: c.id,
                         shared: !c.shared,
@@ -326,8 +326,8 @@ export function CircuitLabPanel() {
                   />
                   <Chips
                     value={c.published}
-                    onChange={(published) =>
-                      act({
+                    onChange={async (published) =>
+                      await act({
                         type: "circuit.share",
                         id: c.id,
                         shared: c.shared,
@@ -345,7 +345,7 @@ export function CircuitLabPanel() {
               {c.ownerId !== actorId && c.published === "copy" && (
                 <Button
                   title={t("Create your own copy", "إنشاء نسخة خاصة")}
-                  onPress={() => act({ type: "circuit.copy", id: c.id })}
+                  onPress={async () => await act({ type: "circuit.copy", id: c.id })}
                 />
               )}
             </Panel>

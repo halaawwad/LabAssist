@@ -1,20 +1,30 @@
+import { ReportsPanel } from "@/features/shared/ReportsPanel";
+import { router } from "./router";
 import { useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { AppText, Button } from "@/components";
 import { Panel, Ring, kit } from "@/components/MobileKit";
 import { ProjectPhoto } from "@/components/ProjectPhoto";
-import { project, projectBom, teammates, useProjectWorkspace } from "./StudentReference";
+import { project, projectBom, useProjectWorkspace } from "./StudentReference";
 
 export function ReferenceProject({ initial = "Overview" }: { initial?: string }) {
   const workspace = useProjectWorkspace();
   const [tab, setTab] = useState(initial),
     [edit, setEdit] = useState(false),
     [issue, setIssue] = useState("");
+  const [titleDraft, setTitleDraft] = useState(workspace.details.title);
+  const [abstractDraft, setAbstractDraft] = useState(workspace.abstract);
   return (
     <View style={kit.stack}>
+      {!!workspace.error && (
+        <Panel>
+          <AppText accessibilityRole="alert">{workspace.error}</AppText>
+          <Button title="Retry loading" onPress={workspace.retryLoading} />
+        </Panel>
+      )}
       <Panel>
         <AppText tone="primary">{project.status}</AppText>
-        <AppText variant="title">{project.name}</AppText>
+        <AppText variant="title">{workspace.details.title}</AppText>
         <AppText tone="muted">{project.subtitle}</AppText>
         <AppText variant="caption">{project.deadline} · 3 teammates</AppText>
         <AppText weight="bold">{workspace.progress}% overall progress</AppText>
@@ -76,23 +86,43 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
             <Button
               title={edit ? "Close editor" : "Edit abstract"}
               variant="ghost"
-              onPress={() => setEdit(!edit)}
+              onPress={() => {
+                if (!edit) {
+                  setTitleDraft(workspace.details.title);
+                  setAbstractDraft(workspace.abstract);
+                }
+                setEdit(!edit);
+              }}
             />
             {edit && (
-              <TextInput
-                accessibilityLabel="Project abstract"
-                multiline
-                value={workspace.abstract}
-                onChangeText={workspace.setAbstract}
-                style={{
-                  minHeight: 150,
-                  padding: 14,
-                  borderWidth: 1,
-                  borderColor: "#cad6bf",
-                  borderRadius: 14,
-                  fontSize: 15,
-                }}
-              />
+              <View style={kit.stack}>
+                <TextInput
+                  accessibilityLabel="Project title"
+                  value={titleDraft}
+                  onChangeText={setTitleDraft}
+                />
+                <TextInput
+                  accessibilityLabel="Project abstract"
+                  multiline
+                  value={abstractDraft}
+                  onChangeText={setAbstractDraft}
+                  style={{
+                    minHeight: 150,
+                    padding: 14,
+                    borderWidth: 1,
+                    borderColor: "#cad6bf",
+                    borderRadius: 14,
+                    fontSize: 15,
+                  }}
+                />
+                <Button
+                  title="Save project details"
+                  disabled={workspace.saving || !titleDraft.trim() || !abstractDraft.trim()}
+                  onPress={async () => {
+                    if (await workspace.saveDetails(titleDraft, abstractDraft)) setEdit(false);
+                  }}
+                />
+              </View>
             )}
           </Panel>
           <Panel title="Current milestone">
@@ -124,9 +154,8 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
             <Button
               title="Add issue"
               disabled={!issue.trim()}
-              onPress={() => {
-                workspace.addIssue(issue.trim());
-                setIssue("");
+              onPress={async () => {
+                if (await workspace.addIssue(issue.trim())) setIssue("");
               }}
             />
           </Panel>
@@ -143,25 +172,31 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
           </Panel>
         </>
       )}
+      {tab === "Team & Tasks" && <Button title="Add task" variant="soft" onPress={() => router.push("/native/student/tasks")} />}
       {tab === "Team & Tasks" &&
-        teammates.map((member, index) => (
+        workspace.members.map((member, index) => (
           <Panel key={member.name} title={member.name}>
             <AppText variant="caption" tone="muted">
               Computer Engineering
             </AppText>
             <Ring
               value={Math.round(
-                ((member.done +
-                  workspace.completed.filter((x) => x.startsWith(index + "-")).length) /
-                  (member.done + member.remaining)) *
+                (workspace.teamTasks.filter(
+                  (task) => task.owner === index && workspace.completed.includes(task.id),
+                ).length /
+                  Math.max(1, workspace.teamTasks.filter((task) => task.owner === index).length)) *
                   100,
               )}
               color={["#839b68", "#709ab8", "#bc9368"][index]}
             />
             <AppText weight="semibold">Personal progress</AppText>
             <AppText variant="caption">
-              {member.done + workspace.completed.filter((x) => x.startsWith(index + "-")).length} of{" "}
-              {member.done + member.remaining} tasks complete
+              {
+                workspace.teamTasks.filter(
+                  (task) => task.owner === index && workspace.completed.includes(task.id),
+                ).length
+              }{" "}
+              of {workspace.teamTasks.filter((task) => task.owner === index).length} tasks complete
             </AppText>
             <AppText weight="semibold">Today’s Tasks</AppText>
             {workspace.teamTasks
@@ -172,10 +207,13 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
                   <Pressable
                     key={task.id}
                     accessibilityRole="checkbox"
-                    accessibilityState={{ checked: done, disabled: index !== 0 }}
-                    disabled={index !== 0}
-                    onPress={() => {
-                      workspace.toggleTask(task.id);
+                    accessibilityState={{
+                      checked: done,
+                      disabled: member.id !== workspace.actorId,
+                    }}
+                    disabled={member.id !== workspace.actorId}
+                    onPress={async () => {
+                      if (!(await workspace.toggleTask(task.id))) return;
                       workspace.logTeamActivity(
                         index,
                         `${done ? "Reopened" : "Completed"} “${task.title}”`,
@@ -240,34 +278,7 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
           </Panel>
         </>
       )}
-      {tab === "Reports" && (
-        <Panel title="Weekly Report">
-          <AppText>{workspace.submitted ? "Submitted" : "Draft"}</AppText>
-          <TextInput
-            accessibilityLabel="Weekly report"
-            editable={!workspace.submitted}
-            multiline
-            placeholder="Capture your progress and blockers."
-            value={workspace.report}
-            onChangeText={workspace.setReport}
-            style={{
-              minHeight: 180,
-              padding: 14,
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: "#cad6bf",
-              fontSize: 16,
-            }}
-          />
-          <Button
-            title={workspace.submitted ? "Withdraw and edit" : "Submit Report"}
-            disabled={!workspace.submitted && !workspace.report.trim()}
-            onPress={() =>
-              workspace.submitted ? workspace.withdrawReport() : workspace.submitReport()
-            }
-          />
-        </Panel>
-      )}
+      {tab === "Reports" && <ReportsPanel />}
     </View>
   );
 }

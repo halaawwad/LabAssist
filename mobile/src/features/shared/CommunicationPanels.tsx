@@ -32,12 +32,12 @@ export function MessagesPanel() {
   const contacts = state.users.filter(
     (u) => u.id !== actorId && `${u.name} ${u.email}`.toLowerCase().includes(search.toLowerCase()),
   );
-  function open(id: string) {
+  async function open(id: string) {
     setSelected(id);
     setInfo(false);
     setBody("");
     setReply(undefined);
-    act({ type: "message.read", threadId: id });
+    await act({ type: "message.read", threadId: id });
   }
   async function attach(image = false) {
     if (!thread) return;
@@ -73,7 +73,7 @@ export function MessagesPanel() {
           mime: a.mimeType ?? "application/octet-stream",
         };
       }
-      act({ type: "message.send", threadId: thread.id, body: "", attachment });
+      await act({ type: "message.send", threadId: thread.id, body: "", attachment });
     } catch {
       setError(
         t("Could not attach this file. Please retry.", "تعذر إرفاق هذا الملف. أعد المحاولة."),
@@ -122,8 +122,8 @@ export function MessagesPanel() {
                   <Button
                     title={t("Message", "مراسلة")}
                     variant="ghost"
-                    onPress={() => {
-                      act({ type: "thread.create", userId: u.id });
+                    onPress={async () => {
+                      await act({ type: "thread.create", userId: u.id });
                       setPeople(false);
                       setSearch("");
                     }}
@@ -148,7 +148,7 @@ export function MessagesPanel() {
                       )),
                 )
                 .map((th) => (
-                  <Pressable key={th.id} onPress={() => open(th.id)}>
+                  <Pressable key={th.id} onPress={async () => await open(th.id)}>
                     <Panel tint={th.memberIds.length === 1 ? colors.primaryWash : undefined}>
                       <View style={[kit.row, { flexWrap: "nowrap" }]}>
                         {th.photo ? (
@@ -232,7 +232,7 @@ export function MessagesPanel() {
                     : t("Star conversation", "تمييز المحادثة")
                 }
                 variant="soft"
-                onPress={() => act({ type: "thread.star", id: thread.id })}
+                onPress={async () => await act({ type: "thread.star", id: thread.id })}
               />
               {thread.projectId && (
                 <>
@@ -275,7 +275,7 @@ export function MessagesPanel() {
                   />
                   <Button
                     title={t("Save group name", "حفظ اسم المجموعة")}
-                    onPress={() => act({ type: "thread.edit", id: thread.id, name })}
+                    onPress={async () => await act({ type: "thread.edit", id: thread.id, name })}
                   />
                   <Button
                     title={t("Change group photo", "تغيير صورة المجموعة")}
@@ -289,7 +289,7 @@ export function MessagesPanel() {
                           quality: 0.7,
                         });
                         if (!result.canceled)
-                          act({
+                          await act({
                             type: "thread.edit",
                             id: thread.id,
                             name: thread.name,
@@ -381,7 +381,7 @@ export function MessagesPanel() {
                     {
                       icon: Star,
                       label: t("Star", "تمييز"),
-                      press: () => act({ type: "message.star", id: m.id }),
+                      press: async () => await act({ type: "message.star", id: m.id }),
                     },
                     { icon: Reply, label: t("Reply", "رد"), press: () => setReply(m.id) },
                     {
@@ -394,7 +394,7 @@ export function MessagesPanel() {
                           {
                             icon: Trash2,
                             label: t("Delete", "حذف"),
-                            press: () => act({ type: "message.delete", id: m.id }),
+                            press: async () => await act({ type: "message.delete", id: m.id }),
                           },
                         ]
                       : []),
@@ -431,19 +431,19 @@ export function MessagesPanel() {
             <Button
               title={t("Send", "إرسال")}
               disabled={!body.trim()}
-              onPress={() => {
-                if (act({ type: "message.send", threadId: thread.id, body, replyTo: reply })) {
+              onPress={async () => {
+                if (await act({ type: "message.send", threadId: thread.id, body, replyTo: reply })) {
                   setBody("");
                   setReply(undefined);
                 }
               }}
             />
-            <Button title={t("Photo", "صورة")} variant="soft" onPress={() => attach(true)} />
+            <Button title={t("Photo", "صورة")} variant="soft" onPress={async () => await attach(true)} />
             <Pressable
               accessibilityLabel={t("Attach file", "إرفاق ملف")}
               accessibilityRole="button"
               style={kit.iconButton}
-              onPress={() => attach()}
+              onPress={async () => await attach()}
             >
               <Paperclip color={colors.primary} />
             </Pressable>
@@ -459,9 +459,9 @@ export function MessagesPanel() {
               key={th.id}
               title={threadName(th)}
               variant="soft"
-              onPress={() => {
+              onPress={async () => {
                 if (
-                  act({
+                  await act({
                     type: "message.send",
                     threadId: th.id,
                     body: forward.body,
@@ -560,9 +560,9 @@ export function MeetingsPanel() {
           <Button
             title={t("Save invitations", "حفظ الدعوات")}
             disabled={!title.trim() || !invitees.length}
-            onPress={() => {
+            onPress={async () => {
               if (
-                act({
+                await act({
                   type: "meeting.create",
                   title,
                   inviteeIds: invitees,
@@ -606,18 +606,18 @@ export function MeetingsPanel() {
               <Button
                 title={t("Cancel meeting", "إلغاء الاجتماع")}
                 variant="danger"
-                onPress={() => act({ type: "meeting.cancel", id: m.id })}
+                onPress={async () => await act({ type: "meeting.cancel", id: m.id })}
               />
             ) : (
               <View style={kit.wrap}>
                 <Button
                   title={t("Accept", "قبول")}
-                  onPress={() => act({ type: "meeting.respond", id: m.id, response: "accepted" })}
+                  onPress={async () => await act({ type: "meeting.respond", id: m.id, response: "accepted" })}
                 />
                 <Button
                   title={t("Decline", "رفض")}
                   variant="ghost"
-                  onPress={() => act({ type: "meeting.respond", id: m.id, response: "declined" })}
+                  onPress={async () => await act({ type: "meeting.respond", id: m.id, response: "declined" })}
                 />
               </View>
             )}

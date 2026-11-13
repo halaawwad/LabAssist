@@ -1,12 +1,12 @@
 import { Armchair, Package, UserX, Users } from 'lucide-react'
-import { tableStatus, workshopTables } from '../data/workshopTables'
+import { tableStatus } from '../data/workshopTables'
 import { useI18n } from '../i18n/i18nContext'
 import { useWorkshop } from '../state/workshopContext'
 
 /** The four daily indicators: compact, no charts. */
 export function SummaryStrip() {
   const { t } = useI18n()
-  const { attendance, handover } = useWorkshop()
+  const { attendance, handover, tables: workshopTables } = useWorkshop()
   const statuses = Object.values(attendance)
   const assigned = workshopTables.filter((table) => tableStatus(table) !== 'free').length
 

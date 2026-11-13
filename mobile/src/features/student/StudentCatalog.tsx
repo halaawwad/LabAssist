@@ -96,9 +96,9 @@ export function CatalogPanel() {
     setVoltage("all");
   };
   const close = () => setSelected(null);
-  const add = () => {
+  const add = async () => {
     if (!project || !selected) return;
-    const ok = act({
+    const ok = await act({
       type: "part.add",
       projectId: project.id,
       name: selected.name,

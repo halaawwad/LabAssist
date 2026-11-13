@@ -5,7 +5,7 @@ groups, messages, validation and responsive CSS have been moved from the Student
 app. It opens at `/`; it does not depend on the Student router or providers.
 The shared background and favicon are local assets. Fresh sign-ins use Noor's
 shared login in the Student app; a saved valid demo session can display the
-interface without the Student server. Account invitations and messages remain local
+interface without the Student server. Account management and messages remain local
 demo interactions, with no new authentication or API integration.
 
 From the repository root:
@@ -99,10 +99,12 @@ Student login page. It is still a demo, not authentication.
    verify that its interface and assets are independent.
 2. Verify account role filters/search, add/edit, generated student email,
    number/email duplicate validation, one-active-workshop-manager validation,
-   activation invitation notices, and delete vs. enable/disable confirmations.
-3. Create student/supervisor accounts, then add/edit a group with 2–3 students
-   and multiple supervisors. Verify selection limits, inactive/assigned-student
-   restrictions, search, and reload persistence.
+   immediate Active local status, and delete vs. disable/reactivate confirmations.
+3. New manual/imported accounts are approved local records immediately and can
+   be assigned to groups without an account onboarding step. Add/edit a group
+   with 2–3 students and multiple supervisors.
+   Verify selection limits, disabled-account restrictions, confirmed transfers,
+   search, and reload persistence.
 4. Verify messages, conversation/message search, starred conversations,
    conversation information, send validation, and reload persistence. Stars
    retain their original component-local lifetime.
@@ -137,3 +139,129 @@ allows. Accounts, Groups, Communication and the standalone transfer page all
 use this layer. The main panel stays transparent; cards, the message thread and
 dialogs retain their readable cream/glass surfaces. Image URLs are relative to
 the public theme stylesheet, so they also work under a configured Vite base path.
+
+## Account assignments and Excel import
+
+Accounts has separate Supervisors, Students and Workshop Manager views, plus
+All accounts. Search includes names, numbers and emails. Assignment details use
+the same account and group records as Groups; there is no parallel import store.
+Groups have an editable project number and optional project title. Existing group
+IDs, independent names/codes, extra metadata and dated membership history remain
+intact. Legacy project numbers fall back to the existing code, label or group ID
+until explicitly saved. New groups use the existing demo term. Historical completed
+and archived projects cannot be reassigned. There is no group deletion action.
+
+New manually created and Excel-imported accounts are **Active immediately** as
+approved local demo records. There is no invitation or owner onboarding step.
+They can be assigned directly to groups using the same existing membership,
+term and capacity validation. Disabled and reference-only records cannot be assigned.
+Group/project workflow statuses, including Draft, remain separate and unchanged.
+
+This management/import flow is strictly frontend-only: no backend mutations, API,
+authentication, server validation, database schema or migrations are changed or
+called. Active is a local record state, not an authentication result. Neither account
+creation nor assignment creates backend login credentials or bypasses authentication.
+Group validation uses the actual saved local Active/Disabled state.
+
+On loading existing Department preview data, the app upgrades older pending local
+records to Active, preserving their IDs, metadata, assignments, history, groups,
+messages and storage key. Deliberately disabled accounts stay disabled; their restore
+state becomes Active when appropriate. The complete snapshot is saved atomically
+before the updated records are displayed. A failed write preserves the previous
+saved snapshot and blocks editing until loading can be retried. Repeated loads are
+idempotent. The same compatibility update applies after importing old preview JSON.
+The legacy `invited` property is retained for JSON compatibility only and is not an
+account-management action or prerequisite.
+
+Import Excel reads one-sheet `.xlsx` files locally (2 MB compressed, 12 MB expanded,
+2,000 data rows, 64 columns maximum). It uses the same `fflate` ZIP dependency as
+Student with a data-only OOXML reader/writer; no spreadsheet formulas, macros or
+external worksheet links are executed. Formula cells are blocking errors even if
+they have cached results. Dates, errors, booleans and unsupported numeric formatting
+are rejected. Blank rows are ignored; original Excel row numbers remain visible.
+Use Text cells for identifiers to preserve leading zeros. Simple explicit zero
+formats such as `00000000` are also supported; digits already lost by Excel cannot
+be recovered.
+
+Download Excel template generates a workbook at runtime with these columns and
+fictional examples: project P001, supervisor 9099, students 20990001/20990002.
+Supervisor numbers remain four digits; students remain eight digits with email
+`s<number>@stu.najah.edu`, matching existing manual validation. The six-digit student
+numbers/non-university student emails in the illustrative request are therefore not
+used in the template. Project Name cells may be empty; all eight columns must be
+mapped. Name, number and email are required for each account.
+
+Supported automatic headers (case-insensitive English, whitespace trimmed):
+
+| Field | English aliases | Arabic aliases |
+| --- | --- | --- |
+| Project Number | Project Number, Project Code | رقم المشروع، رمز المشروع |
+| Project Name | Project Name, Project Title | اسم المشروع، عنوان المشروع |
+| Supervisor Number | Supervisor Number, Staff Number, Employee Number | رقم المشرف، الرقم الوظيفي |
+| Supervisor Name | Supervisor Name | اسم المشرف |
+| Supervisor Email | Supervisor Email | بريد المشرف، البريد الإلكتروني للمشرف |
+| Student Number | Student Number, University Number | رقم الطالب، الرقم الجامعي |
+| Student Name | Student Name | اسم الطالب |
+| Student Email | Student Email | بريد الطالب، البريد الإلكتروني للطالب |
+
+The Adjust columns control handles unfamiliar headers; it opens automatically only
+when headers cannot be recognized. Every field must map to a
+distinct column. Each row represents one student; repeat identical project and
+supervisor details for a group. Accounts match by number; projects match by project
+number **and term**. Import retains unlisted existing members and additional
+supervisors instead of silently replacing them. Changes to saved project names or
+supervisors require a corrected workbook or explicit manual editing. Conflicting
+saved account details can be reviewed and explicitly retained; conflicting rows,
+email collisions and different project assignments for one student block import.
+
+The file is parsed immediately into compact project cards using the same card
+component as the regular Groups list. The selected filename and parsed data remain
+available throughout preview. Cards show project number/name, supervisors and students,
+with original rows and proposed changes available in expandable details.
+Any blocking row or group error disables Add groups and displays the specific reason
+beside the button; no rows are silently skipped. Successful Add groups confirmation
+closes the modal, opens the regular Groups list with search cleared, and refreshes
+accounts/counters. Failed saves retain the preview. Transfers need explicit
+confirmation and must leave each source/target group
+within the existing 2–3-student, supervisor-load and term-capacity limits. Saving
+revalidates current records and writes accounts/groups together under the unchanged
+`labassist.department.preview` key before updating the interface. Storage failures
+preserve the preview and old saved data. Changes in another tab or the transfer page
+block stale writes; use Reload saved data before reviewing and confirming again.
+Repeated imports reuse records and do not append duplicate members or history.
+
+The existing JSON export/import page remains compatible: it transports the entire
+stored snapshot, including project numbers and history. Its backup/replacement
+confirmation is unchanged. **Different application ports do not share localStorage.**
+Assignment visibility in Department account/group views updates immediately, but
+Student/Supervisor apps still have their existing demo fixtures; they do not receive
+new Department assignments automatically. No cross-origin bridge or backend sync
+has been added. Transferring Department preview data moves that preview between
+origins; it is not cross-role account provisioning or authenticated access.
+
+### Manual checks for this change (not executed)
+
+1. Create one supervisor and two students; verify immediate Active status, distinct
+   account views/search and generated university email. From Groups open
+   the same missing-account form, then save a draft with a project number and no
+   title. Check all account/group assignment details and preserved Workshop management.
+2. Edit title, members and multiple supervisors. With a three-student source and a
+   two-student destination, transfer one student: unconfirmed save must fail; confirmed
+   save must update both groups and preserve history. Reject moves leaving fewer than
+   two students, duplicate memberships, disabled accounts and historical reassignment.
+3. Download the template and import it. Verify preview causes no saved changes;
+   confirm creates one Active supervisor, two Active students and one draft group.
+   Check Arabic aliases, unfamiliar-header mapping and leading-zero Text identifiers.
+4. Import the identical workbook again: zero new records/links and unchanged history.
+5. Try inconsistent IDs, duplicate email, mismatching project/supervisor, invalid
+   numbers/email, formulas and conflicting memberships. No blocking file may commit.
+   Simulate denied/full storage: keep preview/form and existing saved data unchanged.
+6. Reload and check assignments/messages/old metadata remain. Export/import JSON
+   through the existing transfer page. Confirm another-tab writes cannot be overwritten.
+   Load older pending local records: they become Active with identical IDs and
+   memberships; disabled records remain disabled and can be restored separately.
+   Check Student/Supervisor's existing demo assignment visibility separately; newly
+   created Department assignments require future backend integration across origins.
+
+The current local-account flow received static review only. No builds, tests,
+typecheck commands or browser/runtime verification were run for this update.

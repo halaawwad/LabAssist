@@ -53,7 +53,7 @@ const guidance: Record<string, string> = {
     "Supporting calculations, raw data or derivations that do not belong in the main chapters.",
 };
 export function FinalReportEditor() {
-  const { meta, setMeta, sections, setSections, setFinalSavedAt, finalSavedAt } = useReports();
+  const { meta, setMeta, sections, setSections, saveFinal, finalSavedAt } = useReports();
   const [selected, setSelected] = useState("cover"),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
@@ -206,8 +206,8 @@ export function FinalReportEditor() {
             variant="secondary"
             size="sm"
             onClick={() => {
-              setFinalSavedAt(new Date().toISOString());
-              setNotice("Final report draft saved for this session.");
+              saveFinal();
+              setNotice("Final report draft saved on this device.");
             }}
           >
             <Save size={13} />

@@ -1,3 +1,4 @@
+import { useWorkshop } from "../state/workshopContext";
 import { useState } from 'react'
 import { FilterChips } from '../components/FilterChips'
 import { PageHeader } from '../components/PageHeader'
@@ -5,7 +6,7 @@ import { StatusDot } from '../components/StatusDot'
 import { tableMatches } from '../components/tableSearch'
 import { MapLegend, WorkshopFloor } from '../components/WorkshopFloor'
 import { teamById } from '../data/teams'
-import { tableStatus, workshopTables, type TableStatus } from '../data/workshopTables'
+import { tableStatus, type TableStatus } from '../data/workshopTables'
 import { useI18n } from '../i18n/i18nContext'
 import { useDialogs } from '../state/dialogContext'
 
@@ -13,6 +14,7 @@ type Filter = TableStatus | 'all'
 const filters: Filter[] = ['all', 'assigned', 'free', 'shared']
 
 export function WorkshopMapPage() {
+  const { tables: workshopTables } = useWorkshop();
   const { t } = useI18n()
   const { openDialog } = useDialogs()
   const [query, setQuery] = useState('')

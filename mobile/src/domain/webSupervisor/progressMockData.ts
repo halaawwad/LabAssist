@@ -50,7 +50,7 @@ export type ProjectProgress = {
 }
 
 /** Milestone ids, in order; labels live under `progress.milestones.names.`. */
-export const projectMilestones = ['proposal', 'bom', 'circuit', 'prototype', 'testing', 'final'] as const
+export const projectMilestones = ['proposal', 'circuit', 'prototype', 'testing', 'final'] as const
 
 /** Weeks shown on the progress chart: the completed weeks plus a short look-ahead. */
 export const progressChartWeeks = 10

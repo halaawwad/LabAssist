@@ -1,3 +1,4 @@
+import { LocalStorageNotice } from "../../../../shared/web/LocalStorageNotice";
 import { NotificationsProvider } from "@/lib/notifications";
 import labAssistIcon from "../../../../shared/web/labassist-mark.svg";
 import { StudentDemoSession } from "@/components/StudentDemoSession";
@@ -120,6 +121,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        <LocalStorageNotice />
         {children}
         <Scripts />
       </body>

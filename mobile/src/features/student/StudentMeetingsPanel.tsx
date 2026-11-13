@@ -123,7 +123,7 @@ export function StudentMeetingsPanel() {
     setPersonQuery("");
     setSheet("form");
   }
-  function save() {
+  async function save() {
     const missing = [
       !title.trim() ? "meeting title" : "",
       !date ? "date and time" : "",
@@ -152,7 +152,7 @@ export function StudentMeetingsPanel() {
       ...(type === "team" && project ? { projectId: project.id } : {}),
     };
     if (
-      act(
+      await act(
         editing
           ? { type: "meeting.update", id: editing, ...details }
           : { type: "meeting.create", ...details },
@@ -165,7 +165,7 @@ export function StudentMeetingsPanel() {
       setQuery("");
     } else setError("Could not save this meeting. Check the selected participants and time.");
   }
-  function openChat(m?: Meeting) {
+  async function openChat(m?: Meeting) {
     const ids = m ? [m.creatorId, ...m.inviteeIds] : (project?.studentIds ?? []);
     const team = !m || meetingType(m) === "team";
     const target = team
@@ -181,7 +181,7 @@ export function StudentMeetingsPanel() {
     let id = target?.id;
     if (!id && !team) {
       const other = ids.find((id) => id !== actorId);
-      if (other && act({ type: "thread.create", userId: other })) id = `person:${other}`;
+      if (other && await act({ type: "thread.create", userId: other })) id = `person:${other}`;
     }
     if (!id) return setNotice("A conversation is not available for these participants.");
     setSheet(null);
@@ -424,7 +424,7 @@ export function StudentMeetingsPanel() {
           title="Open team conversation ↗"
           variant="ghost"
           size="sm"
-          onPress={() => openChat()}
+          onPress={async () => await openChat()}
         />
       </View>
       <Modal
@@ -730,7 +730,7 @@ export function StudentMeetingsPanel() {
                   label="Meeting notes & next steps"
                   placeholder="Capture decisions, action items, and what happens next…"
                   value={active.notes ?? ""}
-                  onChangeText={(notes) => act({ type: "meeting.notes", id: active.id, notes })}
+                  onChangeText={async (notes) => await act({ type: "meeting.notes", id: active.id, notes })}
                   maxLength={5000}
                   multiline
                 />
@@ -740,7 +740,7 @@ export function StudentMeetingsPanel() {
                     title="Open Chat"
                     variant="soft"
                     size="sm"
-                    onPress={() => openChat(active)}
+                    onPress={async () => await openChat(active)}
                   />
                   {!active.cancelled &&
                     !active.completed &&
@@ -761,8 +761,8 @@ export function StudentMeetingsPanel() {
                         <Button
                           title="Mark Completed"
                           size="sm"
-                          onPress={() => {
-                            if (act({ type: "meeting.complete", id: active.id }))
+                          onPress={async () => {
+                            if (await act({ type: "meeting.complete", id: active.id }))
                               setNotice("Meeting marked completed.");
                           }}
                         />
@@ -772,9 +772,9 @@ export function StudentMeetingsPanel() {
                         <Button
                           title="Accept"
                           size="sm"
-                          onPress={() => {
+                          onPress={async () => {
                             if (
-                              act({ type: "meeting.respond", id: active.id, response: "accepted" })
+                              await act({ type: "meeting.respond", id: active.id, response: "accepted" })
                             )
                               setNotice("Invitation accepted.");
                           }}
@@ -783,9 +783,9 @@ export function StudentMeetingsPanel() {
                           title="Decline"
                           size="sm"
                           variant="ghost"
-                          onPress={() => {
+                          onPress={async () => {
                             if (
-                              act({ type: "meeting.respond", id: active.id, response: "declined" })
+                              await act({ type: "meeting.respond", id: active.id, response: "declined" })
                             )
                               setNotice("Invitation declined.");
                           }}
@@ -804,8 +804,8 @@ export function StudentMeetingsPanel() {
                 <Button
                   title="Confirm cancellation"
                   variant="danger"
-                  onPress={() => {
-                    if (act({ type: "meeting.cancel", id: active.id })) {
+                  onPress={async () => {
+                    if (await act({ type: "meeting.cancel", id: active.id })) {
                       setSheet(null);
                       setNotice("Meeting cancelled.");
                     }

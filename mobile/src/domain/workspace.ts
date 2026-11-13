@@ -1,3 +1,4 @@
+import { demoProjectId, demoStudents, demoTasks, demoTeam, demoSupervisor, demoWorkshop, demoTerm, domainVersion } from "../../../shared/web/domain";
 import { validDeck, type Deck } from "./presentation/presentations";
 import { meetingInstant } from "./meetingTime";
 import { CATALOG_MAP } from "../lib/hardware/catalog";
@@ -6,6 +7,7 @@ import type { WireType } from "../lib/hardware/types";
 import type { FinalDocument } from "./finalReport";
 export type Role = "student" | "supervisor" | "workshop";
 export type User = {
+  canonicalId?: string;
   photo?: string;
   id: string;
   name: string;
@@ -15,6 +17,9 @@ export type User = {
   bio: string;
 };
 export type Project = {
+  termId?: string;
+  tableHistory?: { table: string; releasedAt: string }[];
+  canonicalId?: string;
   tableVerified?: boolean;
   id: string;
   title: string;
@@ -47,11 +52,13 @@ export const weeklyFields = [
   "plan",
 ] as const;
 export type Report = {
+  editableDraft?: { fields: Record<string, string>; attachments?: ReportAttachment[]; savedAt: string };
   deck?: Deck;
   savedAt?: string;
   attachments?: ReportAttachment[];
   document?: FinalDocument;
   history?: {
+    state?: "SUBMITTED" | "WITHDRAWN" | "SUPERSEDED";
     deck?: Deck;
     attachments?: ReportAttachment[];
     document?: FinalDocument;
@@ -71,7 +78,7 @@ export type Report = {
   color: string;
   submittedAt?: string;
   openedBy: string[];
-  feedback: { id: string; authorId: string; body: string; section: string; createdAt: string }[];
+  feedback: { id: string; authorId: string; body: string; section: string; createdAt: string; submissionId?: string }[];
 };
 export type ReportAttachment = { id: string; name: string; uri: string; mime: string };
 export type Message = {
@@ -123,6 +130,7 @@ export type Notice = {
   kind: "notice" | "observation";
 };
 export type Tool = {
+  inspections?: { at: string; returned: number; damaged: number; missing: number }[];
   id: string;
   projectId: string;
   name: string;
@@ -180,6 +188,7 @@ export type Workspace = {
   expenses: Expense[];
   circuits: Circuit[];
   attendance: Record<string, Record<string, boolean>>;
+  attendanceHistory?: { userId: string; date: string; present: boolean; at: string; actorId: string }[];
   days: Record<string, boolean>;
   absenceThreshold: number | null;
   availability: "open" | "closed";
@@ -214,8 +223,8 @@ export function projectProgress(state: Workspace, projectId: string) {
   return tasks.length ? Math.round((100 * tasks.filter((t) => t.done).length) / tasks.length) : 0;
 }
 const names = [
+  demoTeam.title,
   "Smart Car",
-  "CropBot",
   "Weather Station",
   "Heart Monitor",
   "Greenhouse Monitor",
@@ -243,7 +252,7 @@ export function createWorkspace(now = new Date()): Workspace {
     ...Array.from({ length: 6 }, (_, i) => ({
       id: `d${i + 1}`,
       name: [
-        "Dr. Ahmad Saleh",
+        demoSupervisor.name,
         "Dr. Rana Yousef",
         "Dr. Omar Nasser",
         "Dr. Maha Haddad",
@@ -251,14 +260,14 @@ export function createWorkspace(now = new Date()): Workspace {
         "Dr. Samer Khalil",
       ][i],
       role: "supervisor" as const,
-      email: `doctor${i + 1}@najah.edu`,
+      email: i === 0 ? demoSupervisor.email : `doctor${i + 1}@najah.edu`,
       bio: "Embedded Systems & Engineering",
     })),
     {
       id: "w1",
-      name: "Workshop Manager",
+      name: demoWorkshop.name,
       role: "workshop",
-      email: "workshop@najah.edu",
+      email: demoWorkshop.email,
       bio: "Engineering workshop",
     },
   ];
@@ -268,8 +277,8 @@ export function createWorkspace(now = new Date()): Workspace {
       student++;
       const id = `s${student}`;
       const name =
-        ["Noor Owaissi", "Hala Awwad", "Aya Barakat"][student - 1] ?? `Student ${student}`;
-      const universityNumber = String(12000000 + student);
+        demoStudents[student - 1]?.name ?? `Student ${student}`;
+      const universityNumber = demoStudents[student - 1]?.number ?? String(12000000 + student);
       users.push({
         id,
         name,
@@ -282,6 +291,7 @@ export function createWorkspace(now = new Date()): Workspace {
     });
     return {
       id: `p${i + 1}`,
+      canonicalId: demoProjectId("mobile", `p${i + 1}`),
       title,
       description:
         i === 0 ? "Autonomous navigation and obstacle detection" : "Graduation engineering project",
@@ -296,11 +306,11 @@ export function createWorkspace(now = new Date()): Workspace {
   const stamp = now.toISOString();
   const tasks = projects.flatMap((p) =>
     p.studentIds.map((ownerId, i) => ({
-      id: `task-${ownerId}`,
+      id: p.canonicalId === demoTeam.id ? demoTasks[i]!.id : `task-${ownerId}`,
       projectId: p.id,
-      title: ["Test the distance sensor", "Review the wiring diagram", "Record motor readings"][i],
+      title: p.canonicalId === demoTeam.id ? demoTasks[i]!.title : ["Test the distance sensor", "Review the wiring diagram", "Record motor readings"][i],
       ownerId,
-      done: i === 1,
+      done: p.canonicalId === demoTeam.id ? false : i === 1,
       createdAt: stamp,
     })),
   );
@@ -451,10 +461,13 @@ export type Action =
       deck?: Deck;
       attachments?: ReportAttachment[];
       autosave?: boolean;
+      draftOnly?: boolean;
     }
+  | { type: "report.publish"; id: string; fields: Record<string, string>; attachments?: ReportAttachment[] }
   | { type: "report.submit" | "report.withdraw" | "report.view" | "report.reopen"; id: string }
   | {
       type: "report.review";
+      submissionId: string;
       id: string;
       body: string;
       section: string;
@@ -506,6 +519,7 @@ export type Action =
   | { type: "attendance.set"; userId: string; date: string; present: boolean }
   | { type: "day.set"; date: string; open: boolean }
   | { type: "table.assign"; projectId: string; table: string }
+  | { type: "table.release"; projectId: string }
   | { type: "table.verify"; projectId: string }
   | { type: "tool.issue"; projectId: string; name: string; quantity: number }
   | { type: "tool.return"; id: string; returned: number; damaged: number; missing: number }
@@ -556,6 +570,29 @@ function number(value: number, min = 0, max = 1000000) {
   insist(Number.isFinite(value) && value >= min && value <= max, "invalid_input");
   return value;
 }
+export function migrateWorkspace(state: Workspace): Workspace {
+  const next: Workspace = JSON.parse(JSON.stringify(state));
+  Object.assign(next, { domainVersion });
+  next.projects.forEach(p => { p.canonicalId ??= demoProjectId("mobile", p.id); if (p.canonicalId === demoTeam.id) p.termId ??= demoTerm.id; });
+  next.users.forEach(user => {
+    const i = ["s1", "s2", "s3"].indexOf(user.id);
+    if (i >= 0 && user.role === "student") user.canonicalId ??= demoStudents[i]!.id;
+    if (user.id === "d1" && user.role === "supervisor") user.canonicalId ??= demoSupervisor.id;
+    if (user.id === "w1" && user.role === "workshop") user.canonicalId ??= demoWorkshop.id;
+  });
+  next.reports.forEach(report => {
+    const latest = report.history?.at(-1);
+    if (latest && !latest.state && report.status !== "draft") latest.state = "SUBMITTED";
+    if (report.status !== "draft" && !report.history?.length) report.history = [{
+      id: `legacy-submission-${report.id}`, state: "SUBMITTED", fields: JSON.parse(JSON.stringify(report.fields)),
+      template: report.template, color: report.color, submittedAt: report.submittedAt ?? "",
+      ...(report.deck ? { deck: JSON.parse(JSON.stringify(report.deck)) } : {}),
+      ...(report.document ? { document: JSON.parse(JSON.stringify(report.document)) } : {}),
+      ...(report.attachments ? { attachments: JSON.parse(JSON.stringify(report.attachments)) } : {}),
+    }];
+  });
+  return next;
+}
 export function applyAction(
   state: Workspace,
   actorId: string,
@@ -565,13 +602,15 @@ export function applyAction(
 ): Workspace {
   const user = state.users.find((u) => u.id === actorId);
   insist(user);
-  const next: Workspace = JSON.parse(JSON.stringify(state));
+  const next = migrateWorkspace(state);
   const own = (projectId: string) => {
+    insist(user.role === "student");
     const p = next.projects.find((p) => p.id === projectId);
     insist(p && p.studentIds.includes(actorId));
     return p;
   };
   const supervisor = (projectId: string) => {
+    insist(user.role === "supervisor");
     const p = next.projects.find((p) => p.id === projectId);
     insist(p && p.supervisorIds.includes(actorId));
     return p;
@@ -584,67 +623,7 @@ export function applyAction(
   const stamp = now.toISOString();
   switch (action.type) {
     case "project.create": {
-      insist(user.role === "supervisor");
-      insist(next.projects.filter((p) => p.supervisorIds.includes(actorId)).length < 4, "capacity");
-      insist(next.projects.length < 25, "capacity");
-      insist(action.students.length >= 2 && action.students.length <= 3, "invalid_input");
-      const numbers = action.students.map((s) => s.number);
-      insist(
-        new Set(numbers).size === numbers.length &&
-          numbers.every(
-            (n) => /^\d{8}$/.test(n) && !next.users.some((u) => u.universityNumber === n),
-          ),
-        "invalid_input",
-      );
-      const ids = action.students.map((s, i) => {
-        const uid = `${id}-s${i}`;
-        next.users.push({
-          id: uid,
-          name: short(s.name),
-          role: "student",
-          email: `s${s.number}@stu.najah.edu`,
-          universityNumber: s.number,
-          bio: "Computer Engineering",
-        });
-        next.threads.push({ id: `self-${uid}`, name: s.name, memberIds: [uid], starredBy: [] });
-        return uid;
-      });
-      next.projects.push({
-        id,
-        title: short(action.title),
-        description: "",
-        studentIds: ids,
-        supervisorIds: [actorId],
-        table: "",
-        budget: 250,
-        finalOpen: false,
-        presentationOpen: false,
-      });
-      next.threads.push({
-        id: `thread-${id}`,
-        name: action.title,
-        memberIds: [...ids, actorId],
-        projectId: id,
-        starredBy: [],
-      });
-      (["final", "presentation"] as const).forEach((kind) =>
-        next.reports.push({
-          id: `${id}-${kind}`,
-          projectId: id,
-          kind,
-          week: 0,
-          status: "draft",
-          fields:
-            kind === "final"
-              ? { Abstract: "", Introduction: "", Methodology: "", Results: "", Conclusion: "" }
-              : { "Project overview": "", "Our solution": "", Results: "" },
-          template: "margin",
-          color: "#526443",
-          openedBy: [],
-          feedback: [],
-        }),
-      );
-      break;
+      throw new Error("Only the Department Head can provision accounts and form project groups.");
     }
     case "project.gate": {
       const p = supervisor(action.id);
@@ -723,7 +702,8 @@ export function applyAction(
       const report = next.reports.find((r) => r.id === action.id);
       insist(report);
       const p = own(report.projectId);
-      insist(report.status === "draft", "locked");
+      const separateDraft = action.draftOnly && report.kind === "weekly" && report.status === "submitted" && !report.openedBy.length;
+      insist(report.status === "draft" || separateDraft, "locked");
       insist(
         report.kind === "weekly" || (report.kind === "final" ? p.finalOpen : p.presentationOpen),
         "locked",
@@ -737,6 +717,10 @@ export function applyAction(
         "invalid_input",
       );
       insist(!action.color || /^#[0-9a-f]{6}$/i.test(action.color), "invalid_input");
+      if (separateDraft) {
+        report.editableDraft = { fields: JSON.parse(JSON.stringify(action.fields)), attachments: JSON.parse(JSON.stringify(action.attachments ?? [])), savedAt: stamp };
+        break;
+      }
       report.fields = JSON.parse(JSON.stringify(action.fields));
       if (!action.autosave) report.savedAt = stamp;
       if (action.deck) {
@@ -750,6 +734,16 @@ export function applyAction(
       report.color = action.color ?? report.color;
       break;
     }
+    case "report.publish": {
+      const report = next.reports.find(r => r.id === action.id);
+      insist(report);
+      own(report.projectId);
+      insist(report.status === "draft" || (report.status === "submitted" && !report.openedBy.length), "locked");
+      report.status = "draft";
+      delete report.editableDraft;
+      const saved = applyAction(next, actorId, { type: "report.save", id: action.id, fields: action.fields, attachments: action.attachments }, `${id}-draft`, now);
+      return applyAction(saved, actorId, { type: "report.submit", id: action.id }, id, now);
+    }
     case "report.submit": {
       const report = next.reports.find((r) => r.id === action.id);
       insist(report);
@@ -761,16 +755,20 @@ export function applyAction(
       );
       const fields =
         report.kind === "weekly"
-          ? weeklyFields.filter((f) => f !== "delays" && f !== "problems")
+          ? weeklyFields.filter((f) => f !== "delays" || report.fields.hasDelays === "true")
           : Object.keys(report.fields);
       insist(
         fields.every((f) => report.fields[f]?.trim()),
         "required_fields",
       );
+      if (report.kind === "weekly" && report.fields.progressPercent !== undefined)
+        number(Number(report.fields.progressPercent), 0, 100);
       report.status = "submitted";
       report.submittedAt = stamp;
       report.history ??= [];
+      report.history.forEach(version => { if (version.state === "SUBMITTED") version.state = "SUPERSEDED"; });
       report.history.push({
+        state: "SUBMITTED",
         ...(report.deck ? { deck: JSON.parse(JSON.stringify(report.deck)) } : {}),
         id,
         ...(report.attachments
@@ -795,6 +793,8 @@ export function applyAction(
         "locked",
       );
       report.status = "draft";
+      const withdrawn = report.history?.at(-1);
+      if (withdrawn) withdrawn.state = "WITHDRAWN";
       report.submittedAt = undefined;
       break;
     }
@@ -809,7 +809,10 @@ export function applyAction(
       const report = next.reports.find((r) => r.id === action.id);
       insist(report && report.status !== "draft");
       const p = supervisor(report.projectId);
+      const submission = report.history?.[report.history.length - 1];
+      insist(submission && submission.id === action.submissionId && submission.state === "SUBMITTED" && report.openedBy.includes(actorId), "locked");
       report.feedback.push({
+        submissionId: submission.id,
         id,
         authorId: actorId,
         body: short(action.body),
@@ -1029,11 +1032,14 @@ export function applyAction(
       break;
     case "attendance.set": {
       manager();
+      insist(validDay(action.date), "invalid_input");
       insist(next.users.some((u) => u.id === action.userId && u.role === "student"));
       insist(next.days[action.date] === true, "closed_day");
       const age = (Date.parse(calendarDay(now)) - Date.parse(action.date)) / 86400000;
       insist(age >= 0 && age <= 7, "locked");
       next.attendance[action.date] ??= {};
+      if (next.attendance[action.date][action.userId] !== action.present)
+        (next.attendanceHistory ??= []).push({ userId: action.userId, date: action.date, present: action.present, at: stamp, actorId });
       next.attendance[action.date][action.userId] = action.present;
       if (next.absenceThreshold !== null) {
         const days = Object.keys(next.days).filter(
@@ -1068,8 +1074,17 @@ export function applyAction(
         (p) => p.id !== action.projectId && p.table === action.table,
       ).length;
       insist(used < (action.table.startsWith("C") ? 2 : 1), "capacity");
+      if (p.table && p.table !== action.table) (p.tableHistory ??= []).push({ table: p.table, releasedAt: stamp });
       p.table = action.table;
       p.tableVerified = user.role === "workshop";
+      break;
+    }
+    case "table.release": {
+      manager();
+      const project = next.projects.find(p => p.id === action.projectId);
+      insist(project && project.table, "invalid_input");
+      (project.tableHistory ??= []).push({ table: project.table, releasedAt: stamp });
+      project.table = ""; project.tableVerified = false;
       break;
     }
     case "table.verify": {
@@ -1105,6 +1120,7 @@ export function applyAction(
         insist(Number.isInteger(v) && v >= 0, "invalid_input"),
       );
       insist(action.returned + action.damaged + action.missing <= tool.quantity, "invalid_input");
+      (tool.inspections ??= []).push({ at: stamp, returned: tool.returned, damaged: tool.damaged, missing: tool.missing });
       Object.assign(tool, {
         returned: action.returned,
         damaged: action.damaged,

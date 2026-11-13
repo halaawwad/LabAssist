@@ -1,3 +1,4 @@
+import { useWorkspace, useRole } from "@/state/WorkspaceProvider";
 import { FinalReviewScreen } from "@/features/supervisor/screens/FinalReviewScreen";
 import { WebWorkshopScreen } from "@/features/workshop/WebWorkshopScreen";
 import { WebSupervisorPanels } from "@/features/supervisor/screens/WebSupervisorPanels";
@@ -67,6 +68,8 @@ const menuItems = {
   ],
 };
 export function NativeScreen({ role, page }: { role: Role; page: string }) {
+  const { error, retryLoading, saving } = useWorkspace();
+  const roleReady = useRole(role);
   const [menu, setMenu] = useState(false);
   const { preferences } = usePreferences();
   if (page === "messages") return <NativeMessages />;
@@ -98,6 +101,7 @@ export function NativeScreen({ role, page }: { role: Role; page: string }) {
                   : page === "catalog"
                     ? require("../../assets/web/catalog-white-background.png")
                     : require("../../assets/web/project-white-background.png");
+  if (!roleReady) return <View><AppText>Opening workspace...</AppText></View>;
   return (
     <SafeAreaView style={s.root} edges={["top", "bottom"]}>
       <ImageBackground source={preferences.background ? background : undefined} style={s.fill}>
@@ -126,6 +130,8 @@ export function NativeScreen({ role, page }: { role: Role; page: string }) {
             <Menu color="#526443" />
           </Pressable>
         </View>
+        {error && <View accessibilityRole="alert"><AppText tone="danger">{error}</AppText><Pressable onPress={retryLoading}><AppText>Retry loading / Allow storage first</AppText></Pressable></View>}
+        {saving && <AppText accessibilityLiveRegion="polite">Saving changes...</AppText>}
         {role === "student" ? (
           <ScrollView
             contentContainerStyle={s.content}

@@ -1,4 +1,6 @@
-﻿import { createContext, useContext, useState, type ReactNode } from "react";
+import { useStoredState } from "./useStoredState";
+import { demoTeam, demoStudents } from "../../../../shared/web/domain";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 export type WeeklyStatus = "Draft" | "Submitted" | "Reviewed" | "Needs Changes";
 export type WeeklyFields = {
   work: string;
@@ -17,8 +19,23 @@ export type WeeklyReport = {
   status: WeeklyStatus;
   savedAt?: string;
   submittedAt?: string;
+  firstViewedAt?: string;
   author?: string;
-  versions: { fields: WeeklyFields; at: string; author: string }[];
+  projectId?: string;
+  submittedVersionId?: string;
+  editableDraft?: {
+    fields: WeeklyFields;
+    attachments: WeeklyReport["attachments"];
+    savedAt: string;
+  };
+  versions: {
+    state?: "SUBMITTED" | "WITHDRAWN" | "SUPERSEDED";
+    id?: string;
+    fields: WeeklyFields;
+    at: string;
+    author: string;
+    attachments?: WeeklyReport["attachments"];
+  }[];
   feedback?: { name: string; date: string; text: string; status: "Reviewed" | "Needs Changes" };
   sample?: boolean;
   attachments: { id: string; name: string; url: string; image: boolean }[];
@@ -153,27 +170,49 @@ export function sampleWeeklyReport(): WeeklyReport {
   };
 }
 function useReportsState() {
-  const [weekly, setWeekly] = useState<Record<string, WeeklyReport>>(() => {
-    const sample = sampleWeeklyReport();
-    return { [sample.week]: sample };
-  });
+  const [weekly, setWeekly] = useStoredState<Record<string, WeeklyReport>>(
+    "labassist.student.weekly.v1",
+    () => {
+      const sample = sampleWeeklyReport();
+      return { [sample.week]: sample };
+    },
+  );
   const [meta, setMeta] = useState<FinalMeta>({
-    title: "Smart Car",
+    title: demoTeam.title,
     specialization: "",
     department: "",
     supervisor: "",
     date: "",
-    students: [
-      { name: "NOOR OWASSI", number: "" },
-      { name: "Omar Khalil", number: "" },
-      { name: "Lina Nasser", number: "" },
-    ],
+    students: demoStudents.map((student) => ({ name: student.name, number: student.number })),
   });
   const [sections, setSections] = useState<ReportSection[]>(
     sectionTemplate.map((s) => ({ ...s, blocks: [] })),
   );
   const [finalSavedAt, setFinalSavedAt] = useState("");
-  return { weekly, setWeekly, meta, setMeta, sections, setSections, finalSavedAt, setFinalSavedAt };
+  const [finalDraft, persistFinal] = useStoredState<{
+    meta: FinalMeta;
+    sections: ReportSection[];
+    savedAt: string;
+  } | null>("labassist.student.final-draft.v1", null);
+  useEffect(() => {
+    if (finalDraft) {
+      setMeta(finalDraft.meta);
+      setSections(finalDraft.sections);
+      setFinalSavedAt(finalDraft.savedAt);
+    }
+  }, [finalDraft]);
+  const saveFinal = () => persistFinal({ meta, sections, savedAt: new Date().toISOString() });
+  return {
+    weekly,
+    setWeekly,
+    saveFinal,
+    meta,
+    setMeta,
+    sections,
+    setSections,
+    finalSavedAt,
+    setFinalSavedAt,
+  };
 }
 const Context = createContext<ReturnType<typeof useReportsState> | null>(null);
 export function ReportsProvider({ children }: { children: ReactNode }) {

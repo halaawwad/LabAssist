@@ -1,9 +1,12 @@
+import { demoTeam, demoStudents, demoSupervisor } from "../../../../shared/web/domain";
 export type Supervisor = {
   id: string
   name: string
 }
 
 export type Team = {
+  canonicalId?: string;
+  supervisorIds?: string[];
   id: string
   project: string
   supervisorId: string
@@ -19,7 +22,7 @@ export type Student = {
 }
 
 export const supervisors: Supervisor[] = [
-  { id: 'sv1', name: 'Dr. Samer Khalil' },
+  { id: 'sv1', name: demoSupervisor.name },
   { id: 'sv2', name: 'Dr. Rana Yousef' },
   { id: 'sv3', name: 'Dr. Omar Nasser' },
   { id: 'sv4', name: 'Dr. Maha Haddad' },
@@ -27,7 +30,7 @@ export const supervisors: Supervisor[] = [
 ]
 
 export const teams: Team[] = [
-  { id: 'G01', project: 'Smart Irrigation Controller', supervisorId: 'sv1' },
+  { id: 'G01', canonicalId: demoTeam.id, project: demoTeam.title, supervisorId: 'sv1', supervisorIds: [...demoTeam.supervisorIds] },
   { id: 'G02', project: 'Line-Following Robot', supervisorId: 'sv2' },
   { id: 'G03', project: 'Home Weather Station', supervisorId: 'sv3' },
   { id: 'G04', project: 'Wearable Heart-Rate Monitor', supervisorId: 'sv4' },
@@ -104,11 +107,13 @@ const roster: [string, string, number, string?][] = [
 
 export const students: Student[] = roster.map(([name, teamId, absences, lastAbsence], index) => ({
   id: `st${String(index + 1).padStart(2, '0')}`,
-  name,
+  name: teamId === "G01" && index < 2 ? demoStudents[index]!.name : name,
   teamId,
   absences,
   lastAbsence,
 }))
+
+students.push({ id: 'team01-student03', name: demoStudents[2]!.name, teamId: 'G01', absences: 0 });
 
 /** Students not in the workshop today; everyone else starts the day marked present. */
 export const absentTodaySeed = ['st05', 'st14', 'st22', 'st23', 'st31', 'st40']

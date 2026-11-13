@@ -13,8 +13,8 @@ export function ProjectTeamTasks() {
     [filter, setFilter] = useState("All");
   const members = teammates.map((person, index) => {
     const tasks = workspace.teamTasks.filter((task) => task.owner === index),
-      done = person.done + tasks.filter((task) => workspace.completed.includes(task.id)).length,
-      total = person.done + person.remaining + Math.max(0, tasks.length - 2);
+      done = tasks.filter((task) => workspace.completed.includes(task.id)).length,
+      total = tasks.length;
     return {
       ...person,
       index,
@@ -22,7 +22,7 @@ export function ProjectTeamTasks() {
       tasks,
       done,
       total,
-      progress: Math.round((done / total) * 100),
+      progress: Math.round((done / Math.max(1, total)) * 100),
     };
   });
   return (
@@ -108,6 +108,7 @@ export function ProjectTeamTasks() {
                   return (
                     <button
                       key={task.id}
+                      disabled={task.owner !== 0}
                       aria-pressed={done}
                       aria-label={`${done ? "Reopen" : "Complete"} ${task.title}`}
                       className={done ? "is-done" : ""}

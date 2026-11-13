@@ -1,3 +1,4 @@
+import { demoSupervisor } from "../../../../../shared/web/domain";
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { FileText, MonitorPlay } from 'lucide-react'
@@ -14,7 +15,6 @@ import {
   currentSubmission,
   downloadBlob,
   isCovered,
-  nowLocal,
   presentationPdf,
   reportPdf,
   splitDateTime,
@@ -23,7 +23,6 @@ import {
 import {
   finalReportProjects,
   finalReportReviews,
-  nextSubmission,
   type AbetCriterionId,
   type FinalReportFeedback,
   type FinalReportReview,
@@ -36,6 +35,14 @@ import { useLocalState } from '../../state/useLocalState'
 import '../../components/supervisor/finalReports/finalReports.css'
 
 export function FinalReports() {
+  const { profile } = useAccount()
+  const { language } = useI18n()
+  const [reviews, setReviews] = useLocalState<FinalReportReview[]>('final-reports.v2', finalReportReviews)
+  const projectOptions = finalReportProjects.filter(project => project.supervisorIds.includes(profile.accountId ?? demoSupervisor.id) && reviews.some(review => review.id === project.id && review.submissions.at(-1)?.status !== 'draft'))
+  if (!projectOptions.length) return <p role="status">{language === 'ar' ? "\u0644\u0627 \u062a\u0648\u062c\u062f \u062a\u0633\u0644\u064a\u0645\u0627\u062a \u0645\u062a\u0627\u062d\u0629 \u0644\u0644\u0645\u0631\u0627\u062c\u0639\u0629" : 'No submitted reports from linked project groups. Private drafts are not available.'}</p>
+  return <LinkedFinalReports key={projectOptions.map(p => p.id).join(",")} projectOptions={projectOptions} reviews={reviews} setReviews={setReviews} />
+}
+function LinkedFinalReports({ projectOptions, reviews, setReviews }: { projectOptions: typeof finalReportProjects; reviews: FinalReportReview[]; setReviews: (action: FinalReportReview[] | ((current: FinalReportReview[]) => FinalReportReview[])) => void }) {
   const { language, t, formatDate, formatTime } = useI18n()
   const l = finalReportsLabels[language]
   const { profile } = useAccount()
@@ -44,7 +51,6 @@ export function FinalReports() {
   const documentSupervisor = `Dr. ${profile.name}`
   const [searchParams, setSearchParams] = useSearchParams()
   // v2: submission-based review records (v1 stored supervisor edits, which no longer exist).
-  const [reviews, setReviews] = useLocalState<FinalReportReview[]>('final-reports.v2', finalReportReviews)
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<FinalReportStatus | 'all'>('all')
   const [tab, setTab] = useState<FinalReportTab>('report')
@@ -53,7 +59,7 @@ export function FinalReports() {
   const [notice, setNotice] = useNotice()
 
   const project =
-    finalReportProjects.find((item) => item.id === searchParams.get('project')) ?? finalReportProjects[0]
+    projectOptions.find((item) => item.id === searchParams.get('project')) ?? projectOptions[0]
   // Stored records may predate a project added to the mock data: fall back to its defaults.
   const reviewFor = (id: string) =>
     reviews.find((item) => item.id === id) ?? finalReportReviews.find((item) => item.id === id)!
@@ -61,7 +67,7 @@ export function FinalReports() {
   const submission = currentSubmission(review)
 
   const needle = query.trim().toLowerCase()
-  const items = finalReportProjects
+  const items = projectOptions
     .map((item) => ({ project: item, review: reviewFor(item.id) }))
     .filter(
       ({ project: item, review: itemReview }) =>
@@ -89,7 +95,7 @@ export function FinalReports() {
     text
       ? [
           ...current.feedback,
-          { id: `${current.id}-fb-${Date.now()}`, text, date: todayIso(), version: currentSubmission(current).version, kind },
+          { id: crypto.randomUUID(), supervisorId: profile.accountId ?? demoSupervisor.id, text: text.trim(), date: todayIso(), version: currentSubmission(current).version, kind },
         ]
       : current.feedback
 
@@ -103,7 +109,7 @@ export function FinalReports() {
   }
 
   const downloadReport = (id: string) => {
-    const target = finalReportProjects.find((item) => item.id === id) ?? project
+    const target = projectOptions.find((item) => item.id === id) ?? project
     const file = currentSubmission(reviewFor(target.id))
     downloadBlob(file.fileName, reportPdf(target, file, documentSupervisor))
     setNotice(fill(l.notices.download, { file: file.fileName }))
@@ -255,12 +261,7 @@ export function FinalReports() {
               }))
               setNotice(fill(l.notices.revision, { name: project.name }))
             }}
-            onSimulateResubmission={() => {
-              const next = nextSubmission(project.id, submission, nowLocal())
-              updateReview((current) => ({ submissions: [...current.submissions, next] }))
-              setPageIndex(0)
-              setNotice(fill(l.notices.resubmitted, { name: project.name, version: next.version }))
-            }}
+            onSimulateResubmission={() => setNotice("Only the student group can submit a new version. Cross-role delivery requires the backend.")}
           />
         </div>
       </section>

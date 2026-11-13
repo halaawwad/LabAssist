@@ -134,8 +134,8 @@ export const ar: Dictionary = {
     preview: 'سيصل للطلاب',
     invalidRange: 'يجب أن يكون وقت العودة بعد وقت البدء.',
     send: 'إرسال التنبيه',
-    sentTemporary: 'تم إشعار الطلاب: غياب من {from} إلى {until}.',
-    sentFullDay: 'تم إشعار الطلاب بغيابك اليوم.',
+    sentTemporary: 'حُفظ الغياب من {from} إلى {until} محلياً. الإرسال يتطلب الخادم.',
+    sentFullDay: 'حُفظ الغياب اليوم محلياً. الإرسال يتطلب الخادم.',
     backToast: 'عدت إلى العمل ويراك الطلاب متواجدًا.',
   },
   notices: {
@@ -151,7 +151,7 @@ export const ar: Dictionary = {
     type: 'نوع التنبيه',
     message: 'الرسالة',
     send: 'إرسال التنبيه',
-    sent: 'تم إرسال التنبيه إلى {audience}.',
+    sent: 'حُفظ تنبيه {audience} محلياً. الإرسال يتطلب الخادم.',
     recent: 'التنبيهات المرسلة',
     quick: 'تنبيهات سريعة',
     empty: 'لم يتم إرسال تنبيهات بعد.',
@@ -220,7 +220,7 @@ export const ar: Dictionary = {
     note: 'ملاحظة قصيرة',
     notePlaceholder: 'ماذا لاحظت؟',
     send: 'إرسال الملاحظة',
-    sent: 'تم إرسال الملاحظة إلى {supervisor}.',
+    sent: 'حُفظت ملاحظة {supervisor} محلياً. الإرسال يتطلب الخادم.',
     types: {
       repeatedAbsence: 'غياب متكرر',
       notWorking: 'عدم العمل بجدية',

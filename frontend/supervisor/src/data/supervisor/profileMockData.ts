@@ -1,5 +1,7 @@
+import { demoSupervisor } from "../../../../../shared/web/domain";
 // Mock supervisor account used until the backend exists. Edits are kept in localStorage.
 export type SupervisorProfile = {
+  accountId?: string;
   name: string
   email: string
   specialization: string
@@ -8,8 +10,9 @@ export type SupervisorProfile = {
 }
 
 export const defaultSupervisorProfile: SupervisorProfile = {
-  name: 'Ahmad Saleh',
-  email: 'ahmad.saleh@najah.edu',
+  accountId: demoSupervisor.id,
+  name: demoSupervisor.name,
+  email: demoSupervisor.email,
   specialization: 'Embedded Systems & Robotics',
   photo: null,
 }

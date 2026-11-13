@@ -3,6 +3,7 @@
 // swapped for API data later. Teams, members and projects come from `progressMockData`.
 // Report text (summaries, feedback, file names) is user content and stays in the language it was written in.
 import { progressProjects, type ProjectStudent } from './progressMockData'
+import { demoSupervisor } from '../../../../../shared/web/domain'
 import type { IssueType, Priority } from './issuesMockData'
 
 /** Extraction candidates belong to a team report; confirmation creates a separate tracked issue. */
@@ -25,6 +26,8 @@ export type ReportWeek = {
 }
 
 export type ReportFeedback = {
+  submissionId?: string;
+  supervisorId?: string;
   id: string
   /** `me` is the supervisor; otherwise the submitting team member's name. */
   from: 'me' | string
@@ -40,6 +43,7 @@ export type ReportFile = {
 
 export type ReportTeam = {
   id: string
+  supervisorIds: string[]
   name: string
   initials: string
   projectCode: string
@@ -87,6 +91,7 @@ export const reportTeams: ReportTeam[] = progressProjects.map((project) => {
   const name = teamNames[project.code] ?? `Team ${project.code}`
   return {
     id: `team-${project.code.toLowerCase()}`,
+    supervisorIds: [demoSupervisor.id],
     name,
     initials: name
       .replace(/^Team\s+/, '')

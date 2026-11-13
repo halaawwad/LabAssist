@@ -57,23 +57,23 @@ export function ReportsPanel({
       ) &&
       (!supervisor || r.status !== "draft"),
   );
-  const report = state.reports.find((r) => r.id === selected);
+  const report = reports.find((r) => r.id === selected);
   const draft = fields ?? report?.fields ?? {};
   const title = state.projects.find((p) => p.id === report?.projectId)?.title ?? "";
   const [template, setTemplate] = useState("margin");
   const [color, setColor] = useState("#526443");
-  const open = (r: Report) => {
+  const open = async (r: Report) => {
     setSelected(r.id);
     setFields(null);
     setFeedback("");
     setSection("");
     setTemplate(r.template);
     setColor(r.color);
-    if (supervisor) act({ type: "report.view", id: r.id });
+    if (supervisor) await act({ type: "report.view", id: r.id });
   };
-  function save() {
+  async function save() {
     if (!report) return false;
-    return act({ type: "report.save", id: report.id, fields: draft, template, color });
+    return await act({ type: "report.save", id: report.id, fields: draft, template, color });
   }
   async function exportPDF() {
     setExporting(true);
@@ -173,9 +173,9 @@ export function ReportsPanel({
         {supervisor && (
           <Chips
             value={deckReport.id}
-            onChange={(id) => {
+            onChange={async (id) => {
               const r = reports.find((r) => r.id === id);
-              if (r) open(r);
+              if (r) await open(r);
             }}
             options={reports.map((r) => ({
               id: r.id,
@@ -219,9 +219,9 @@ export function ReportsPanel({
               id: r.id,
               label: state.projects.find((p) => p.id === r.projectId)?.title ?? r.projectId,
             }))}
-            onChange={(id) => {
+            onChange={async (id) => {
               const r = reports.find((r) => r.id === id);
-              if (r) open(r);
+              if (r) await open(r);
             }}
           />
         )}
@@ -257,7 +257,7 @@ export function ReportsPanel({
         <Button
           title={t("Start next weekly report", "بدء التقرير الأسبوعي التالي")}
           variant="soft"
-          onPress={() => {
+          onPress={async () => {
             const project = state.projects.find((p) => p.studentIds.includes(actorId));
             if (!project) return;
             const week =
@@ -267,7 +267,7 @@ export function ReportsPanel({
                   .filter((r) => r.projectId === project.id && r.kind === "weekly")
                   .map((r) => r.week),
               ) + 1;
-            act({ type: "weekly.create", projectId: project.id, week });
+            await act({ type: "weekly.create", projectId: project.id, week });
             setShowDrafts(true);
           }}
         />
@@ -293,7 +293,7 @@ export function ReportsPanel({
                   : t("Team workspace", "مساحة الفريق")}{" "}
                 · {r.status}
               </AppText>
-              <Button title={t("Open", "فتح")} variant="soft" onPress={() => open(r)} />
+              <Button title={t("Open", "فتح")} variant="soft" onPress={async () => await open(r)} />
             </Panel>
           ))}
       {!report && !reports.length && (
@@ -384,8 +384,8 @@ export function ReportsPanel({
               <Button
                 title={t("Review before submitting", "مراجعة قبل التسليم")}
                 variant="soft"
-                onPress={() => {
-                  if (save()) setPreview(true);
+                onPress={async () => {
+                  if (await save()) setPreview(true);
                 }}
               />
             </View>
@@ -411,7 +411,7 @@ export function ReportsPanel({
               <Button
                 title={t("Withdraw and edit", "سحب للتعديل")}
                 variant="ghost"
-                onPress={() => act({ type: "report.withdraw", id: report.id })}
+                onPress={async () => await act({ type: "report.withdraw", id: report.id })}
               />
             )}
           {report.feedback.map((f) => (
@@ -442,10 +442,11 @@ export function ReportsPanel({
                 <Button
                   title={t("Reviewed", "تمت المراجعة")}
                   disabled={!feedback.trim()}
-                  onPress={() => {
+                  onPress={async () => {
                     if (
-                      act({
+                      await act({
                         type: "report.review",
+                        submissionId: report.history?.at(-1)?.id ?? "",
                         id: report.id,
                         body: feedback,
                         section,
@@ -459,10 +460,11 @@ export function ReportsPanel({
                   title={t("Needs changes", "بحاجة تعديلات")}
                   variant="soft"
                   disabled={!feedback.trim()}
-                  onPress={() => {
+                  onPress={async () => {
                     if (
-                      act({
+                      await act({
                         type: "report.review",
+                        submissionId: report.history?.at(-1)?.id ?? "",
                         id: report.id,
                         body: feedback,
                         section,
@@ -477,9 +479,8 @@ export function ReportsPanel({
                 <Button
                   title={t("Reopen for this team", "إعادة الفتح لهذا الفريق")}
                   variant="ghost"
-                  onPress={() => {
-                    act({ type: "report.reopen", id: report.id });
-                    setSelected(null);
+                  onPress={async () => {
+                    if (await act({ type: "report.reopen", id: report.id })) setSelected(null);
                   }}
                 />
               )}
@@ -548,8 +549,8 @@ export function ReportsPanel({
                 {!supervisor && report.status === "draft" && (
                   <Button
                     title={t("Confirm submission", "تأكيد التسليم")}
-                    onPress={() => {
-                      if (act({ type: "report.submit", id: report.id })) {
+                    onPress={async () => {
+                      if (await act({ type: "report.submit", id: report.id })) {
                         setPreview(false);
                         setFields(null);
                       }

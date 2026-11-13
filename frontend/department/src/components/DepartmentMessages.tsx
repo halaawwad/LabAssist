@@ -18,7 +18,7 @@ export function DepartmentMessages({
 }: {
   accounts: Person[];
   messages: DepartmentMessage[];
-  onSend: (body: string) => void;
+  onSend: (body: string) => boolean;
   contact: string;
   onSelect: (id: string) => void;
 }) {
@@ -198,8 +198,7 @@ export function DepartmentMessages({
           onSubmit={(e) => {
             e.preventDefault();
             if (!body.trim() || !person) return;
-            onSend(body.trim());
-            setBody("");
+            if (onSend(body.trim())) setBody("");
           }}
         >
           <textarea

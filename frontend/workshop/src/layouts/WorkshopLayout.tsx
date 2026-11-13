@@ -1,3 +1,4 @@
+import { LocalStorageNotice } from "../../../../shared/web/LocalStorageNotice";
 import { CircleCheck } from 'lucide-react'
 import { Outlet } from 'react-router-dom'
 import { DialogHost } from '../components/DialogHost'
@@ -18,7 +19,7 @@ export function WorkshopLayout() {
     <DialogHost>
       <div className="workshop-shell">
         <Sidebar />
-        <main className="workshop-main">
+        <main className="workshop-main"><LocalStorageNotice />
           <Outlet />
         </main>
       </div>

@@ -434,7 +434,7 @@ export const ar: Dictionary = {
     notices: {
       reviewed: 'تم تعليم تقرير {name} كمُراجَع.',
       revision: 'تم طلب تعديل من {name}.',
-      feedback: 'تم إرسال الملاحظات إلى {name}.',
+      feedback: 'حُفظت ملاحظات {name} محلياً. الإرسال يتطلب الخادم.',
       download: 'جارٍ تنزيل {name}...',
     },
   },

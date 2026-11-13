@@ -1,7 +1,9 @@
+import { demoTeam, demoStudents, demoTasks } from "../../../shared/web/domain";
+import { useWorkspace } from "@/state/WorkspaceProvider";
 import { createContext, useContext, useState, type ReactNode } from "react";
 
 export const project = {
-  name: "Smart Car",
+  name: demoTeam.title,
   subtitle: "Autonomous Navigation",
   status: "In Progress",
   deadline: "Oct 24, 2026",
@@ -12,28 +14,28 @@ export const project = {
 };
 export const teammates = [
   {
-    name: "NOOR OWASSI",
+    name: demoStudents[0]!.name,
     initials: "NO",
-    done: 19,
-    remaining: 6,
+    done: 0,
+    remaining: 1,
     tone: "mint",
-    tasks: ["Finalize sensor connections", "Document circuit changes"],
+    tasks: [demoTasks[0]!.title],
   },
   {
-    name: "Omar Khalil",
+    name: demoStudents[1]!.name,
     initials: "OK",
-    done: 17,
-    remaining: 8,
+    done: 0,
+    remaining: 1,
     tone: "blue",
-    tasks: ["Test motor driver response", "Check power consumption"],
+    tasks: [demoTasks[1]!.title],
   },
   {
-    name: "Lina Nasser",
+    name: demoStudents[2]!.name,
     initials: "LN",
-    done: 16,
-    remaining: 9,
+    done: 0,
+    remaining: 1,
     tone: "rose",
-    tasks: ["Calibrate obstacle detection", "Record test results"],
+    tasks: [demoTasks[2]!.title],
   },
 ];
 export const projectBom = [
@@ -83,9 +85,6 @@ export const deadlines = [
     tone: "olive",
   },
 ];
-const defaultAbstract =
-  "We're developing an autonomous smart car that detects obstacles and navigates safely using ultrasonic sensors, an Arduino controller, and a dual motor driver. Our goal is to combine reliable sensing, efficient power management, and responsive motor control into an affordable, compact prototype. The expected result is a working vehicle that identifies obstacles in real time, adjusts its path, and demonstrates the practical use of embedded systems in autonomous navigation.";
-
 export type TeamTask = {
   id: string;
   owner: number;
@@ -96,74 +95,57 @@ export type TeamTask = {
   help: boolean;
 };
 export type TeamActivity = { id: string; owner: number; text: string; time: string };
+/** Adapter for the existing native project layout; all writes use the workspace. */
 function useWorkspaceState() {
-  const [teamTasks, setTeamTasks] = useState<TeamTask[]>(
-    teammates.flatMap((p, owner) =>
-      p.tasks.map((title, i) => ({
-        id: `${owner}-${i}`,
-        owner,
-        title,
-        description:
-          "Complete the work, document the outcome and share any blockers with the team.",
-        due: owner === 2 && i === 0 ? "2026-10-11" : "2026-10-13",
-        inProgress: i === 0,
-        help: false,
-      })),
-    ),
-  );
-  const [teamActivity, setTeamActivity] = useState<TeamActivity[]>([
-    { id: "seed1", owner: 0, text: "Updated the circuit design", time: "Sample activity" },
-    { id: "seed2", owner: 1, text: "Added motor driver test notes", time: "Sample activity" },
-    { id: "seed3", owner: 2, text: "Shared sensor calibration results", time: "Sample activity" },
-  ]);
+  const { state, actorId, act, error, retryLoading, saving } = useWorkspace();
+  const active = state.projects.find((p) => p.studentIds.includes(actorId)) ?? state.projects[0]!;
+  const members = active.studentIds.map((id) => state.users.find((user) => user.id === id)!);
+  const teamTasks: TeamTask[] = state.tasks
+    .filter((task) => task.projectId === active.id)
+    .map((task) => ({
+      id: task.id,
+      owner: active.studentIds.indexOf(task.ownerId),
+      title: task.title,
+      description: "",
+      due: task.dueDate ?? "",
+      inProgress: false,
+      help: false,
+    }));
+  const completed = state.tasks
+    .filter((task) => task.projectId === active.id && task.done)
+    .map((task) => task.id);
+  const [teamActivity, setTeamActivity] = useState<TeamActivity[]>([]);
   const logTeamActivity = (owner: number, text: string) =>
-    setTeamActivity((items) =>
-      [
-        {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          owner,
-          text,
-          time: new Date().toLocaleTimeString("en-US", {
-            timeZone: "Asia/Hebron",
-            hour: "numeric",
-            minute: "2-digit",
-          }),
-        },
-        ...items,
-      ].slice(0, 30),
-    );
-  const [abstract, setAbstract] = useState(defaultAbstract);
-  const [completed, setCompleted] = useState<string[]>([]);
-  const [issues, setIssues] = useState<string[]>([]);
-  const [report, setReport] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const toggleTask = (id: string) =>
-    setCompleted((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    );
-  const completedCount = teammates.reduce((sum, person) => sum + person.done, 0) + completed.length;
-  const taskCount =
-    teammates.reduce((sum, person) => sum + person.done + person.remaining, 0) +
-    Math.max(0, teamTasks.length - 6);
+    setTeamActivity((items) => [
+      { id: String(Date.now()), owner, text, time: new Date().toLocaleTimeString() },
+      ...items,
+    ]);
+  const currentReport = state.reports
+    .filter((report) => report.projectId === active.id && report.kind === "weekly")
+    .sort((a, b) => b.week - a.week)[0];
   return {
+    actorId,
+    details: active,
+    members,
     teamTasks,
-    setTeamTasks,
     teamActivity,
     logTeamActivity,
-    abstract,
-    setAbstract,
     completed,
-    toggleTask,
-    issues,
-    addIssue: (text: string) => setIssues((current) => [...current, text]),
-    report,
-    setReport,
-    submitted,
-    submitReport: () => setSubmitted(true),
-    withdrawReport: () => setSubmitted(false),
-    progress: Math.round((completedCount / taskCount) * 100),
-    completedCount,
-    taskCount,
+    abstract: active.description,
+    saveDetails: (title: string, description: string) =>
+      act({ type: "project.edit", id: active.id, title, description }),
+    toggleTask: (id: string) => act({ type: "task.toggle", id }),
+    issues: state.issues
+      .filter((issue) => issue.projectId === active.id && !issue.resolved)
+      .map((issue) => issue.title),
+    addIssue: (title: string) => act({ type: "issue.add", projectId: active.id, title }),
+    submitted: !!currentReport && currentReport.status !== "draft",
+    progress: Math.round((completed.length / Math.max(1, teamTasks.length)) * 100),
+    completedCount: completed.length,
+    taskCount: teamTasks.length,
+    error,
+    retryLoading,
+    saving,
   };
 }
 const WorkspaceContext = createContext<ReturnType<typeof useWorkspaceState> | null>(null);

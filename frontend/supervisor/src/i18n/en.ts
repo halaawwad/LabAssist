@@ -395,7 +395,7 @@ export const en = {
     notices: {
       reviewed: 'Report from {name} marked as reviewed.',
       revision: 'Revision requested from {name}.',
-      feedback: 'Feedback sent to {name}.',
+      feedback: 'Feedback for {name} saved locally. Backend delivery is pending.',
       download: 'Downloading {name}...',
     },
   },
