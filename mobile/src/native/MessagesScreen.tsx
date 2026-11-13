@@ -1,3 +1,5 @@
+import { usePreferences } from "@/state/Preferences";
+import { useLocalSearchParams } from "expo-router";
 import { useRef, useState, type ReactNode, type ComponentRef } from "react";
 import {
   Alert,
@@ -47,10 +49,17 @@ import { router } from "./router";
 
 type Tool = "actions" | "forward" | "starred" | "attach" | null;
 export function NativeMessages() {
+  const { preferences } = usePreferences();
   const { state, actorId, act } = useWorkspace();
   const t = useCopy();
   const me = state.users.find((x) => x.id === actorId)!;
-  const [selected, setSelected] = useState<string | null>(null),
+  const { chat: requestedChat } = useLocalSearchParams<{ chat?: string }>();
+  const [selected, setSelected] = useState<string | null>(() =>
+      requestedChat &&
+      state.threads.some((th) => th.id === requestedChat && th.memberIds.includes(actorId))
+        ? requestedChat
+        : null,
+    ),
     [filter, setFilter] = useState("all"),
     [query, setQuery] = useState("");
   const [newChat, setNewChat] = useState(false),
@@ -391,17 +400,19 @@ export function NativeMessages() {
                             )}
                           </View>
                           <AppText numberOfLines={1} style={s.preview}>
-                            {last?.body ||
-                              last?.attachment?.name ||
-                              (th.memberIds.length === 1
-                                ? t(
-                                    "Notes, links & things to keep",
-                                    "ملاحظات وروابط وأشياء للاحتفاظ بها",
-                                  )
-                                : t(
-                                    "Say hello and start a conversation",
-                                    "قل مرحبًا وابدأ محادثة",
-                                  ))}
+                            {!preferences.messagePreviews
+                              ? t("Message preview hidden", "معاينة الرسائل مخفية")
+                              : last?.body ||
+                                last?.attachment?.name ||
+                                (th.memberIds.length === 1
+                                  ? t(
+                                      "Notes, links & things to keep",
+                                      "ملاحظات وروابط وأشياء للاحتفاظ بها",
+                                    )
+                                  : t(
+                                      "Say hello and start a conversation",
+                                      "قل مرحبًا وابدأ محادثة",
+                                    ))}
                           </AppText>
                         </View>
                         <View style={s.meta}>
@@ -735,7 +746,9 @@ export function NativeMessages() {
                           ? t("Save a thought, a link, a reminder…", "احفظ فكرة، رابطًا، تذكيرًا…")
                           : t("Write a message…", "اكتب رسالة…")
                       }
-                      multiline
+                      multiline={!preferences.enterToSend}
+                      onSubmitEditing={() => preferences.enterToSend && send()}
+                      submitBehavior={preferences.enterToSend ? "submit" : "newline"}
                       maxLength={4000}
                       value={text}
                       onChangeText={setText}
