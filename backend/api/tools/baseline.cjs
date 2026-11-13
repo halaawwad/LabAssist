@@ -1,0 +1,3 @@
+﻿require('./env.cjs');
+const {Client}=require('pg'),fs=require('fs'),path=require('path');
+(async()=>{const client=new Client({connectionString:process.env.DATABASE_URL});await client.connect();try{const present=await client.query("SELECT to_regnamespace('labassist_student') n");if(present.rows[0].n)throw Error('Schema already exists. Use prisma migrate resolve for an existing verified baseline; do not re-run initialization.');await client.query(fs.readFileSync(path.join(__dirname,'../prisma/migrations/00000000000000_baseline/migration.sql'),'utf8'));console.log('Existing SQL baseline installed without demo accounts.');}finally{await client.end();}})().catch(e=>{console.error(e.message);process.exitCode=1;});
