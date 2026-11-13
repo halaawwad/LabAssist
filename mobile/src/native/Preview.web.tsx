@@ -1,13 +1,22 @@
 import { useLocalSearchParams } from "expo-router";
 export default function NativePreview() {
   const { role, page } = useLocalSearchParams<{ role?: string; page?: string }>();
-  const portal = role === "supervisor" || role === "workshop" ? role : "student";
-  const reportPage = page === "messages" || page === "reports";
-  const uri = reportPage
-    ? `/native/${portal}/${page}`
-    : portal === "student"
-      ? "/native"
-      : `/native/${portal}/dashboard`;
+  const portal =
+    role === "supervisor" || role === "workshop" || role === "department" || role === "login"
+      ? role
+      : "student";
+  const reportPage =
+    page === "messages" || page === "reports" || page === "offers" || page === "meetings";
+  const uri =
+    portal === "department" || portal === "login"
+      ? `/native/${portal}`
+      : page
+        ? `/native/${portal}/${page}`
+        : reportPage
+          ? `/native/${portal}/${page}`
+          : portal === "student"
+            ? "/native"
+            : `/native/${portal}/dashboard`;
   return (
     <div className="phone-preview-stage">
       <style>{`
@@ -26,13 +35,18 @@ export default function NativePreview() {
       <nav className="phone-preview-toolbar" aria-label="Preview role">
         <strong>LabAssist</strong>
         {[
+          { id: "login", label: "Login", href: "/native-preview?role=login" },
+          { id: "department", label: "Department Head", href: "/native-preview?role=department" },
           { id: "student", label: "الطالب", href: "/native-preview?role=student" },
           { id: "supervisor", label: "المشرف", href: "/native-preview?role=supervisor" },
           { id: "workshop", label: "مسؤول الورشة", href: "/native-preview?role=workshop" },
         ].map((role) => (
           <a
             key={role.id}
-            href={role.href + (reportPage ? `&page=${page}` : "")}
+            href={
+              role.href +
+              (reportPage && (page !== "offers" || role.id === "student") ? `&page=${page}` : "")
+            }
             aria-current={portal === role.id ? "page" : undefined}
           >
             {role.label}

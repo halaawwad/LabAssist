@@ -1,3 +1,7 @@
+import { FinalReviewScreen } from "@/features/supervisor/screens/FinalReviewScreen";
+import { WebWorkshopScreen } from "@/features/workshop/WebWorkshopScreen";
+import { WebSupervisorPanels } from "@/features/supervisor/screens/WebSupervisorPanels";
+import { usePreferences } from "@/state/Preferences";
 import { useState } from "react";
 import { ImageBackground, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -26,7 +30,7 @@ const menuItems = {
     ["lab", "3D Lab"],
     ["catalog", "Component Catalog"],
     ["circuits", "My Circuits"],
-    ["offers", "Inventory"],
+    ["offers", "Workshop Inventory"],
     ["learning", "Learning Hub"],
     ["messages", "Messages"],
     ["meetings", "Meetings"],
@@ -64,6 +68,7 @@ const menuItems = {
 };
 export function NativeScreen({ role, page }: { role: Role; page: string }) {
   const [menu, setMenu] = useState(false);
+  const { preferences } = usePreferences();
   if (page === "messages") return <NativeMessages />;
   const items = menuItems[role];
   const title = items.find((x) => x[0] === page)?.[1] ?? page;
@@ -88,12 +93,14 @@ export function NativeScreen({ role, page }: { role: Role; page: string }) {
               ? require("../../assets/web/reports-workspace-background.png")
               : page === "settings"
                 ? require("../../assets/web/settings-controls-background.png")
-                : page === "catalog"
-                  ? require("../../assets/web/catalog-white-background.png")
-                  : require("../../assets/web/project-white-background.png");
+                : page === "offers"
+                  ? require("../../assets/web/inventory-workshop-background.png")
+                  : page === "catalog"
+                    ? require("../../assets/web/catalog-white-background.png")
+                    : require("../../assets/web/project-white-background.png");
   return (
     <SafeAreaView style={s.root} edges={["top", "bottom"]}>
-      <ImageBackground source={background} style={s.fill}>
+      <ImageBackground source={preferences.background ? background : undefined} style={s.fill}>
         <View style={s.wash} />
         <View style={s.header}>
           <Pressable
@@ -130,9 +137,28 @@ export function NativeScreen({ role, page }: { role: Role; page: string }) {
         ) : role === "supervisor" ? (
           page === "dashboard" ? (
             <DashboardScreen />
+          ) : page === "finalReports" ? (
+            <FinalReviewScreen />
+          ) : ["projects", "students", "progress", "tasks"].includes(page) ? (
+            <ScrollView contentContainerStyle={{ padding: 18, gap: 16 }}>
+              <WebSupervisorPanels
+                key={page}
+                page={page as "projects" | "students" | "progress" | "tasks"}
+              />
+            </ScrollView>
           ) : (
             <SupervisorScreen key={page} page={page as SupervisorPageId} />
           )
+        ) : [
+            "dashboard",
+            "map",
+            "handover",
+            "notices",
+            "observations",
+            "notifications",
+            "attendance",
+          ].includes(page) ? (
+          <WebWorkshopScreen key={page} page={page} />
         ) : (
           <WorkshopScreen key={page} page={page} />
         )}

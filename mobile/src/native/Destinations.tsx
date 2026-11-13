@@ -1,10 +1,11 @@
+import { StudentSettings } from "@/features/student/StudentSettings";
+import { StudentMeetingsPanel } from "@/features/student/StudentMeetingsPanel";
 import { View } from "react-native";
 import { CatalogPanel, CircuitLabPanel } from "@/features/student/HardwarePanels";
 import { LearningPanel, OffersPanel } from "@/features/student/DiscoveryPanels";
-import { MessagesPanel, MeetingsPanel } from "@/features/shared/CommunicationPanels";
+import { MessagesPanel } from "@/features/shared/CommunicationPanels";
 import {
   ProfilePanel,
-  SettingsPanel,
   TeamPanels,
   NotificationsPanel,
   NoticesPanel,
@@ -14,7 +15,7 @@ import { Panel } from "@/components/MobileKit";
 import { AppText } from "@/components";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { ReferenceProject } from "./ProjectDetails";
-import { TasksPanel, IssuesPanel, FinancePanel } from '@/features/shared/ProjectPanels';
+import { TasksPanel, IssuesPanel, FinancePanel } from "@/features/shared/ProjectPanels";
 export const studentDestinations: Record<string, string> = {
   "My Project": "project",
   Team: "team",
@@ -36,9 +37,12 @@ export const studentDestinations: Record<string, string> = {
 export function StudentDestination({ page }: { page: string }) {
   const { state, actorId } = useWorkspace();
   switch (page) {
-    case 'tasks':return <TasksPanel/>;
-    case 'issues':return <IssuesPanel/>;
-    case 'budget':return <FinancePanel/>;
+    case "tasks":
+      return <TasksPanel />;
+    case "issues":
+      return <IssuesPanel />;
+    case "budget":
+      return <FinancePanel />;
     case "project":
       return <ReferenceProject />;
     case "team":
@@ -50,7 +54,7 @@ export function StudentDestination({ page }: { page: string }) {
     case "messages":
       return <MessagesPanel />;
     case "meetings":
-      return <MeetingsPanel />;
+      return <StudentMeetingsPanel />;
     case "catalog":
       return <CatalogPanel />;
     case "lab":
@@ -62,7 +66,7 @@ export function StudentDestination({ page }: { page: string }) {
     case "profile":
       return <ProfilePanel key={actorId} />;
     case "settings":
-      return <SettingsPanel />;
+      return <StudentSettings />;
     case "notifications":
       return <NotificationsPanel />;
     case "workshop":

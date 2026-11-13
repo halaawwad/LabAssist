@@ -29,23 +29,78 @@ const seed = () => createWorkspace(now);
 const act = (s, u, a) => applyAction(s, u, a, "id" + ++sequence, now);
 test("final report preserves structured chapters, images and tables in drafts and submitted versions", () => {
   let s = seed();
-  const report = s.reports.find(r => r.projectId === "p1" && r.kind === "final");
+  const report = s.reports.find((r) => r.projectId === "p1" && r.kind === "final");
   const { sectionTemplate } = load(path.join(__dirname, "../src/domain/finalReport.ts"));
-  const document = { meta: { title: "Smart Car", specialization: "Computer", department: "Computer", supervisor: "Dr. Ahmad", date: "2026-11-05", students: [{name:"Noor",number:"12000001"},{name:"Hala",number:"12000002"}] }, sections: sectionTemplate.map(section => ({...section,blocks:[{id:section.id+"-text",kind:"paragraph",text:"Original paragraph ".repeat(600)}]})) };
-  document.sections.find(x=>x.id==="methodology").blocks.push({id:"figure",kind:"image",url:"data:image/png;base64,aGVsbG8=",text:"Wiring",size:"large"},{id:"table",kind:"table",text:"Readings",rows:[["Light","Current"],["15%","20 mA"]]});
-  const fields=Object.fromEntries(Object.keys(report.fields).map(key=>[key,"Complete section"]));
-  assert.throws(()=>act(s,"s4",{type:"report.save",id:report.id,fields,document}),/not_allowed/);
-  s=act(s,"s1",{type:"report.save",id:report.id,fields,document});
-  assert.deepEqual(JSON.parse(JSON.stringify(s)).reports.find(r=>r.id===report.id).document,document);
-  s=act(s,"s1",{type:"report.submit",id:report.id});
-  assert.deepEqual(s.reports.find(r=>r.id===report.id).history.at(-1).document,document);
-  assert.throws(()=>act(s,"s1",{type:"report.save",id:report.id,fields,document}),/locked/);
+  const document = {
+    meta: {
+      title: "Smart Car",
+      specialization: "Computer",
+      department: "Computer",
+      supervisor: "Dr. Ahmad",
+      date: "2026-11-05",
+      students: [
+        { name: "Noor", number: "12000001" },
+        { name: "Hala", number: "12000002" },
+      ],
+    },
+    sections: sectionTemplate.map((section) => ({
+      ...section,
+      blocks: [
+        { id: section.id + "-text", kind: "paragraph", text: "Original paragraph ".repeat(600) },
+      ],
+    })),
+  };
+  document.sections
+    .find((x) => x.id === "methodology")
+    .blocks.push(
+      {
+        id: "figure",
+        kind: "image",
+        url: "data:image/png;base64,aGVsbG8=",
+        text: "Wiring",
+        size: "large",
+      },
+      {
+        id: "table",
+        kind: "table",
+        text: "Readings",
+        rows: [
+          ["Light", "Current"],
+          ["15%", "20 mA"],
+        ],
+      },
+    );
+  const fields = Object.fromEntries(
+    Object.keys(report.fields).map((key) => [key, "Complete section"]),
+  );
+  assert.throws(
+    () => act(s, "s4", { type: "report.save", id: report.id, fields, document }),
+    /not_allowed/,
+  );
+  s = act(s, "s1", { type: "report.save", id: report.id, fields, document });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(s)).reports.find((r) => r.id === report.id).document,
+    document,
+  );
+  s = act(s, "s1", { type: "report.submit", id: report.id });
+  assert.deepEqual(s.reports.find((r) => r.id === report.id).history.at(-1).document, document);
+  assert.throws(
+    () => act(s, "s1", { type: "report.save", id: report.id, fields, document }),
+    /locked/,
+  );
 });
 test("all final report sections retain the original web structure and optional flags", () => {
   const { sectionTemplate } = load(path.join(__dirname, "../src/domain/finalReport.ts"));
-  const source=fs.readFileSync(path.join(__dirname,"../../frontend/student/src/lib/reports.tsx"),"utf8");
-  const array=source.match(/export const sectionTemplate:[^=]+=(\[[^;]+\]);/)[1];
-  assert.deepEqual(sectionTemplate,JSON.parse(JSON.stringify(vm.runInNewContext(array))));
+  const source = fs.readFileSync(
+    path.join(__dirname, "../../frontend/student/src/lib/reports.tsx"),
+    "utf8",
+  );
+  const parsed = ts.createSourceFile("reports.tsx",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+  let array;
+  function find(node){if(ts.isVariableDeclaration(node)&&node.name.getText(parsed)==="sectionTemplate")array=node.initializer.getText(parsed);ts.forEachChild(node,find);}
+  find(parsed);
+  assert.ok(array,"Web report section template must be present");
+  assert.deepEqual(sectionTemplate, JSON.parse(JSON.stringify(vm.runInNewContext(array))));
 });
 test("seed: 23 teams, 54 unique 8-digit students, 2–3 students/team, max 4 projects/supervisor", () => {
   const s = seed();
@@ -441,4 +496,135 @@ test("native catalog, floor and presentation templates retain the web source str
   assert.equal(new Set(templates.map((t) => JSON.stringify(t.composition.shapes))).size, 20);
   assert.equal(floor.tables.filter((t) => t.shape === "rect").length, 25);
   assert.equal(floor.tables.filter((t) => t.shape === "round").length, 3);
+});
+
+test("meeting times use Palestine timezone and reject impossible dates", () => {
+  const { meetingInstant, meetingDay } = load(path.join(__dirname, "../src/domain/meetingTime.ts"));
+  assert.equal(
+    new Date(meetingInstant("2026-11-06", "13:00")).toISOString(),
+    "2026-11-06T11:00:00.000Z",
+  );
+  assert.equal(
+    new Date(meetingInstant("2026-07-15", "13:00")).toISOString(),
+    "2026-07-15T10:00:00.000Z",
+  );
+  assert(Number.isNaN(meetingInstant("2026-02-30", "13:00")));
+  assert(Number.isNaN(meetingInstant("2026-11-06", "24:00")));
+  assert.equal(meetingDay(new Date(meetingInstant("2026-11-06", "00:15"))), "2026-11-06");
+});
+test("meeting changes require the organizer and changed times reset invitation responses", () => {
+  let s = act(seed(), "s1", {
+    type: "meeting.create",
+    title: "Calibration",
+    inviteeIds: ["s2"],
+    date: "2026-11-06",
+    time: "13:00",
+    duration: 45,
+    location: "Lab 204",
+    agenda: "Check readings",
+    meetingType: "individual",
+  });
+  const id = s.meetings.at(-1).id;
+  s = act(s, "s2", { type: "meeting.respond", id, response: "accepted" });
+  const update = {
+    type: "meeting.update",
+    id,
+    title: "Calibration updated",
+    inviteeIds: ["s2"],
+    date: "2026-11-07",
+    time: "14:00",
+    duration: 60,
+    location: "Lab 204",
+    agenda: "Check readings",
+    meetingType: "individual",
+  };
+  assert.throws(() => act(s, "s2", update), /not_allowed/);
+  const old = JSON.stringify(s);
+  const n = act(s, "s1", update);
+  assert.deepEqual(n.meetings.find((m) => m.id === id).responses, {});
+  assert.equal(n.meetings.find((m) => m.id === id).duration, 60);
+  assert.equal(JSON.stringify(s), old);
+  assert.throws(() => act(s, "s1", { ...update, duration: 241 }), /invalid_input/);
+  assert.throws(() => act(s, "s1", { ...update, date: "2026-02-30" }), /invalid_input/);
+});
+test("meeting notes remain participant-only and completed invitations cannot change", () => {
+  let s = seed();
+  assert.throws(
+    () => act(s, "s4", { type: "meeting.notes", id: "meet1", notes: "No access" }),
+    /not_allowed/,
+  );
+  s = act(s, "s1", { type: "meeting.notes", id: "meet1", notes: "Check supply stability" });
+  assert.equal(s.meetings[0].notes, "Check supply stability");
+  assert.throws(() => act(s, "s1", { type: "meeting.complete", id: "meet1" }), /not_allowed/);
+  s = act(s, "d1", { type: "meeting.complete", id: "meet1" });
+  assert.equal(s.meetings[0].completed, true);
+  assert.throws(
+    () => act(s, "s1", { type: "meeting.respond", id: "meet1", response: "accepted" }),
+    /not_allowed/,
+  );
+});
+test("meeting preview examples are added once without replacing notes or existing meetings", () => {
+  const { addMeetingPreviewData } = load(path.join(__dirname, "../src/domain/meetingPreview.ts"));
+  const s = seed();
+  s.meetings[0].notes = "My original notes";
+  const n = addMeetingPreviewData(s, now);
+  assert.equal(n.meetings.find((m) => m.id === "meet1").notes, "My original notes");
+  assert(n.meetings.some((m) => m.completed && m.sample));
+  assert.equal(addMeetingPreviewData(n, now), n);
+  assert.equal(s.meetingPreviewRevision, undefined);
+});
+test("presentation draft and submitted snapshot retain template, theme and movable image/text objects", () => {
+  const { starterDeck, validDeck } = load(
+    path.join(__dirname, "../src/domain/presentation/presentations.ts"),
+  );
+  const { patchSlideObject, slideScene } = load(
+    path.join(__dirname, "../src/domain/presentation/presentationScene.ts"),
+  );
+  let s = seed();
+  const report = s.reports.find((r) => r.projectId === "p1" && r.kind === "presentation");
+  const deck = starterDeck("Smart Car");
+  deck.template = "margin";
+  deck.slides[0] = patchSlideObject(deck.slides[0], "title", { x: 150, y: 90, w: 500, h: 100 });
+  deck.slides[0].objects = [
+    {
+      id: "own-image",
+      kind: "image",
+      src: "data:image/png;base64,aGVsbG8=",
+      x: 200,
+      y: 160,
+      w: 320,
+      h: 180,
+      fit: "contain",
+      z: 20,
+    },
+  ];
+  assert.equal(validDeck(deck), true);
+  let saved = act(s, "s1", {
+    type: "report.save",
+    id: report.id,
+    deck,
+    fields: { slide: "Smart Car" },
+    template: "margin",
+    color: "#738e61",
+  });
+  s = saved;
+  const stored = s.reports.find((r) => r.id === report.id);
+  assert.equal(stored.deck.slides[0].objects[0].x, 200);
+  const scene = slideScene(stored.deck, stored.deck.slides[0], 0);
+  assert.equal(scene.objects.find((o) => o.id === "title").x, 150);
+  deck.slides[0].objects[0].x = 777;
+  assert.equal(stored.deck.slides[0].objects[0].x, 200);
+  const submitted = act(s, "s1", { type: "report.submit", id: report.id });
+  assert.equal(
+    submitted.reports.find((r) => r.id === report.id).history.at(-1).deck.slides[0].objects[0].x,
+    200,
+  );
+});
+test("workshop table moves are atomic, preserve other teams and enforce rectangular/round capacity",()=>{
+ const {assignWorkshopTeam,removeWorkshopTeam}=load(path.join(__dirname,"../src/domain/workshopAllocation.ts"));
+ const tables=[{code:"R1",shape:"rect",teamIds:["G01"]},{code:"R2",shape:"rect",teamIds:["G02"]},{code:"C1",shape:"round",teamIds:["G03"]}];
+ assert.throws(()=>assignWorkshopTeam(tables,"G01","R2"),/full/);assert.deepEqual(tables[0].teamIds,["G01"]);
+ const moved=assignWorkshopTeam(tables,"G01","C1");assert.deepEqual(moved[0].teamIds,[]);assert.deepEqual(moved[2].teamIds,["G03","G01"]);assert.deepEqual(tables[0].teamIds,["G01"]);
+ assert.throws(()=>assignWorkshopTeam(moved,"G02","C1"),/full/);
+ const removed=removeWorkshopTeam(moved,"G01","C1");assert.deepEqual(removed[2].teamIds,["G03"]);assert.deepEqual(removed[1].teamIds,["G02"]);
 });
