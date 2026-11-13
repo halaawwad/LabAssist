@@ -1,3 +1,4 @@
+import { usePreferences } from "@/state/Preferences";
 import { Text, type TextProps } from "react-native";
 
 import { directionOf, useLanguage, type Language } from "@/i18n";
@@ -35,6 +36,7 @@ export function AppText({
   ...rest
 }: AppTextProps) {
   const app = useLanguage();
+  const { preferences } = usePreferences();
   const textLanguage = language ?? app.language;
 
   return (
@@ -42,6 +44,12 @@ export function AppText({
       {...rest}
       style={[
         fontStyle(textLanguage, variant, weight),
+        preferences.largeText
+          ? {
+              fontSize: (fontStyle(textLanguage, variant, weight).fontSize ?? 15) * 1.12,
+              lineHeight: (fontStyle(textLanguage, variant, weight).lineHeight ?? 22) * 1.12,
+            }
+          : {},
         {
           color: toneColors[tone],
           textAlign:

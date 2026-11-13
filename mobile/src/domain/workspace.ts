@@ -1,3 +1,5 @@
+import { validDeck, type Deck } from "./presentation/presentations";
+import { meetingInstant } from "./meetingTime";
 import { CATALOG_MAP } from "../lib/hardware/catalog";
 import { checkWireFit } from "../lib/hardware/wireCompatibility";
 import type { WireType } from "../lib/hardware/types";
@@ -45,8 +47,13 @@ export const weeklyFields = [
   "plan",
 ] as const;
 export type Report = {
+  deck?: Deck;
+  savedAt?: string;
+  attachments?: ReportAttachment[];
   document?: FinalDocument;
   history?: {
+    deck?: Deck;
+    attachments?: ReportAttachment[];
     document?: FinalDocument;
     id: string;
     fields: Record<string, string>;
@@ -66,6 +73,7 @@ export type Report = {
   openedBy: string[];
   feedback: { id: string; authorId: string; body: string; section: string; createdAt: string }[];
 };
+export type ReportAttachment = { id: string; name: string; uri: string; mime: string };
 export type Message = {
   id: string;
   threadId: string;
@@ -87,6 +95,12 @@ export type Thread = {
   photo?: string;
 };
 export type Meeting = {
+  duration?: number;
+  notes?: string;
+  completed?: boolean;
+  meetingType?: "team" | "individual";
+  projectId?: string;
+  sample?: boolean;
   id: string;
   title: string;
   creatorId: string;
@@ -150,6 +164,7 @@ export type Circuit = {
 };
 export type Workspace = {
   previewDataRevision?: number;
+  meetingPreviewRevision?: number;
   version: 1;
   users: User[];
   projects: Project[];
@@ -433,6 +448,9 @@ export type Action =
       template?: string;
       color?: string;
       document?: FinalDocument;
+      deck?: Deck;
+      attachments?: ReportAttachment[];
+      autosave?: boolean;
     }
   | { type: "report.submit" | "report.withdraw" | "report.view" | "report.reopen"; id: string }
   | {
@@ -458,6 +476,9 @@ export type Action =
   | { type: "message.delete"; id: string }
   | {
       type: "meeting.create";
+      duration?: number;
+      meetingType?: "team" | "individual";
+      projectId?: string;
       title: string;
       inviteeIds: string[];
       date: string;
@@ -465,6 +486,21 @@ export type Action =
       agenda: string;
       location: string;
     }
+  | {
+      type: "meeting.update";
+      id: string;
+      title: string;
+      inviteeIds: string[];
+      date: string;
+      time: string;
+      duration: number;
+      location: string;
+      agenda: string;
+      meetingType: "team" | "individual";
+      projectId?: string;
+    }
+  | { type: "meeting.notes"; id: string; notes: string }
+  | { type: "meeting.complete"; id: string }
   | { type: "meeting.respond"; id: string; response: "accepted" | "declined" }
   | { type: "meeting.cancel"; id: string }
   | { type: "attendance.set"; userId: string; date: string; present: boolean }
@@ -702,6 +738,12 @@ export function applyAction(
       );
       insist(!action.color || /^#[0-9a-f]{6}$/i.test(action.color), "invalid_input");
       report.fields = JSON.parse(JSON.stringify(action.fields));
+      if (!action.autosave) report.savedAt = stamp;
+      if (action.deck) {
+        insist(validDeck(action.deck), "invalid_input");
+        report.deck = JSON.parse(JSON.stringify(action.deck));
+      }
+      if (action.attachments) report.attachments = JSON.parse(JSON.stringify(action.attachments));
       if (action.document && report.kind === "final")
         report.document = JSON.parse(JSON.stringify(action.document));
       report.template = action.template ?? report.template;
@@ -729,7 +771,11 @@ export function applyAction(
       report.submittedAt = stamp;
       report.history ??= [];
       report.history.push({
+        ...(report.deck ? { deck: JSON.parse(JSON.stringify(report.deck)) } : {}),
         id,
+        ...(report.attachments
+          ? { attachments: JSON.parse(JSON.stringify(report.attachments)) }
+          : {}),
         ...(report.document ? { document: JSON.parse(JSON.stringify(report.document)) } : {}),
         fields: JSON.parse(JSON.stringify(report.fields)),
         template: report.template,
@@ -864,6 +910,61 @@ export function applyAction(
       next.messages = next.messages.filter((m) => m.id !== action.id);
       break;
     }
+    case "meeting.update": {
+      const m = next.meetings.find((m) => m.id === action.id);
+      insist(m && m.creatorId === actorId && !m.cancelled && !m.completed);
+      insist(
+        Number.isFinite(meetingInstant(action.date, action.time)) &&
+          meetingInstant(action.date, action.time) > now.getTime(),
+        "invalid_input",
+      );
+      insist(
+        Number.isInteger(action.duration) && action.duration >= 15 && action.duration <= 240,
+        "invalid_input",
+      );
+      insist(
+        action.location.trim() &&
+          action.title.trim() &&
+          action.title.length <= 120 &&
+          action.agenda.length <= 3000,
+        "required_fields",
+      );
+      insist(
+        action.inviteeIds.length &&
+          action.inviteeIds.every((id) => id !== actorId && next.users.some((u) => u.id === id)),
+        "required_fields",
+      );
+      if (action.meetingType === "individual")
+        insist(new Set(action.inviteeIds).size === 1, "invalid_input");
+      if (action.projectId) insist(canSeeProject(next, actorId, action.projectId));
+      const timingChanged =
+        m.date !== action.date || m.time !== action.time || (m.duration ?? 30) !== action.duration;
+      const oldResponses = m.responses;
+      Object.assign(m, action, {
+        id: m.id,
+        inviteeIds: [...new Set(action.inviteeIds)],
+        responses: timingChanged
+          ? {}
+          : Object.fromEntries(
+              Object.entries(oldResponses).filter(([id]) => action.inviteeIds.includes(id)),
+            ),
+      });
+      alert(action.inviteeIds, "Meeting updated · " + action.title);
+      break;
+    }
+    case "meeting.notes": {
+      const m = next.meetings.find((m) => m.id === action.id);
+      insist(m && (m.creatorId === actorId || m.inviteeIds.includes(actorId)));
+      insist(action.notes.length <= 5000, "invalid_input");
+      m.notes = action.notes;
+      break;
+    }
+    case "meeting.complete": {
+      const m = next.meetings.find((m) => m.id === action.id);
+      insist(m && m.creatorId === actorId && !m.cancelled && !m.completed);
+      m.completed = true;
+      break;
+    }
     case "meeting.create": {
       insist(
         /^\d{4}-\d{2}-\d{2}$/.test(action.date) && /^([01]\d|2[0-3]):[0-5]\d$/.test(action.time),
@@ -879,6 +980,24 @@ export function applyAction(
           action.inviteeIds.every((id) => id !== actorId && next.users.some((u) => u.id === id)),
         "required_fields",
       );
+      insist(
+        Number.isFinite(meetingInstant(action.date, action.time)) &&
+          meetingInstant(action.date, action.time) > now.getTime(),
+        "invalid_input",
+      );
+      insist(
+        Number.isInteger(action.duration ?? 30) &&
+          (action.duration ?? 30) >= 15 &&
+          (action.duration ?? 30) <= 240,
+        "invalid_input",
+      );
+      insist(
+        action.location.trim() && action.title.length <= 120 && action.agenda.length <= 3000,
+        "required_fields",
+      );
+      if (action.meetingType === "individual")
+        insist(new Set(action.inviteeIds).size === 1, "invalid_input");
+      if (action.projectId) insist(canSeeProject(next, actorId, action.projectId));
       next.meetings.push({
         ...action,
         id,
@@ -893,7 +1012,7 @@ export function applyAction(
     }
     case "meeting.respond": {
       const m = next.meetings.find((m) => m.id === action.id);
-      insist(m && !m.cancelled && m.inviteeIds.includes(actorId));
+      insist(m && !m.cancelled && !m.completed && m.inviteeIds.includes(actorId));
       m.responses[actorId] = action.response;
       break;
     }
