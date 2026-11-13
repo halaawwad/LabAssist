@@ -1,4 +1,4 @@
-﻿name: Account API checks
+name: Account API checks
 on:
   push:
     branches: [main, noor]
@@ -23,13 +23,13 @@ jobs:
           POSTGRES_USER: labassist_ci
           POSTGRES_PASSWORD: labassist_ci
           POSTGRES_DB: labassist_ci_test
-        ports: ['5432/tcp']
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U labassist_ci -d labassist_ci_test"
           --health-interval 5s --health-timeout 5s --health-retries 12
     env:
-      DATABASE_URL: postgresql://labassist_ci:labassist_ci@localhost:${{ job.services.postgres.ports[5432] }}/labassist_ci_test?schema=labassist_student
-      TEST_DATABASE_URL: postgresql://labassist_ci:labassist_ci@localhost:${{ job.services.postgres.ports[5432] }}/labassist_ci_test?schema=labassist_student
+      DATABASE_URL: postgresql://labassist_ci:labassist_ci@localhost:5432/labassist_ci_test?schema=labassist_student
+      TEST_DATABASE_URL: postgresql://labassist_ci:labassist_ci@localhost:5432/labassist_ci_test?schema=labassist_student
       DATABASE_PASSWORD: labassist_ci
       MAIL_ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
       PUBLIC_APP_URL: http://localhost:8081/native
