@@ -1,18 +1,20 @@
+import { useLanguage } from "@/i18n";
+import { MobileInput as TextInput } from "@/components/MobileInput";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { MobileModal as Modal } from "@/components/MobileModal";
 import { usePreferences } from "@/state/Preferences";
-import { useLocalSearchParams } from "expo-router";
-import { useRef, useState, type ReactNode, type ComponentRef } from "react";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useEffect, useCallback, useRef, useState, type ReactNode, type ComponentRef } from "react";
 import {
   Alert,
+  BackHandler,
   Image,
   ImageBackground,
   KeyboardAvoidingView,
   Linking,
-  Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -48,8 +50,16 @@ import type { Message, Thread } from "@/domain/workspace";
 import { router } from "./router";
 
 type Tool = "actions" | "forward" | "starred" | "attach" | null;
-export function NativeMessages() {
+export function NativeMessages({
+  embedded = false,
+  onConversationChange,
+}: {
+  embedded?: boolean;
+  onConversationChange?: (open: boolean) => void;
+}) {
+  const [conversationMenu, setConversationMenu] = useState(false);
   const { preferences } = usePreferences();
+  const { isRTL } = useLanguage();
   const { state, actorId, act } = useWorkspace();
   const t = useCopy();
   const me = state.users.find((x) => x.id === actorId)!;
@@ -90,6 +100,25 @@ export function NativeMessages() {
             !x.projectId && x.memberIds.length === 2 && x.memberIds.includes(selected.slice(7)),
         )
       : undefined);
+  useEffect(() => {
+    onConversationChange?.(!!thread);
+  }, [thread, onConversationChange]);
+  const closeConversation = useCallback(() => {
+    setSelected(null);
+    setReply(null);
+    setText("");
+    setAttachment(undefined);
+  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (!selected) return false;
+        closeConversation();
+        return true;
+      });
+      return () => listener.remove();
+    }, [selected, closeConversation]),
+  );
   const messages = state.messages.filter((x) => x.threadId === thread?.id);
   const self = thread?.memberIds.length === 1;
   const unread = (th: Thread) =>
@@ -275,10 +304,34 @@ export function NativeMessages() {
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
-      onPress={action}
+      onPress={() => {
+        setConversationMenu(false);
+        action();
+      }}
       style={[s.icon, active && s.activeIcon]}
     >
       {children}
+    </Pressable>
+  );
+  const menuAction = (label: string, action: () => void, children: ReactNode, active = false) => (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      onPress={() => {
+        setConversationMenu(false);
+        action();
+      }}
+      style={{
+        width: "100%",
+        minHeight: 52,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 16,
+        paddingHorizontal: 8,
+      }}
+    >
+      {children}
+      <AppText style={{ flex: 1 }}>{label}</AppText>
     </Pressable>
   );
   const chips = (
@@ -309,8 +362,11 @@ export function NativeMessages() {
     </View>
   );
   return (
-    <SafeAreaView style={s.root} edges={["top", "bottom"]}>
-      <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <SafeAreaView
+      style={[s.root, { direction: isRTL ? "rtl" : "ltr" }]}
+      edges={embedded ? [] : ["top", "bottom"]}
+    >
+      <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ImageBackground
           source={require("../../assets/web/messages-desk-background.png")}
           style={s.fill}
@@ -369,6 +425,8 @@ export function NativeMessages() {
                   setFilter,
                 )}
                 <ScrollView
+                  automaticallyAdjustKeyboardInsets
+                  keyboardDismissMode="on-drag"
                   contentContainerStyle={s.conversations}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
@@ -468,41 +526,73 @@ export function NativeMessages() {
                       {detail(thread)}
                     </AppText>
                   </Pressable>
-                </View>
-                <View style={s.tools}>
-                  <AppText style={s.chatLabel}>
-                    {self ? t("Only you", "أنت فقط") : t("Conversation", "محادثة")}
-                  </AppText>
                   {icon(
-                    t("Search in conversation", "البحث داخل المحادثة"),
-                    () => {
-                      setSearchOpen(!searchOpen);
-                      setMessageQuery("");
-                    },
-                    <Search size={18} color="#687957" />,
-                    searchOpen,
-                  )}
-                  {icon(
-                    t("Conversation info", "معلومات المحادثة"),
-                    () => setInfo(!info),
-                    <Info size={18} color="#687957" />,
-                    info,
-                  )}
-                  {thread.projectId &&
-                    icon(
-                      t("Edit project group", "تعديل مجموعة المشروع"),
-                      () => {
-                        setGroupName(thread.name);
-                        setEditGroup(true);
-                      },
-                      <Pencil size={17} color="#687957" />,
-                    )}
-                  {icon(
-                    t("View starred messages", "عرض الرسائل المميزة"),
-                    () => setTool("starred"),
-                    <Star size={18} color="#687957" />,
+                    t("Conversation actions", "خيارات المحادثة"),
+                    () => setConversationMenu(true),
+                    <MoreHorizontal size={22} color="#526443" />,
                   )}
                 </View>
+                <Modal
+                  visible={conversationMenu}
+                  transparent
+                  animationType="slide"
+                  onRequestClose={() => setConversationMenu(false)}
+                >
+                  <View
+                    style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "#17201666" }}
+                  >
+                    <Pressable
+                      style={{ flex: 1 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("Close conversation actions", "إغلاق خيارات المحادثة")}
+                      onPress={() => setConversationMenu(false)}
+                    />
+                    <SafeAreaView
+                      edges={["bottom"]}
+                      style={{
+                        padding: 20,
+                        backgroundColor: "#fff",
+                        borderTopLeftRadius: 24,
+                        borderTopRightRadius: 24,
+                      }}
+                    >
+                      <View style={[s.tools, { flexWrap: "wrap", justifyContent: "space-around" }]}>
+                        <AppText style={s.chatLabel}>
+                          {self ? t("Only you", "أنت فقط") : t("Conversation", "محادثة")}
+                        </AppText>
+                        {menuAction(
+                          t("Search in conversation", "البحث داخل المحادثة"),
+                          () => {
+                            setSearchOpen(!searchOpen);
+                            setMessageQuery("");
+                          },
+                          <Search size={18} color="#687957" />,
+                          searchOpen,
+                        )}
+                        {menuAction(
+                          t("Conversation info", "معلومات المحادثة"),
+                          () => setInfo(!info),
+                          <Info size={18} color="#687957" />,
+                          info,
+                        )}
+                        {thread.projectId &&
+                          menuAction(
+                            t("Edit project group", "تعديل مجموعة المشروع"),
+                            () => {
+                              setGroupName(thread.name);
+                              setEditGroup(true);
+                            },
+                            <Pencil size={17} color="#687957" />,
+                          )}
+                        {menuAction(
+                          t("View starred messages", "عرض الرسائل المميزة"),
+                          () => setTool("starred"),
+                          <Star size={18} color="#687957" />,
+                        )}
+                      </View>
+                    </SafeAreaView>
+                  </View>
+                </Modal>
                 {searchOpen && (
                   <View style={s.inChatSearch}>
                     <Search size={16} color="#738368" />
@@ -532,6 +622,8 @@ export function NativeMessages() {
                   </View>
                 )}
                 <ScrollView
+                  automaticallyAdjustKeyboardInsets
+                  keyboardDismissMode="on-drag"
                   ref={scroll}
                   style={s.fill}
                   contentContainerStyle={[
@@ -747,7 +839,7 @@ export function NativeMessages() {
                           : t("Write a message…", "اكتب رسالة…")
                       }
                       multiline={!preferences.enterToSend}
-                      onSubmitEditing={async () => preferences.enterToSend && await send()}
+                      onSubmitEditing={async () => preferences.enterToSend && (await send())}
                       submitBehavior={preferences.enterToSend ? "submit" : "newline"}
                       maxLength={4000}
                       value={text}
@@ -831,7 +923,11 @@ export function NativeMessages() {
               setPersonKind,
             )}
           </View>
-          <ScrollView contentContainerStyle={s.conversations}>
+          <ScrollView
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={s.conversations}
+          >
             {state.users
               .filter(
                 (u) =>
@@ -875,7 +971,11 @@ export function NativeMessages() {
             )}
           </View>
           {thread && (
-            <ScrollView contentContainerStyle={s.details}>
+            <ScrollView
+              automaticallyAdjustKeyboardInsets
+              keyboardDismissMode="on-drag"
+              contentContainerStyle={s.details}
+            >
               <View style={s.detailProfile}>
                 {avatar(thread, 86)}
                 <AppText variant="title" align="center">
@@ -1089,7 +1189,11 @@ export function NativeMessages() {
                 <X size={21} color="#6d7c5e" />,
               )}
             </View>
-            <ScrollView contentContainerStyle={s.toolContent}>
+            <ScrollView
+              automaticallyAdjustKeyboardInsets
+              keyboardDismissMode="on-drag"
+              contentContainerStyle={s.toolContent}
+            >
               {tool === "attach" ? (
                 <>
                   <Action
@@ -1134,13 +1238,13 @@ export function NativeMessages() {
                     onPress={async () => {
                       if (
                         actionMessage &&
-                        await act({
+                        (await act({
                           type: "message.send",
                           threadId: th.id,
                           body: actionMessage.body,
                           attachment: actionMessage.attachment,
                           forwarded: true,
-                        })
+                        }))
                       ) {
                         setTool(null);
                         await open(th);
@@ -1235,7 +1339,7 @@ const s = StyleSheet.create({
   },
   title: { fontSize: 24, fontWeight: "700", flex: 1, color: "#101b2c" },
   total: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 16, backgroundColor: "#e8eddf" },
-  icon: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: 14 },
+  icon: { width: 48, height: 48, alignItems: "center", justifyContent: "center", borderRadius: 14 },
   activeIcon: { backgroundColor: "#e3ecd4" },
   listSearch: {
     marginHorizontal: 18,
@@ -1368,7 +1472,7 @@ const s = StyleSheet.create({
     borderRadius: 17,
     borderBottomRightRadius: 4,
   },
-  messageText: { fontSize: 14, lineHeight: 23, color: "#1e293b" },
+  messageText: { fontSize: 16, lineHeight: 23, color: "#1e293b" },
   sender: { fontSize: 11, color: "#6d8ba8", fontWeight: "600" },
   messageFooter: {
     flexDirection: "row",
@@ -1405,7 +1509,7 @@ const s = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     minHeight: 47,
-    maxHeight: 120,
+    maxHeight: 104,
     paddingHorizontal: 13,
     paddingTop: 13,
     paddingBottom: 12,
@@ -1413,8 +1517,8 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e1e8d8",
     backgroundColor: "#f6f8f1",
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 16,
+    lineHeight: 23,
     color: "#243127",
   },
   send: {

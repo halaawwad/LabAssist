@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import WebView from "react-native-webview";
-import { deckEngineHTML } from "./deckEngine.generated";
-import type { DeckEngineProps as EngineProps, DeckEngineReply as EngineReply } from "./deckEngineTypes";
+import type {
+  DeckEngineProps as EngineProps,
+  DeckEngineReply as EngineReply,
+} from "./deckEngineTypes";
 export default function PdfEngine({ request, onResult }: EngineProps) {
   const ref = useRef<WebView<unknown>>(null);
   const [ready, setReady] = useState(false);
@@ -17,7 +19,7 @@ export default function PdfEngine({ request, onResult }: EngineProps) {
     >
       <WebView
         ref={ref}
-        source={{ html: deckEngineHTML, baseUrl: "https://report.labassist.local" }}
+        source={require("../../../assets/engines/deck.html")}
         originWhitelist={["*"]}
         javaScriptEnabled
         onMessage={(e) => {

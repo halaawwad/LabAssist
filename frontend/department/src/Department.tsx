@@ -34,7 +34,7 @@ import {
 } from "./components/DepartmentGroups";
 import { DepartmentImport } from "./components/DepartmentImport";
 import { DepartmentAccountCard } from "./components/DepartmentAccountCard";
-import { prepareGroupSave, planImport, normalizeLocalAccounts } from "./departmentRecords";
+import { prepareGroupSave, planImport } from "./departmentRecords";
 const initial: Account[] = [
   { ...demoSupervisor, role: "Supervisor", active: true, linked: true, invited: true },
   { ...demoWorkshop, role: "Workshop Manager", active: true, linked: true, invited: true },
@@ -80,22 +80,13 @@ export default function Department() {
         !Array.isArray(data.messages ?? [])
       )
         throw new Error("Invalid saved department records");
-      const nextAccounts = normalizeLocalAccounts(data.accounts);
       const next = {
         ...data,
-        accounts: nextAccounts,
         groups: data.groups ?? [],
         messages: data.messages ?? [],
       };
-      let stored = raw;
-      if (nextAccounts.some((account, index) => account !== data.accounts[index])) {
-        if (localStorage.getItem("labassist.department.preview") !== raw)
-          throw new Error("Saved records changed while loading.");
-        stored = JSON.stringify(next);
-        localStorage.setItem("labassist.department.preview", stored);
-      }
       snapshot.current = next;
-      persisted.current = stored;
+      persisted.current = raw;
       setAccounts(snapshot.current.accounts);
       setContact(snapshot.current.accounts[0]?.id ?? "");
       setMessages(snapshot.current.messages);
@@ -185,8 +176,8 @@ export default function Department() {
       email,
       name: edit.name.trim(),
       id: edit.id || crypto.randomUUID(),
-      active: previous ? previous.active : true,
-      status: previous ? effectiveAccountStatus(previous) : "ACTIVE",
+      active: previous ? previous.active : false,
+      status: previous ? effectiveAccountStatus(previous) : "PENDING_ACTIVATION",
       linked: edit.linked ?? false,
       invited: edit.invited ?? false,
     } as Account;

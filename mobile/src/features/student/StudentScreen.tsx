@@ -1,7 +1,8 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { BuildCard } from "./BuildCard";
 import { DashboardDetails, DashboardSearch } from "./DashboardDetails";
 import { router, type Href } from "@/native/router";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { AppText, Button } from "@/components";
 import { Page, Panel, MenuRow, kit, useCopy } from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";

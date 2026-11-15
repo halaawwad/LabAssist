@@ -1,5 +1,6 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { CalendarDays, ChevronRight } from "lucide-react-native";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { AppText, Card, EmptyState } from "@/components";
 import { useLanguage } from "@/i18n";

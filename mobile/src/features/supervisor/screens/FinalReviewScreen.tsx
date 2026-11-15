@@ -1,7 +1,8 @@
+import { MobileModal as Modal } from "@/components/MobileModal";
 import { demoSupervisor } from "../../../../../shared/web/domain";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { useState } from "react";
-import { Image, Modal, ScrollView, Switch, View } from "react-native";
+import { Image, ScrollView, Switch, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppText, Button } from "@/components";
 import { Chips, Field, Panel, kit } from "@/components/MobileKit";
@@ -100,16 +101,60 @@ function Block({ block }: { block: ReportBlock }) {
 }
 export function FinalReviewScreen() {
   const { state, actorId, retryLoading } = useWorkspace();
-  const { value: reviews, setValue: setReviews, ready, error } = useLocalPreview("labassist.mobile.supervisor.final-reviews.web", finalReportReviews);
-  const actor = state.users.find(user => user.id === actorId);
-  const supervisorId = actor?.role === "supervisor" ? actor.canonicalId ?? (actor.id === "d1" ? demoSupervisor.id : actor.id) : "";
-  const projects = finalReportProjects.filter(project => project.supervisorIds.includes(supervisorId) && reviews.some(review => review.id === project.id && review.submissions.at(-1)?.status !== "draft"));
+  const {
+    value: reviews,
+    setValue: setReviews,
+    ready,
+    error,
+  } = useLocalPreview("labassist.mobile.supervisor.final-reviews.web", finalReportReviews);
+  const actor = state.users.find((user) => user.id === actorId);
+  const supervisorId =
+    actor?.role === "supervisor"
+      ? (actor.canonicalId ?? (actor.id === "d1" ? demoSupervisor.id : actor.id))
+      : "";
+  const projects = finalReportProjects.filter(
+    (project) =>
+      project.supervisorIds.includes(supervisorId) &&
+      reviews.some(
+        (review) => review.id === project.id && review.submissions.at(-1)?.status !== "draft",
+      ),
+  );
   if (!ready) return <AppText>Loading saved reviews...</AppText>;
-  if (error) return <Panel title="Could not load reviews"><AppText>{error}</AppText><Button title="Retry" onPress={retryLoading} /></Panel>;
-  if (!projects.length) return <AppText>No submitted reports from linked project groups. Private drafts are not available.</AppText>;
-  return <LinkedFinalReviewScreen key={supervisorId + projects.map(p => p.id).join(",")} projects={projects} reviews={reviews} setReviews={setReviews} />;
+  if (error)
+    return (
+      <Panel title="Could not load reviews">
+        <AppText>{error}</AppText>
+        <Button title="Retry" onPress={retryLoading} />
+      </Panel>
+    );
+  if (!projects.length)
+    return (
+      <AppText>
+        No submitted reports from linked project groups. Private drafts are not available.
+      </AppText>
+    );
+  return (
+    <LinkedFinalReviewScreen
+      key={supervisorId + projects.map((p) => p.id).join(",")}
+      projects={projects}
+      reviews={reviews}
+      setReviews={setReviews}
+    />
+  );
 }
-function LinkedFinalReviewScreen({ projects, reviews, setReviews }: { projects: typeof finalReportProjects; reviews: typeof finalReportReviews; setReviews: (value: typeof finalReportReviews | ((current: typeof finalReportReviews) => typeof finalReportReviews)) => Promise<boolean> }) {
+function LinkedFinalReviewScreen({
+  projects,
+  reviews,
+  setReviews,
+}: {
+  projects: typeof finalReportProjects;
+  reviews: typeof finalReportReviews;
+  setReviews: (
+    value:
+      | typeof finalReportReviews
+      | ((current: typeof finalReportReviews) => typeof finalReportReviews),
+  ) => Promise<boolean>;
+}) {
   const { state, actorId } = useWorkspace();
   const [chosen, setChosen] = useState(projects[0].id),
     [tab, setTab] = useState("Report"),
@@ -127,40 +172,44 @@ function LinkedFinalReviewScreen({ projects, reviews, setReviews }: { projects: 
   async function feedback(kind: "comment" | "revision" | "approval") {
     if (!submitted || (!body.trim() && kind !== "approval")) return;
     if (kind !== "comment" && submission.status !== "submitted") return;
-    if ((await setReviews(
-      reviews.map((r) =>
-        r.id === chosen
-          ? {
-              ...r,
-              submissions: r.submissions.map((s, i) =>
-                i === r.submissions.length - 1
-                  ? {
-                      ...s,
-                      status:
-                        kind === "approval"
-                          ? "approved"
-                          : kind === "revision"
-                            ? "revision"
-                            : s.status,
-                      reviewedAt: new Date().toISOString().slice(0, 10),
-                    }
-                  : s,
-              ),
-              feedback: [
-                ...r.feedback,
-                {
-                  id: String(Date.now()),
-                  supervisorId: state.users.find(user => user.id === actorId)?.canonicalId ?? actorId,
-                  text: body.trim() || "Approved.",
-                  kind,
-                  date: new Date().toISOString().slice(0, 10),
-                  version: submission.version,
-                },
-              ],
-            }
-          : r,
-      ),
-    )) === false) return false;
+    if (
+      (await setReviews(
+        reviews.map((r) =>
+          r.id === chosen
+            ? {
+                ...r,
+                submissions: r.submissions.map((s, i) =>
+                  i === r.submissions.length - 1
+                    ? {
+                        ...s,
+                        status:
+                          kind === "approval"
+                            ? "approved"
+                            : kind === "revision"
+                              ? "revision"
+                              : s.status,
+                        reviewedAt: new Date().toISOString().slice(0, 10),
+                      }
+                    : s,
+                ),
+                feedback: [
+                  ...r.feedback,
+                  {
+                    id: String(Date.now()),
+                    supervisorId:
+                      state.users.find((user) => user.id === actorId)?.canonicalId ?? actorId,
+                    text: body.trim() || "Approved.",
+                    kind,
+                    date: new Date().toISOString().slice(0, 10),
+                    version: submission.version,
+                  },
+                ],
+              }
+            : r,
+        ),
+      )) === false
+    )
+      return false;
     setBody("");
     setNotice(kind === "approval" ? "Report approved." : "Feedback saved.");
   }
@@ -180,7 +229,11 @@ function LinkedFinalReviewScreen({ projects, reviews, setReviews }: { projects: 
     </Panel>
   );
   return (
-    <ScrollView contentContainerStyle={{ padding: 18, gap: 16 }}>
+    <ScrollView
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="on-drag"
+      contentContainerStyle={{ padding: 18, gap: 16 }}
+    >
       <AppText variant="title">Final Reports</AppText>
       <AppText tone="muted">
         Submitted reports, presentation slides and supervisor feedback.
@@ -298,25 +351,28 @@ function LinkedFinalReviewScreen({ projects, reviews, setReviews }: { projects: 
                 disabled={!body.trim()}
                 onPress={async () => {
                   setBody(`Slide ${slide + 1}: ${body}`);
-                  if ((await setReviews(
-                    reviews.map((r) =>
-                      r.id === chosen
-                        ? {
-                            ...r,
-                            feedback: [
-                              ...r.feedback,
-                              {
-                                id: String(Date.now()),
-                                text: `Slide ${slide + 1}: ${body}`,
-                                date: new Date().toISOString().slice(0, 10),
-                                version: submission.version,
-                                kind: "comment",
-                              },
-                            ],
-                          }
-                        : r,
-                    ),
-                  )) === false) return false;
+                  if (
+                    (await setReviews(
+                      reviews.map((r) =>
+                        r.id === chosen
+                          ? {
+                              ...r,
+                              feedback: [
+                                ...r.feedback,
+                                {
+                                  id: String(Date.now()),
+                                  text: `Slide ${slide + 1}: ${body}`,
+                                  date: new Date().toISOString().slice(0, 10),
+                                  version: submission.version,
+                                  kind: "comment",
+                                },
+                              ],
+                            }
+                          : r,
+                      ),
+                    )) === false
+                  )
+                    return false;
                   setBody("");
                   setNotice("Slide comment saved.");
                 }}
@@ -410,7 +466,9 @@ function LinkedFinalReviewScreen({ projects, reviews, setReviews }: { projects: 
             gap: 14,
           }}
         >
-          <ScrollView>{slideView}</ScrollView>
+          <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag">
+            {slideView}
+          </ScrollView>
           <View style={kit.wrap}>
             <Button title="Previous" disabled={!slide} onPress={() => setSlide(slide - 1)} />
             <Button

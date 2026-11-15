@@ -58,7 +58,8 @@ export function ScreenContainer({
     // The root layout already sets the direction; setting it again keeps a screen correct
     // when a native container (like a navigator screen) starts a new layout tree.
     <SafeAreaView
-      edges={edges}
+      // NativeScreen already owns the safe areas around its header and tabs.
+      edges={/^\/native\/(student|supervisor|workshop)\//.test(path) ? [] : edges}
       style={[
         styles.safeArea,
         { direction: dir },

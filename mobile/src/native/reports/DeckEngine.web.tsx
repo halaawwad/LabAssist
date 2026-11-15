@@ -1,6 +1,9 @@
+import { Asset } from "expo-asset";
 import { useEffect, useRef, useState } from "react";
-import { deckEngineHTML } from "./deckEngine.generated";
-import type { DeckEngineProps as EngineProps, DeckEngineReply as EngineReply } from "./deckEngineTypes";
+import type {
+  DeckEngineProps as EngineProps,
+  DeckEngineReply as EngineReply,
+} from "./deckEngineTypes";
 export default function PdfEngine({ request, onResult }: EngineProps) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
@@ -23,7 +26,7 @@ export default function PdfEngine({ request, onResult }: EngineProps) {
     <iframe
       ref={ref}
       title="Presentation file engine"
-      srcDoc={deckEngineHTML}
+      src={Asset.fromModule(require("../../../assets/engines/deck.html")).uri}
       sandbox="allow-scripts allow-same-origin"
       style={{
         position: "absolute",

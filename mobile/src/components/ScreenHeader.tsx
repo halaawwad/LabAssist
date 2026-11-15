@@ -1,6 +1,7 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { ChevronLeft } from "lucide-react-native";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { useLanguage } from "@/i18n";
 import { colors, radius, spacing } from "@/theme";
@@ -37,7 +38,7 @@ export function ScreenHeader({ title, eyebrow, subtitle, trailing, onBack }: Scr
         ) : null}
         <View style={styles.titles}>
           {eyebrow ? <AppText tone="muted">{eyebrow}</AppText> : null}
-          <AppText variant="title" accessibilityRole="header">
+          <AppText variant="heading" accessibilityRole="header">
             {title}
           </AppText>
         </View>
@@ -62,8 +63,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   back: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.panelStrong,

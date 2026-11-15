@@ -12,6 +12,7 @@ The PostgreSQL scripts, particularly `backend/database/department-stage12`, are 
 ## Accounts and groups
 
 - Provisioned accounts remain `PENDING_ACTIVATION`. Owners activate and choose their passwords through future backend functionality. The demo neither sends activation mail nor hashes/stores passwords.
+- Department web and mobile create/import **Pending local records**. Existing account statuses are preserved. Pending members may be planned in local **draft** groups only; non-draft groups require Active members. Neither local state provisions backend credentials or approves SQL memberships. Disabling/restoring a pending account never activates it. See [Department mobile parity](DEPARTMENT-MOBILE-PARITY.md).
 - Role, university number and email are immutable account identity. Staff employee numbers remain editable where the SQL permits. Reject duplicate numbers/emails and a second non-disabled workshop-manager account.
 - Only active Student/Supervisor accounts may be linked. Groups contain 2–3 students and at least one supervisor, without duplicate links. A student belongs to one current group per term; a supervisor has at most four projects per term. The local demo term capacity is 25 groups.
 - Group identity **is project identity**. A draft can have no title; students fill in project details later. Multiple supervisors have the same linked-project rights; no invented primary-supervisor or team-role privileges.

@@ -52,6 +52,7 @@ export function AppText({
           : {},
         {
           color: toneColors[tone],
+          flexShrink: 1,
           textAlign:
             align === "start"
               ? directionOf(textLanguage) === "rtl"

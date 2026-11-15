@@ -161,7 +161,10 @@ export function AttendancePanel() {
         .map((u) => {
           const value = state.attendance[date]?.[u.id];
           return (
-            <Panel key={u.id}>
+            <View
+              key={u.id}
+              style={{ paddingVertical: 14, gap: 8, borderBottomWidth: 1, borderColor: "#e5eadf" }}
+            >
               <AppText weight="semibold">{u.name}</AppText>
               <AppText variant="caption" tone="muted">
                 {u.universityNumber} ·{" "}
@@ -176,7 +179,9 @@ export function AttendancePanel() {
                   title={t("Present", "حاضر")}
                   disabled={!open}
                   variant={value === true ? "primary" : "ghost"}
-                  onPress={async () => await act({ type: "attendance.set", userId: u.id, date, present: true })}
+                  onPress={async () =>
+                    await act({ type: "attendance.set", userId: u.id, date, present: true })
+                  }
                 />
                 <Button
                   title={t("Absent", "غائب")}
@@ -187,7 +192,7 @@ export function AttendancePanel() {
                   }
                 />
               </View>
-            </Panel>
+            </View>
           );
         })}
     </>
@@ -202,7 +207,24 @@ export function TablesPanel({ readonly = false }: { readonly?: boolean }) {
   const width = 600 * zoom;
   return (
     <>
-      {!readonly && state.users.find(u => u.id === actorId)?.role === "workshop" && state.projects.some(p => !!p.table) && <Panel title="Release table / Free capacity">{state.projects.filter(p => p.table).map(p => <Button key={p.id} title={`${p.title} - ${p.table}`} variant="ghost" onPress={async () => { await act({ type: "table.release", projectId: p.id }); }} />)}</Panel>}
+      {!readonly &&
+        state.users.find((u) => u.id === actorId)?.role === "workshop" &&
+        state.projects.some((p) => !!p.table) && (
+          <Panel title="Release table / Free capacity">
+            {state.projects
+              .filter((p) => p.table)
+              .map((p) => (
+                <Button
+                  key={p.id}
+                  title={`${p.title} - ${p.table}`}
+                  variant="ghost"
+                  onPress={async () => {
+                    await act({ type: "table.release", projectId: p.id });
+                  }}
+                />
+              ))}
+          </Panel>
+        )}
       <AppText tone="muted">
         {t(
           "Tap a table to view its teams. Rectangular tables hold one team; round tables hold two.",
@@ -314,7 +336,9 @@ export function TablesPanel({ readonly = false }: { readonly?: boolean }) {
               />
               <Button
                 title={t("Assign selected team", "تعيين الفريق المختار")}
-                onPress={async () => await act({ type: "table.assign", projectId: team, table: selected })}
+                onPress={async () =>
+                  await act({ type: "table.assign", projectId: team, table: selected })
+                }
               />
             </>
           )}
@@ -388,7 +412,11 @@ function HandoversPanel() {
                 `المسلّم: ${tool.quantity} · المسترد: ${tool.returned} · التالف: ${tool.damaged} · المفقود: ${tool.missing}`,
               )}
             </AppText>
-            <AppText tone={tool.quantity - tool.returned - tool.damaged - tool.missing ? "danger" : "primary"}>
+            <AppText
+              tone={
+                tool.quantity - tool.returned - tool.damaged - tool.missing ? "danger" : "primary"
+              }
+            >
               {t(
                 `Outstanding: ${tool.quantity - tool.returned - tool.damaged - tool.missing}`,
                 `المتبقي بعهدة الفريق: ${tool.quantity - tool.returned - tool.damaged - tool.missing}`,

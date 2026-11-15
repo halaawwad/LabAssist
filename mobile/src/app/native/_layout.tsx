@@ -1,3 +1,4 @@
+import { NativeSessionProvider } from "@/state/NativeSession";
 import { PreferencesProvider } from "@/state/Preferences";
 import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
@@ -19,7 +20,9 @@ export default function NativeLayout() {
       <LanguageProvider>
         <WorkspaceProvider>
           <ProjectWorkspaceProvider>
-            <Stack screenOptions={{ headerShown: false }} />
+            <NativeSessionProvider>
+              <Stack screenOptions={{ headerShown: false }} />
+            </NativeSessionProvider>
           </ProjectWorkspaceProvider>
         </WorkspaceProvider>
       </LanguageProvider>

@@ -1,7 +1,7 @@
+import { MobileInput as TextInput } from "@/components/MobileInput";
 import { useState } from "react";
 import {
   StyleSheet,
-  TextInput,
   View,
   type StyleProp,
   type TextInputProps,
@@ -84,10 +84,10 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   input: {
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: 14,
     paddingVertical: spacing.sm,
-    fontSize: textVariants.body.fontSize,
+    fontSize: Math.max(16, textVariants.body.fontSize),
     color: colors.text,
     backgroundColor: colors.inputBackground,
     borderWidth: 1,
@@ -95,7 +95,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.input,
   },
   multiline: {
-    minHeight: 96,
+    minHeight: 88,
+    maxHeight: 160,
     paddingVertical: 11,
     textAlignVertical: "top",
   },

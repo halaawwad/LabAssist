@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
 import { Alert, Image, View } from "react-native";
-import { Camera, ImagePlus } from "lucide-react-native";
+import { ImagePlus } from "lucide-react-native";
 import { AppText, Button } from "./index";
 import { useCopy } from "./MobileKit";
 import { persistPickedFile } from "@/lib/files";
@@ -56,15 +56,15 @@ export function ProjectPhoto({ projectId }: { projectId: string }) {
       ) : (
         <View
           style={{
-            minHeight: 185,
+            minHeight: 72,
             borderRadius: 22,
             backgroundColor: colors.primaryWash,
             borderWidth: 1,
             borderColor: "#cad7c2",
             alignItems: "center",
             justifyContent: "center",
-            gap: 12,
-            padding: 20,
+            gap: 6,
+            padding: 12,
           }}
         >
           <ImagePlus color={colors.primary} size={34} />
@@ -72,7 +72,6 @@ export function ProjectPhoto({ projectId }: { projectId: string }) {
           <AppText variant="caption" tone="muted">
             {t("Prototype, sketch, or a work in progress", "نموذج، مخطط، أو خطوة قيد الإنجاز")}
           </AppText>
-          <Camera size={18} color={colors.primary} />
         </View>
       )}
       <Button

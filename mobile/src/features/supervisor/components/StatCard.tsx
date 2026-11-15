@@ -1,3 +1,4 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import {
   ArrowRight,
   CalendarDays,
@@ -6,7 +7,7 @@ import {
   TrendingUp,
   TriangleAlert,
 } from "lucide-react-native";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components";
 import { useLanguage } from "@/i18n";
@@ -78,7 +79,6 @@ export function StatCard({ stat, onPress }: StatCardProps) {
           <TrendingUp size={14} color={foreground ?? tone.trend} style={flip} />
           <AppText
             variant="caption"
-            numberOfLines={1}
             style={[styles.trendText, { color: foreground ?? tone.trend }]}
           >
             {t(`supervisor.dashboard.stats.${stat.id}.trend`)}

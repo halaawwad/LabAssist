@@ -99,7 +99,7 @@ Student login page. It is still a demo, not authentication.
    verify that its interface and assets are independent.
 2. Verify account role filters/search, add/edit, generated student email,
    number/email duplicate validation, one-active-workshop-manager validation,
-   immediate Active local status, and delete vs. disable/reactivate confirmations.
+   Pending local status, and delete vs. disable/reactivate confirmations.
 3. New manual/imported accounts are approved local records immediately and can
    be assigned to groups without an account onboarding step. Add/edit a group
    with 2–3 students and multiple supervisors.
@@ -151,25 +151,17 @@ intact. Legacy project numbers fall back to the existing code, label or group ID
 until explicitly saved. New groups use the existing demo term. Historical completed
 and archived projects cannot be reassigned. There is no group deletion action.
 
-New manually created and Excel-imported accounts are **Active immediately** as
-approved local demo records. There is no invitation or owner onboarding step.
-They can be assigned directly to groups using the same existing membership,
-term and capacity validation. Disabled and reference-only records cannot be assigned.
-Group/project workflow statuses, including Draft, remain separate and unchanged.
+New manually created and Excel-imported accounts are **Pending** local records
+(`PENDING_ACTIVATION`, `active: false`). Existing account statuses remain unchanged.
+Pending accounts may be assigned to draft groups only; non-draft groups require
+Active members. Disabled and reference-only records cannot be newly assigned.
+Group/project workflow statuses remain separate and unchanged.
 
-This management/import flow is strictly frontend-only: no backend mutations, API,
-authentication, server validation, database schema or migrations are changed or
-called. Active is a local record state, not an authentication result. Neither account
-creation nor assignment creates backend login credentials or bypasses authentication.
-Group validation uses the actual saved local Active/Disabled state.
-
-On loading existing Department preview data, the app upgrades older pending local
-records to Active, preserving their IDs, metadata, assignments, history, groups,
-messages and storage key. Deliberately disabled accounts stay disabled; their restore
-state becomes Active when appropriate. The complete snapshot is saved atomically
-before the updated records are displayed. A failed write preserves the previous
-saved snapshot and blocks editing until loading can be retried. Repeated loads are
-idempotent. The same compatibility update applies after importing old preview JSON.
+This management/import flow is frontend-only. It does not call backend mutations,
+create login credentials, deliver invitations or bypass authentication.
+Existing Department preview data loads without rewriting account statuses,
+disabled restore states, IDs, metadata, assignments, history, messages or storage
+keys. The same preservation applies to imported preview JSON.
 The legacy `invited` property is retained for JSON compatibility only and is not an
 account-management action or prerequisite.
 
@@ -241,7 +233,7 @@ origins; it is not cross-role account provisioning or authenticated access.
 
 ### Manual checks for this change (not executed)
 
-1. Create one supervisor and two students; verify immediate Active status, distinct
+1. Create one supervisor and two students; verify Pending status, distinct
    account views/search and generated university email. From Groups open
    the same missing-account form, then save a draft with a project number and no
    title. Check all account/group assignment details and preserved Workshop management.
@@ -250,7 +242,7 @@ origins; it is not cross-role account provisioning or authenticated access.
    save must update both groups and preserve history. Reject moves leaving fewer than
    two students, duplicate memberships, disabled accounts and historical reassignment.
 3. Download the template and import it. Verify preview causes no saved changes;
-   confirm creates one Active supervisor, two Active students and one draft group.
+   confirm creates one Pending supervisor, two Pending students and one draft group.
    Check Arabic aliases, unfamiliar-header mapping and leading-zero Text identifiers.
 4. Import the identical workbook again: zero new records/links and unchanged history.
 5. Try inconsistent IDs, duplicate email, mismatching project/supervisor, invalid
@@ -258,7 +250,7 @@ origins; it is not cross-role account provisioning or authenticated access.
    Simulate denied/full storage: keep preview/form and existing saved data unchanged.
 6. Reload and check assignments/messages/old metadata remain. Export/import JSON
    through the existing transfer page. Confirm another-tab writes cannot be overwritten.
-   Load older pending local records: they become Active with identical IDs and
+   Load older pending local records: they stay Pending with identical IDs and
    memberships; disabled records remain disabled and can be restored separately.
    Check Student/Supervisor's existing demo assignment visibility separately; newly
    created Department assignments require future backend integration across origins.

@@ -1,14 +1,11 @@
+import { useLanguage } from "@/i18n";
+import { LabAssistBrand } from "@/components/LabAssistBrand";
+import { MobileInput as TextInput } from "@/components/MobileInput";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { MobileModal as Modal } from "@/components/MobileModal";
+import { WorkspaceNavigation } from "./WorkspaceNavigation";
 import { useState, type ReactNode } from "react";
-import {
-  Image,
-  ImageBackground,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import { Image, ImageBackground, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ArrowRight,
@@ -112,6 +109,7 @@ function Paper({
 }
 export default function StudentDashboard() {
   const ready = useRole("student");
+  const { isRTL } = useLanguage();
   const workspace = useProjectWorkspace();
   const [menu, setMenu] = useState(false),
     [query, setQuery] = useState(""),
@@ -173,7 +171,7 @@ export default function StudentDashboard() {
   const completedToday = ownTasks.filter((task) => workspace.completed.includes(task.id)).length;
   if (!ready) return null;
   return (
-    <SafeAreaView style={s.root} edges={["top", "bottom"]}>
+    <SafeAreaView style={[s.root, { direction: isRTL ? "rtl" : "ltr" }]} edges={["top", "bottom"]}>
       <ImageBackground
         source={require("../../assets/web/project-white-background.png")}
         style={s.fill}
@@ -184,9 +182,9 @@ export default function StudentDashboard() {
           <Pressable accessibilityLabel="Open menu" onPress={() => setMenu(true)} style={s.icon}>
             <Menu color="#526443" size={22} />
           </Pressable>
-          <AppText weight="bold" style={{ flex: 1 }}>
-            LabAssist
-          </AppText>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <LabAssistBrand size={18} />
+          </View>
           <Pressable
             accessibilityLabel="Notifications, 8 unread"
             onPress={() => open("Notifications")}
@@ -205,6 +203,8 @@ export default function StudentDashboard() {
           </Pressable>
         </View>
         <ScrollView
+          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode="on-drag"
           contentContainerStyle={s.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -238,14 +238,12 @@ export default function StudentDashboard() {
                 ))}
             </Paper>
           )}
-          <View style={s.welcome}>
-            <AppText style={s.eyebrow}>YOUR WORKSPACE, AT A GLANCE</AppText>
-            <AppText style={s.headline}>
-              A little closer{"\n"}
-              <AppText style={[s.headline, { color: "#697e54" }]}>to making it work.</AppText>
+          <View style={{ gap: 4 }}>
+            <AppText variant="heading">
+              {isRTL ? "\u0645\u0633\u0627\u062d\u0629 \u0639\u0645\u0644\u0643" : "Your workspace"}
             </AppText>
-            <AppText tone="muted" style={{ lineHeight: 23 }}>
-              The big picture, your next steps, and what needs a little attention.
+            <AppText variant="caption" tone="muted">
+              {workspace.details.title}
             </AppText>
           </View>
           <BuildCard
@@ -480,65 +478,13 @@ export default function StudentDashboard() {
             ))}
           </Paper>
         </ScrollView>
-        <View style={s.bottom}>
-          {[
-            { name: "Dashboard", icon: FolderKanban },
-            { name: "My Project", icon: CircuitBoard },
-            { name: "Messages", icon: MessageSquare },
-            { name: "Reports", icon: FileText },
-            { name: "More", icon: Menu },
-          ].map((item) => (
-            <Pressable
-              key={item.name}
-              onPress={() =>
-                item.name === "More" ? setMenu(true) : item.name !== "Dashboard" && open(item.name)
-              }
-              style={s.bottomItem}
-            >
-              <item.icon size={20} color={item.name === "Dashboard" ? "#526443" : "#7b8176"} />
-              <AppText style={{ fontSize: 9, color: "#647357" }}>
-                {item.name === "My Project"
-                  ? "Project"
-                  : item.name === "Dashboard"
-                    ? "Home"
-                    : item.name}
-              </AppText>
-            </Pressable>
-          ))}
-        </View>
+        <WorkspaceNavigation
+          role="student"
+          page="dashboard"
+          moreOpen={menu}
+          onClose={() => setMenu(false)}
+        />
       </ImageBackground>
-      <Modal visible={menu} transparent animationType="fade" onRequestClose={() => setMenu(false)}>
-        <View style={s.overlay}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            accessibilityLabel="Close navigation overlay"
-            onPress={() => setMenu(false)}
-          />
-          <SafeAreaView style={s.drawer}>
-            <View style={s.between}>
-              <AppText variant="heading">LabAssist</AppText>
-              <Pressable onPress={() => setMenu(false)} accessibilityLabel="Close menu">
-                <X color="#526443" />
-              </Pressable>
-            </View>
-            <AppText variant="caption" tone="muted">
-              Build · Simulate · Learn
-            </AppText>
-            <ScrollView>
-              {navigation.map((name) => (
-                <Pressable
-                  key={name}
-                  onPress={() => (name === "Dashboard" ? setMenu(false) : open(name))}
-                  style={s.link}
-                >
-                  <AppText>{name}</AppText>
-                  <ArrowUpRight size={14} />
-                </Pressable>
-              ))}
-            </ScrollView>
-          </SafeAreaView>
-        </View>
-      </Modal>
       <Modal
         visible={!!purchase || !!destination}
         animationType="slide"
@@ -562,7 +508,11 @@ export default function StudentDashboard() {
               <X color="#526443" />
             </Pressable>
           </View>
-          <ScrollView contentContainerStyle={s.content}>
+          <ScrollView
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={s.content}
+          >
             {purchase ? (
               <Paper>
                 <AppText weight="bold">{purchase.name}</AppText>
@@ -653,7 +603,7 @@ export default function StudentDashboard() {
   );
 }
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#eee8dc", overflow: "hidden" },
+  root: { flex: 1, backgroundColor: "#ffffff", overflow: "hidden" },
   fill: { flex: 1, minWidth: 0 },
   wash: {
     position: "absolute",
@@ -674,7 +624,7 @@ const s = StyleSheet.create({
     borderColor: "#e4e8dc",
   },
   avatar: { width: 38, height: 38, borderRadius: 14 },
-  icon: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  icon: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   badge: {
     position: "absolute",
     top: 0,

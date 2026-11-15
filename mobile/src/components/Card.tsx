@@ -1,6 +1,7 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { ArrowRight } from "lucide-react-native";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { useLanguage } from "@/i18n";
 import { colors, radius, shadows, spacing } from "@/theme";

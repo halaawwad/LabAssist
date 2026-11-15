@@ -1,6 +1,10 @@
+import { MobileInput as TextInput } from "@/components/MobileInput";
+import { Disclosure } from "@/components/Disclosure";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { MobileModal as Modal } from "@/components/MobileModal";
 import { useEffect, useState, type ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Linking, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Check,
@@ -376,36 +380,43 @@ function InventoryContent({ actorId }: { actorId: string }) {
         </Pressable>
       </View>
       {tab !== "My Requests" && (
-        <View style={s.hero}>
-          <AppText style={s.kicker}>
-            {t("FROM THE SHELF TO YOUR NEXT BUILD", "من الرف إلى مشروعك القادم")}
-          </AppText>
-          <AppText style={s.heroTitle}>{t("Good parts.", "قطع جيدة.")}</AppText>
-          <AppText style={[s.heroTitle, s.heroAccent]}>
-            {t("More possibilities.", "إمكانيات أكثر.")}
-          </AppText>
-          <AppText style={s.heroCopy}>
-            {t(
-              "Explore the workshop, discover local stores, and find the right fit for your project.",
-              "استكشف قطع الورشة والمحلات القريبة، واعثر على ما يناسب مشروعك.",
-            )}
-          </AppText>
-          <View style={s.stats}>
-            {[
-              [
-                String(workshopStock.filter((p) => p.quantity > 0).length),
-                t("Available parts", "قطع متوفرة"),
-              ],
-              [String(stores.length), t("Local stores", "محلات محلية")],
-              ["₪", t("Prices in ILS", "الأسعار بالشيكل")],
-            ].map(([n, label]) => (
-              <View style={s.stat} key={label}>
-                <AppText style={s.statValue}>{n}</AppText>
-                <AppText style={s.statLabel}>{label}</AppText>
-              </View>
-            ))}
+        <Disclosure
+          title={t(
+            "Inventory overview",
+            "\u0646\u0638\u0631\u0629 \u0639\u0644\u0649 \u0627\u0644\u0645\u062e\u0632\u0648\u0646",
+          )}
+        >
+          <View style={s.hero}>
+            <AppText style={s.kicker}>
+              {t("FROM THE SHELF TO YOUR NEXT BUILD", "من الرف إلى مشروعك القادم")}
+            </AppText>
+            <AppText style={s.heroTitle}>{t("Good parts.", "قطع جيدة.")}</AppText>
+            <AppText style={[s.heroTitle, s.heroAccent]}>
+              {t("More possibilities.", "إمكانيات أكثر.")}
+            </AppText>
+            <AppText style={s.heroCopy}>
+              {t(
+                "Explore the workshop, discover local stores, and find the right fit for your project.",
+                "استكشف قطع الورشة والمحلات القريبة، واعثر على ما يناسب مشروعك.",
+              )}
+            </AppText>
+            <View style={s.stats}>
+              {[
+                [
+                  String(workshopStock.filter((p) => p.quantity > 0).length),
+                  t("Available parts", "قطع متوفرة"),
+                ],
+                [String(stores.length), t("Local stores", "محلات محلية")],
+                ["₪", t("Prices in ILS", "الأسعار بالشيكل")],
+              ].map(([n, label]) => (
+                <View style={s.stat} key={label}>
+                  <AppText style={s.statValue}>{n}</AppText>
+                  <AppText style={s.statLabel}>{label}</AppText>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        </Disclosure>
       )}
       <View style={s.search}>
         <Search size={18} color="#819277" />
@@ -475,62 +486,69 @@ function InventoryContent({ actorId }: { actorId: string }) {
               </AppText>
             </View>
           </View>
-          <View style={s.actions}>
-            <Button
-              title={t("Compare prices ↗", "قارن الأسعار ↗")}
-              variant="soft"
-              size="sm"
-              onPress={() => setSheet("compare")}
-            />
-            <Button
-              title={t("Filters", "الفلاتر")}
-              variant="ghost"
-              size="sm"
-              onPress={() => setFilters(!filters)}
-            />
-            <Button title={t("Reset", "إعادة تعيين")} variant="ghost" size="sm" onPress={reset} />
-          </View>
-          {filters && (
-            <View style={s.filterPanel}>
-              {tab === "Local Stores" ? (
-                <>
-                  <AppText style={s.filterLabel}>City</AppText>
-                  <Chips
-                    options={["All cities", ...new Set(stores.map((p) => p.city))].map((v) => ({
-                      id: v,
-                      label: v,
-                    }))}
-                    value={city}
-                    onChange={setCity}
-                  />
-                </>
-              ) : (
-                <>
-                  <AppText style={s.filterLabel}>Category</AppText>
-                  <Chips
-                    options={categories.map((v) => ({ id: v, label: v }))}
-                    value={category}
-                    onChange={setCategory}
-                  />
-                  <AppText style={s.filterLabel}>Stock status</AppText>
-                  <Chips
-                    options={["All statuses", "In Stock", "Low Stock", "Out of Stock"].map((v) => ({
-                      id: v,
-                      label: v,
-                    }))}
-                    value={status}
-                    onChange={setStatus}
-                  />
-                  <AppText style={s.filterLabel}>Availability type</AppText>
-                  <Chips
-                    options={["All types", "For Sale", "For Use"].map((v) => ({ id: v, label: v }))}
-                    value={purpose}
-                    onChange={setPurpose}
-                  />
-                </>
-              )}
+          <Disclosure title="Filters & comparison">
+            <View style={s.actions}>
+              <Button
+                title={t("Compare prices ↗", "قارن الأسعار ↗")}
+                variant="soft"
+                size="sm"
+                onPress={() => setSheet("compare")}
+              />
+              <Button
+                title={t("Filters", "الفلاتر")}
+                variant="ghost"
+                size="sm"
+                onPress={() => setFilters(!filters)}
+              />
+              <Button title={t("Reset", "إعادة تعيين")} variant="ghost" size="sm" onPress={reset} />
             </View>
-          )}
+            {filters && (
+              <View style={s.filterPanel}>
+                {tab === "Local Stores" ? (
+                  <>
+                    <AppText style={s.filterLabel}>City</AppText>
+                    <Chips
+                      options={["All cities", ...new Set(stores.map((p) => p.city))].map((v) => ({
+                        id: v,
+                        label: v,
+                      }))}
+                      value={city}
+                      onChange={setCity}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <AppText style={s.filterLabel}>Category</AppText>
+                    <Chips
+                      options={categories.map((v) => ({ id: v, label: v }))}
+                      value={category}
+                      onChange={setCategory}
+                    />
+                    <AppText style={s.filterLabel}>Stock status</AppText>
+                    <Chips
+                      options={["All statuses", "In Stock", "Low Stock", "Out of Stock"].map(
+                        (v) => ({
+                          id: v,
+                          label: v,
+                        }),
+                      )}
+                      value={status}
+                      onChange={setStatus}
+                    />
+                    <AppText style={s.filterLabel}>Availability type</AppText>
+                    <Chips
+                      options={["All types", "For Sale", "For Use"].map((v) => ({
+                        id: v,
+                        label: v,
+                      }))}
+                      value={purpose}
+                      onChange={setPurpose}
+                    />
+                  </>
+                )}
+              </View>
+            )}
+          </Disclosure>
           {tab !== "Local Stores" ? (
             <>
               <Chips
@@ -541,19 +559,22 @@ function InventoryContent({ actorId }: { actorId: string }) {
                 value={source}
                 onChange={setSource}
               />
-              <View style={s.resale}>
-                <Package color="#8c719e" size={23} />
-                <View style={s.grow}>
-                  <AppText weight="bold" style={s.name}>
-                    Give good parts another project.
-                  </AppText>
-                  <AppText style={s.copy}>
-                    Components from previous students, listed through the workshop assistant. Check
-                    condition and inspection notes before requesting.
-                  </AppText>
-                  <AppText style={s.meta}>Preview listings</AppText>
+              {source === "Student Resale" && (
+                <View style={s.resale}>
+                  <Package color="#8c719e" size={23} />
+                  <View style={s.grow}>
+                    <AppText weight="bold" style={s.name}>
+                      Give good parts another project.
+                    </AppText>
+                    <AppText style={s.copy}>
+                      Components from previous students, listed through the workshop assistant.
+                      Check condition and inspection notes before requesting.
+                    </AppText>
+                    <AppText style={s.meta}>Preview listings</AppText>
+                  </View>
                 </View>
-              </View>
+              )}
+
               {filtered.map((item) => (
                 <View
                   style={[
@@ -919,7 +940,12 @@ function InventoryContent({ actorId }: { actorId: string }) {
               <X size={23} color="#526443" />
             </Pressable>
           </View>
-          <ScrollView contentContainerStyle={s.modalContent} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={s.modalContent}
+            keyboardShouldPersistTaps="handled"
+          >
             {sheet === "request" && selectedPart && (
               <>
                 <View style={s.inspection}>
@@ -1177,7 +1203,7 @@ const s = StyleSheet.create({
   grow: { flex: 1, minWidth: 0 },
   between: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   eyebrow: { fontSize: 9, lineHeight: 14, letterSpacing: 1.2, color: "#71826a", fontWeight: "600" },
-  title: { fontSize: 26, lineHeight: 34, fontWeight: "800", color: "#162334", marginTop: 3 },
+  title: { fontSize: 20, lineHeight: 28, fontWeight: "800", color: "#162334", marginTop: 3 },
   requestBadge: {
     flexDirection: "row",
     gap: 6,

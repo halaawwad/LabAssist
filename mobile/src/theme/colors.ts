@@ -3,17 +3,17 @@
 import type { ViewStyle } from "react-native";
 export const colors = {
   // Surfaces
-  background: "#eee8dc", // --cream: page background on supervisor and student
-  surface: "#fbfaf7", // --surface (workshop)
-  surfaceWarm: "#f6f4ef", // --surface-warm (workshop)
-  card: "#fffaf2", // --card (student)
+  background: "#ffffff", // --cream: page background on supervisor and student
+  surface: "#ffffff", // --surface (workshop)
+  surfaceWarm: "#f8faf6", // --surface-warm (workshop)
+  card: "#ffffff", // --card (student)
   creamDeep: "#ded4c5", // --cream-deep, also the student --input
   beige: "#e7dfd0", // --beige (workshop)
 
   // Glass panels: the web adds a backdrop blur, which the mobile app leaves out.
   panel: "rgba(255, 255, 255, 0.62)", // --panel (workshop)
-  panelStrong: "rgba(255, 255, 255, 0.8)", // --panel-strong (workshop)
-  stroke: "rgba(255, 255, 255, 0.75)", // --stroke (workshop)
+  panelStrong: "rgba(255, 255, 255, 0.96)", // --panel-strong (workshop)
+  stroke: "#e5eadf", // --stroke (workshop)
 
   // Brand
   primary: "#526443", // --olive

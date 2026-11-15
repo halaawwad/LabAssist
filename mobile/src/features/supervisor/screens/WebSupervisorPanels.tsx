@@ -1,7 +1,10 @@
+import { Disclosure } from "@/components/Disclosure";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { MobileModal as Modal } from "@/components/MobileModal";
 import { useState } from "react";
 import { demoSupervisor } from "../../../../../shared/web/domain";
 import { useWorkspace } from "@/state/WorkspaceProvider";
-import { Image, Modal, Pressable, ScrollView, View, StyleSheet } from "react-native";
+import { Image, ScrollView, View, StyleSheet } from "react-native";
 import Svg, { Line, Polyline, Circle, Text as SvgText } from "react-native-svg";
 import { AppText, Button } from "@/components";
 import { Chips, Field, Panel, Ring, kit } from "@/components/MobileKit";
@@ -52,10 +55,11 @@ export function WebSupervisorPanels({
     [notice, setNotice] = useState(""),
     [note, setNote] = useState("");
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
-  const { value: notes, setValue: setNotes, error: notesError } = useLocalPreview<Record<string, string>>(
-    "labassist.mobile.supervisor.progress.notes",
-    {},
-  );
+  const {
+    value: notes,
+    setValue: setNotes,
+    error: notesError,
+  } = useLocalPreview<Record<string, string>>("labassist.mobile.supervisor.progress.notes", {});
   const { value: tasks, setValue: setTasks } = useLocalPreview(
     "labassist.mobile.supervisor.own-tasks",
     supervisorTasks,
@@ -88,20 +92,18 @@ export function WebSupervisorPanels({
         : a.dueDate.localeCompare(b.dueDate),
     );
   // These legacy preview collections are explicitly assigned to SUP01.
-  const actor = state.users.find(user => user.id === actorId);
-  if (actor?.role !== "supervisor" || (actor.canonicalId ?? (actor.id === "d1" ? demoSupervisor.id : actor.id)) !== demoSupervisor.id)
-    return <Panel title="Linked projects"><AppText>No linked projects in this local preview.</AppText></Panel>;
+  const actor = state.users.find((user) => user.id === actorId);
+  if (
+    actor?.role !== "supervisor" ||
+    (actor.canonicalId ?? (actor.id === "d1" ? demoSupervisor.id : actor.id)) !== demoSupervisor.id
+  )
+    return (
+      <Panel title="Linked projects">
+        <AppText>No linked projects in this local preview.</AppText>
+      </Panel>
+    );
   return (
     <View style={kit.stack}>
-      <AppText variant="title">
-        {page === "projects"
-          ? "My Projects"
-          : page === "students"
-            ? "Students"
-            : page === "progress"
-              ? "Project Progress"
-              : "Tasks & follow-up"}
-      </AppText>
       {!!notice && (
         <AppText accessibilityRole="alert" tone="primary">
           {notice}
@@ -113,7 +115,7 @@ export function WebSupervisorPanels({
           <Panel>
             <Image source={p.image as unknown as number} style={s.heroImage} />
             <Badge text={p.status} />
-            <AppText variant="title">{p.name}</AppText>
+            <AppText variant="heading">{p.name}</AppText>
             <AppText tone="muted">
               {p.code} · {p.team} · {p.students} students
             </AppText>
@@ -155,7 +157,7 @@ export function WebSupervisorPanels({
                 [supervisedProjects.reduce((n, p) => n + p.openIssues, 0), "Open issues"],
               ].map(([n, l]) => (
                 <View style={s.stat} key={l}>
-                  <AppText variant="title">{n}</AppText>
+                  <AppText variant="heading">{n}</AppText>
                   <AppText variant="caption">{l}</AppText>
                 </View>
               ))}
@@ -184,24 +186,26 @@ export function WebSupervisorPanels({
       )}
       {page === "students" && (
         <>
-          <Panel tint="#eef2e4">
-            <AppText variant="title">A closer look at every student.</AppText>
-            <AppText tone="muted">
-              Follow project progress, attendance, open issues and update requests.
-            </AppText>
-            <View style={kit.wrap}>
-              {[
-                [supervisedStudents.length, "Students"],
-                [supervisedStudents.filter((u) => u.repeatedAbsence).length, "Repeated absence"],
-                [supervisedStudents.filter((u) => u.status === "At Risk").length, "At risk"],
-              ].map(([n, l]) => (
-                <View key={l} style={s.stat}>
-                  <AppText variant="title">{n}</AppText>
-                  <AppText variant="caption">{l}</AppText>
-                </View>
-              ))}
-            </View>
-          </Panel>
+          <Disclosure title="Overview">
+            <Panel tint="#eef2e4">
+              <AppText variant="heading">A closer look at every student.</AppText>
+              <AppText tone="muted">
+                Follow project progress, attendance, open issues and update requests.
+              </AppText>
+              <View style={kit.wrap}>
+                {[
+                  [supervisedStudents.length, "Students"],
+                  [supervisedStudents.filter((u) => u.repeatedAbsence).length, "Repeated absence"],
+                  [supervisedStudents.filter((u) => u.status === "At Risk").length, "At risk"],
+                ].map(([n, l]) => (
+                  <View key={l} style={s.stat}>
+                    <AppText variant="heading">{n}</AppText>
+                    <AppText variant="caption">{l}</AppText>
+                  </View>
+                ))}
+              </View>
+            </Panel>
+          </Disclosure>
           <Field label="Search student, number or project" value={query} onChangeText={setQuery} />
           <Chips
             value={filter}
@@ -264,7 +268,7 @@ export function WebSupervisorPanels({
           <Panel>
             <Image source={progress.photo as unknown as number} style={s.heroImage} />
             <Badge text={progress.status} />
-            <AppText variant="title">{progress.name}</AppText>
+            <AppText variant="heading">{progress.name}</AppText>
             <AppText variant="caption">
               {progress.code} · Final deadline {progress.finalDeadline}
             </AppText>
@@ -374,37 +378,50 @@ export function WebSupervisorPanels({
               label="Note for this project"
               multiline
               value={noteDrafts[progress.code] ?? notes[progress.code] ?? progress.note}
-              onChangeText={value => setNoteDrafts(drafts => ({ ...drafts, [progress.code]: value }))}
+              onChangeText={(value) =>
+                setNoteDrafts((drafts) => ({ ...drafts, [progress.code]: value }))
+              }
             />
             <Button
               title="Save note"
               size="sm"
-              onPress={async () => { if (await setNotes({ ...notes, [progress.code]: noteDrafts[progress.code] ?? notes[progress.code] ?? progress.note })) setNotice("Project note saved on this device."); }}
+              onPress={async () => {
+                if (
+                  await setNotes({
+                    ...notes,
+                    [progress.code]:
+                      noteDrafts[progress.code] ?? notes[progress.code] ?? progress.note,
+                  })
+                )
+                  setNotice("Project note saved on this device.");
+              }}
             />
           </Panel>
         </>
       )}
       {page === "tasks" && (
         <>
-          <Panel tint="#ecf0e4">
-            <AppText variant="heading">Small follow-ups. Clearer progress.</AppText>
-            <AppText tone="muted">
-              Your supervision work, reviews and meetings — separate from student implementation
-              tasks.
-            </AppText>
-            <View style={kit.wrap}>
-              {[
-                [tasks.length, "All tasks"],
-                [tasks.filter((t) => t.status === "Completed").length, "Completed"],
-                [tasks.filter((t) => t.status === "Pending").length, "Pending"],
-              ].map(([n, l]) => (
-                <View key={l} style={s.stat}>
-                  <AppText variant="title">{n}</AppText>
-                  <AppText variant="caption">{l}</AppText>
-                </View>
-              ))}
-            </View>
-          </Panel>
+          <Disclosure title="Overview">
+            <Panel tint="#ecf0e4">
+              <AppText variant="heading">Small follow-ups. Clearer progress.</AppText>
+              <AppText tone="muted">
+                Your supervision work, reviews and meetings — separate from student implementation
+                tasks.
+              </AppText>
+              <View style={kit.wrap}>
+                {[
+                  [tasks.length, "All tasks"],
+                  [tasks.filter((t) => t.status === "Completed").length, "Completed"],
+                  [tasks.filter((t) => t.status === "Pending").length, "Pending"],
+                ].map(([n, l]) => (
+                  <View key={l} style={s.stat}>
+                    <AppText variant="heading">{n}</AppText>
+                    <AppText variant="caption">{l}</AppText>
+                  </View>
+                ))}
+              </View>
+            </Panel>
+          </Disclosure>
           <Panel title="Quick actions">
             <View style={kit.wrap}>
               <Button
@@ -500,7 +517,11 @@ export function WebSupervisorPanels({
           setEditing(null);
         }}
       >
-        <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 50, gap: 15 }}>
+        <ScrollView
+          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{ padding: 24, paddingTop: 50, gap: 15 }}
+        >
           <Button
             title="Close details"
             variant="ghost"
@@ -511,7 +532,7 @@ export function WebSupervisorPanels({
           />
           {editing ? (
             <>
-              <AppText variant="title">{editing.id ? "Edit task" : "Create task"}</AppText>
+              <AppText variant="heading">{editing.id ? "Edit task" : "Create task"}</AppText>
               <Field
                 label="Task title"
                 value={editing.title ?? ""}
@@ -551,9 +572,14 @@ export function WebSupervisorPanels({
                     id: editing.id ?? `task-${Date.now()}`,
                     status: editing.status ?? "Pending",
                   } as SupervisorTask;
-                  if ((await setTasks(
-                    editing.id ? tasks.map((t) => (t.id === task.id ? task : t)) : [...tasks, task],
-                  )) === false) return false;
+                  if (
+                    (await setTasks(
+                      editing.id
+                        ? tasks.map((t) => (t.id === task.id ? task : t))
+                        : [...tasks, task],
+                    )) === false
+                  )
+                    return false;
                   setEditing(null);
                 }}
               />
@@ -561,7 +587,7 @@ export function WebSupervisorPanels({
           ) : page === "projects" ? (
             <>
               <Image source={p.image as unknown as number} style={s.heroImage} />
-              <AppText variant="title">{p.name}</AppText>
+              <AppText variant="heading">{p.name}</AppText>
               <Badge text={p.status} />
               <AppText>
                 {p.code} · {p.team} · {p.students} students
@@ -580,7 +606,7 @@ export function WebSupervisorPanels({
             </>
           ) : (
             <>
-              <AppText variant="title">
+              <AppText variant="heading">
                 {page === "students" ? "Request student update" : "Send project feedback"}
               </AppText>
               <Field label="Message" value={note} onChangeText={setNote} multiline />
@@ -588,11 +614,15 @@ export function WebSupervisorPanels({
                 title="Save feedback"
                 disabled={!note.trim()}
                 onPress={async () => {
-                  if ((await setNotes({
-                    ...notes,
-                    [page === "students" ? supervisedStudents[chosen].universityId : progress.code]:
-                      note,
-                  })) === false) return false;
+                  if (
+                    (await setNotes({
+                      ...notes,
+                      [page === "students"
+                        ? supervisedStudents[chosen].universityId
+                        : progress.code]: note,
+                    })) === false
+                  )
+                    return false;
                   setDetails(false);
                   setNotice("Feedback saved in this local preview.");
                 }}
@@ -605,7 +635,7 @@ export function WebSupervisorPanels({
   );
 }
 const s = StyleSheet.create({
-  heroImage: { width: "100%", height: 180, borderRadius: 19, resizeMode: "cover" },
+  heroImage: { width: "100%", height: 112, borderRadius: 16, resizeMode: "cover" },
   thumb: { width: 62, height: 62, borderRadius: 14, resizeMode: "cover" },
   listRow: {
     flexDirection: "row",

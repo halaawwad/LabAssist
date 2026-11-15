@@ -1,7 +1,10 @@
+import { MobileInput as TextInput } from "@/components/MobileInput";
+import { Disclosure } from "@/components/Disclosure";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { ReportsPanel } from "@/features/shared/ReportsPanel";
 import { router } from "./router";
 import { useState } from "react";
-import { Pressable, ScrollView, TextInput, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { AppText, Button } from "@/components";
 import { Panel, Ring, kit } from "@/components/MobileKit";
 import { ProjectPhoto } from "@/components/ProjectPhoto";
@@ -53,7 +56,9 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
             }}
           />
         </View>
-        <ProjectPhoto projectId="reference-smart-car" />
+        <Disclosure title="Project photo">
+          <ProjectPhoto projectId="reference-smart-car" />
+        </Disclosure>
       </Panel>
       <ScrollView
         horizontal
@@ -172,7 +177,13 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
           </Panel>
         </>
       )}
-      {tab === "Team & Tasks" && <Button title="Add task" variant="soft" onPress={() => router.push("/native/student/tasks")} />}
+      {tab === "Team & Tasks" && (
+        <Button
+          title="Add task"
+          variant="soft"
+          onPress={() => router.push("/native/student/tasks")}
+        />
+      )}
       {tab === "Team & Tasks" &&
         workspace.members.map((member, index) => (
           <Panel key={member.name} title={member.name}>

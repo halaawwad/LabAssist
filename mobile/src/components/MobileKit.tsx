@@ -1,15 +1,10 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { TextField } from "./TextField";
+import { usePathname } from "expo-router";
 import { router } from "@/native/router";
 import { ArrowLeft, Bell, ChevronRight } from "lucide-react-native";
-import type { ReactNode } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-  Image,
-  type TextInputProps,
-} from "react-native";
+import { createContext, useContext, type ReactNode } from "react";
+import { ScrollView, StyleSheet, View, Image, type TextInputProps } from "react-native";
 import { Circle, Svg } from "react-native-svg";
 import { useLanguage } from "@/i18n";
 import { useWorkspace } from "@/state/WorkspaceProvider";
@@ -67,6 +62,7 @@ export function Page({
   children: ReactNode;
   back?: boolean;
 }) {
+  const embedded = usePathname().startsWith("/native/");
   const { error, clearError, storageError, retryLoading, saving, actorId, state } = useWorkspace();
   const role = state.users.find((user) => user.id === actorId)?.role ?? "student";
   const unread = state.alerts.filter((alert) => alert.userId === actorId && !alert.read).length;
@@ -87,75 +83,79 @@ export function Page({
   };
   return (
     <ScreenContainer scroll edges={["top"]}>
-      <View style={kit.row}>
-        {back && (
+      {!embedded && (
+        <View style={kit.row}>
+          {back && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("Back", "رجوع")}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+              style={kit.iconButton}
+            >
+              <ArrowLeft color={colors.primary} />
+            </Pressable>
+          )}
+          <View style={kit.grow}>
+            <AppText variant="caption" tone="muted">
+              LabAssist
+            </AppText>
+            <AppText variant="title">{title}</AppText>
+          </View>
+          <LanguageToggle compact />
+        </View>
+      )}
+      {!embedded && (
+        <View style={[kit.row, { justifyContent: "space-between" }]}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t("Back", "رجوع")}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
-            style={kit.iconButton}
+            accessibilityLabel={t("My profile", "ملفي الشخصي")}
+            onPress={() => router.push(`/${role}/more/profile` as import("expo-router").Href)}
+            style={kit.row}
           >
-            <ArrowLeft color={colors.primary} />
-          </Pressable>
-        )}
-        <View style={kit.grow}>
-          <AppText variant="caption" tone="muted">
-            LabAssist
-          </AppText>
-          <AppText variant="title">{title}</AppText>
-        </View>
-        <LanguageToggle compact />
-      </View>
-      <View style={[kit.row, { justifyContent: "space-between" }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("My profile", "ملفي الشخصي")}
-          onPress={() => router.push(`/${role}/more/profile` as import("expo-router").Href)}
-          style={kit.row}
-        >
-          <Portrait userId={actorId} size={38} />
-          <View>
-            <AppText weight="semibold">
-              {state.users.find((user) => user.id === actorId)?.name}
-            </AppText>
-            <AppText variant="caption" tone="muted">
-              {role === "student"
-                ? t("Student workspace", "مساحة الطالب")
-                : role === "supervisor"
-                  ? t("Supervisor workspace", "مساحة المشرف")
-                  : t("Workshop workspace", "مساحة الورشة")}
-            </AppText>
-          </View>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t(
-            `Notifications, ${unread} unread`,
-            `الإشعارات، ${unread} غير مقروءة`,
-          )}
-          onPress={() => router.push(`/${role}/more/notifications` as import("expo-router").Href)}
-          style={kit.iconButton}
-        >
-          <Bell size={21} color={colors.primary} />
-          {unread > 0 && (
-            <View
-              style={{
-                position: "absolute",
-                top: 0,
-                right: 0,
-                borderRadius: 10,
-                backgroundColor: colors.primary,
-                paddingHorizontal: 5,
-              }}
-            >
-              <AppText variant="caption" tone="inverse">
-                {unread}
+            <Portrait userId={actorId} size={38} />
+            <View>
+              <AppText weight="semibold">
+                {state.users.find((user) => user.id === actorId)?.name}
+              </AppText>
+              <AppText variant="caption" tone="muted">
+                {role === "student"
+                  ? t("Student workspace", "مساحة الطالب")
+                  : role === "supervisor"
+                    ? t("Supervisor workspace", "مساحة المشرف")
+                    : t("Workshop workspace", "مساحة الورشة")}
               </AppText>
             </View>
-          )}
-        </Pressable>
-      </View>
-      {error && (
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t(
+              `Notifications, ${unread} unread`,
+              `الإشعارات، ${unread} غير مقروءة`,
+            )}
+            onPress={() => router.push(`/${role}/more/notifications` as import("expo-router").Href)}
+            style={kit.iconButton}
+          >
+            <Bell size={21} color={colors.primary} />
+            {unread > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  borderRadius: 10,
+                  backgroundColor: colors.primary,
+                  paddingHorizontal: 5,
+                }}
+              >
+                <AppText variant="caption" tone="inverse">
+                  {unread}
+                </AppText>
+              </View>
+            )}
+          </Pressable>
+        </View>
+      )}
+      {!!error && (
         <Pressable onPress={clearError} style={kit.error}>
           <AppText tone="danger" accessibilityLiveRegion="assertive">
             {errors[error] ?? error}
@@ -171,11 +171,16 @@ export function Page({
         </AppText>
       )}
       {saving && <AppText accessibilityLiveRegion="polite">Saving changes...</AppText>}
-      {storageError && <Pressable onPress={retryLoading}><AppText>Retry loading saved records</AppText></Pressable>}
+      {storageError && (
+        <Pressable onPress={retryLoading}>
+          <AppText>Retry loading saved records</AppText>
+        </Pressable>
+      )}
       {children}
     </ScreenContainer>
   );
 }
+const PanelDepth = createContext(0);
 export function Panel({
   children,
   tint,
@@ -185,31 +190,30 @@ export function Panel({
   tint?: string;
   title?: string;
 }) {
+  const depth = useContext(PanelDepth);
   return (
-    <View style={[kit.panel, tint ? { backgroundColor: tint } : undefined]}>
-      {title && <AppText variant="heading">{title}</AppText>}
-      {children}
-    </View>
+    <PanelDepth.Provider value={depth + 1}>
+      <View
+        style={[
+          kit.panel,
+          depth > 0 && {
+            padding: 0,
+            paddingVertical: 8,
+            borderWidth: 0,
+            borderRadius: 0,
+            backgroundColor: "transparent",
+          },
+          tint ? { backgroundColor: tint } : undefined,
+        ]}
+      >
+        {title && <AppText variant="heading">{title}</AppText>}
+        {children}
+      </View>
+    </PanelDepth.Provider>
   );
 }
 export function Field({ label, ...props }: TextInputProps & { label: string }) {
-  const { language } = useLanguage();
-  return (
-    <View style={kit.field}>
-      <AppText variant="label">{label}</AppText>
-      <TextInput
-        {...props}
-        accessibilityLabel={label}
-        placeholderTextColor={colors.textMuted}
-        style={[
-          kit.input,
-          { textAlign: language === "ar" ? "right" : "left" },
-          props.multiline ? { minHeight: 110, textAlignVertical: "top" } : undefined,
-          props.style,
-        ]}
-      />
-    </View>
-  );
+  return <TextField label={label} {...props} />;
 }
 export function Chips({
   options,
@@ -222,6 +226,7 @@ export function Chips({
 }) {
   return (
     <ScrollView
+      style={{ flexGrow: 0, flexShrink: 0 }}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={kit.filters}
@@ -302,14 +307,16 @@ export function Ring({ value, color = colors.primary }: { value: number; color?:
   );
 }
 export const kit = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" },
+  row: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap", minWidth: 0 },
   filters: { gap: 8, paddingVertical: 3, alignItems: "center" },
-  wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center", minWidth: 0 },
   grow: { flex: 1, minWidth: 0, gap: 4 },
   panel: {
-    padding: 18,
-    borderRadius: 22,
-    gap: 14,
+    padding: 16,
+    borderRadius: 18,
+    gap: 12,
+    minWidth: 0,
+    maxWidth: "100%",
     backgroundColor: colors.panelStrong,
     borderWidth: 1,
     borderColor: colors.stroke,
