@@ -1,15 +1,10 @@
+import { MobileInput as TextInput } from "@/components/MobileInput";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { Disclosure } from "@/components/Disclosure";
+import { MobileModal as Modal } from "@/components/MobileModal";
 import { ReportCoverPreview } from "./ReportCoverPreview";
 import { useEffect, useState, type ReactNode } from "react";
-import {
-  Image,
-  ImageBackground,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import { Image, ImageBackground, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ArrowDown,
@@ -243,7 +238,7 @@ export function FinalReportEditor({
   }
   async function generate(mode: "preview" | "download" | "submit") {
     if (busy) return;
-    if (editable && !await save()) return;
+    if (editable && !(await save())) return;
     setBusy(true);
     setExportMode(mode);
     setNotice(
@@ -336,7 +331,7 @@ export function FinalReportEditor({
         title={t("All reports", "كل التقارير")}
         variant="ghost"
         onPress={async () => {
-          if (!dirty || !editable || await save()) onClose();
+          if (!dirty || !editable || (await save())) onClose();
         }}
       />
       <Panel tint="#edf2e5">
@@ -428,42 +423,46 @@ export function FinalReportEditor({
               100,
             )}
             {field("Report date (YYYY-MM-DD)", meta.date, (v) => setMeta({ ...meta, date: v }), 10)}
-            <AppText variant="heading">Students · 2–3 equal teammates</AppText>
-            {meta.students.map((student, index) => (
-              <View key={index} style={s.student}>
-                {field(
-                  `Student ${index + 1} name`,
-                  student.name,
-                  (v) =>
-                    setMeta({
-                      ...meta,
-                      students: meta.students.map((p, i) => (i === index ? { ...p, name: v } : p)),
-                    }),
-                  100,
-                )}
-                {field(
-                  `Student ${index + 1} number`,
-                  student.number,
-                  (v) =>
-                    setMeta({
-                      ...meta,
-                      students: meta.students.map((p, i) =>
-                        i === index ? { ...p, number: v } : p,
-                      ),
-                    }),
-                  8,
-                )}
-                {editable && meta.students.length > 2 && (
-                  <Button
-                    title={`Remove student ${index + 1}`}
-                    variant="ghost"
-                    onPress={() =>
-                      setMeta({ ...meta, students: meta.students.filter((_, i) => i !== index) })
-                    }
-                  />
-                )}
-              </View>
-            ))}
+            <Disclosure title="Student details">
+              {" "}
+              {meta.students.map((student, index) => (
+                <View key={index} style={s.student}>
+                  {field(
+                    `Student ${index + 1} name`,
+                    student.name,
+                    (v) =>
+                      setMeta({
+                        ...meta,
+                        students: meta.students.map((p, i) =>
+                          i === index ? { ...p, name: v } : p,
+                        ),
+                      }),
+                    100,
+                  )}
+                  {field(
+                    `Student ${index + 1} number`,
+                    student.number,
+                    (v) =>
+                      setMeta({
+                        ...meta,
+                        students: meta.students.map((p, i) =>
+                          i === index ? { ...p, number: v } : p,
+                        ),
+                      }),
+                    8,
+                  )}
+                  {editable && meta.students.length > 2 && (
+                    <Button
+                      title={`Remove student ${index + 1}`}
+                      variant="ghost"
+                      onPress={() =>
+                        setMeta({ ...meta, students: meta.students.filter((_, i) => i !== index) })
+                      }
+                    />
+                  )}
+                </View>
+              ))}
+            </Disclosure>
             {editable && meta.students.length < 3 && (
               <Button
                 title="Add third student"
@@ -548,12 +547,12 @@ export function FinalReportEditor({
               {guidance[selected] || "Write your own report content. This section is optional."}
             </AppText>
             <ImageBackground
-              source={stationery}
+              source={editable ? undefined : stationery}
               style={s.paper}
               imageStyle={s.paperImage}
               resizeMode="stretch"
             >
-              <View style={s.paperContent}>
+              <View style={[s.paperContent, editable && { paddingTop: 16, paddingBottom: 16 }]}>
                 <AppText style={s.paperHeading}>
                   {section.chapter ? `${section.chapter}  ` : ""}
                   {section.title.toUpperCase()}
@@ -805,7 +804,7 @@ export function FinalReportEditor({
                   if (
                     await act({
                       type: "report.review",
-                        submissionId: report.history?.at(-1)?.id ?? "",
+                      submissionId: report.history?.at(-1)?.id ?? "",
                       id: report.id,
                       body: feedback,
                       section: feedbackSection,
@@ -833,7 +832,11 @@ export function FinalReportEditor({
             </AppText>
             {button("Close report panel", () => setDrawer(null), <X color="#526443" />)}
           </View>
-          <ScrollView contentContainerStyle={s.drawer}>
+          <ScrollView
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={s.drawer}
+          >
             {drawer === "outline" ? (
               <>
                 {[
@@ -960,8 +963,8 @@ const s = StyleSheet.create({
   },
   tools: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   tool: {
-    minHeight: 40,
-    minWidth: 38,
+    minHeight: 44,
+    minWidth: 44,
     paddingHorizontal: 8,
     paddingVertical: 8,
     flexDirection: "row",
@@ -1019,7 +1022,8 @@ const s = StyleSheet.create({
     lineHeight: 28,
     color: "#283028",
     padding: 10,
-    minHeight: 180,
+    minHeight: 100,
+    maxHeight: 220,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#e5e8dd",
@@ -1027,7 +1031,7 @@ const s = StyleSheet.create({
   },
   subheading: { fontFamily: "Georgia", fontSize: 17, fontWeight: "700", color: "#31432d" },
   block: { gap: 12, paddingBottom: 20, borderBottomWidth: 1, borderColor: "#e2e5d8" },
-  blockTools: { flexDirection: "row", alignItems: "center", gap: 5 },
+  blockTools: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 5 },
   cell: {
     width: 125,
     minHeight: 50,

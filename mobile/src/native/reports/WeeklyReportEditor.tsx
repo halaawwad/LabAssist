@@ -1,5 +1,9 @@
+import { MobileInput as TextInput } from "@/components/MobileInput";
+import { Disclosure } from "@/components/Disclosure";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { MobileModal as Modal } from "@/components/MobileModal";
 import { useState } from "react";
-import { Image, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Image, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CalendarDays, CheckCircle2, Download, FileText, X } from "lucide-react-native";
 import Svg, { Line, Pattern, Rect, Defs, Circle } from "react-native-svg";
@@ -21,16 +25,17 @@ export function WeeklyReportEditor({
   const { state, act, error: saveError } = useWorkspace();
   const t = useCopy();
   const project = state.projects.find((p) => p.id === report.projectId)!;
-  const draftFields = report.status === "submitted" && !report.openedBy.length ? report.editableDraft?.fields ?? report.fields : report.fields;
+  const draftFields =
+    report.status === "submitted" && !report.openedBy.length
+      ? (report.editableDraft?.fields ?? report.fields)
+      : report.fields;
   const [fields, setFields] = useState<Record<string, string>>({
-    ...(draftFields),
+    ...draftFields,
     progressPercent:
       draftFields.progressPercent ??
       String(
         Math.round(
-          (state.tasks.filter(
-            (task) => task.projectId === report.projectId && task.done,
-          ).length /
+          (state.tasks.filter((task) => task.projectId === report.projectId && task.done).length /
             Math.max(1, state.tasks.filter((task) => task.projectId === report.projectId).length)) *
             100,
         ),
@@ -40,8 +45,12 @@ export function WeeklyReportEditor({
       (draftFields.delays && !/^(none|no)$/i.test(draftFields.delays) ? "true" : "false"),
     recovery: draftFields.recovery ?? "",
   });
-  const [attachments, setAttachments] = useState<ReportAttachment[]>(report.editableDraft?.attachments ?? report.attachments ?? []),
-    [editing, setEditing] = useState(!!report.editableDraft && report.status === "submitted" && !report.openedBy.length),
+  const [attachments, setAttachments] = useState<ReportAttachment[]>(
+      report.editableDraft?.attachments ?? report.attachments ?? [],
+    ),
+    [editing, setEditing] = useState(
+      !!report.editableDraft && report.status === "submitted" && !report.openedBy.length,
+    ),
     [preview, setPreview] = useState(false),
     [draftsOpen, setDraftsOpen] = useState(false),
     [notice, setNotice] = useState(""),
@@ -114,7 +123,9 @@ export function WeeklyReportEditor({
   };
   async function save() {
     if (!editable) return false;
-    if (await act({ type: "report.save", id: report.id, fields, attachments, draftOnly: editing })) {
+    if (
+      await act({ type: "report.save", id: report.id, fields, attachments, draftOnly: editing })
+    ) {
       setDraftsOpen(true);
       setNotice(
         t(
@@ -336,47 +347,48 @@ export function WeeklyReportEditor({
   );
   return (
     <View style={kit.stack}>
-      <Panel tint="#eef2e7">
-        <View style={kit.row}>
-          <CalendarDays color="#728b5d" />
-          <AppText variant="heading">Your weeks</AppText>
-        </View>
-        <AppText tone="muted">One shared report per project, each week.</AppText>
-        <Button
-          title={`Saved Drafts (${drafts.length})`}
-          variant="soft"
-          onPress={() => setDraftsOpen(!draftsOpen)}
-        />
-        {draftsOpen &&
-          (drafts.length ? (
-            drafts.map((d) => (
-              <Button
-                key={d.id}
-                title={`Week ${d.week} · Saved ${new Date(d.savedAt!).toLocaleString()}`}
-                variant="ghost"
-                onPress={() => onSelect(d.id)}
-              />
-            ))
-          ) : (
-            <AppText tone="muted">
-              Saved reports will appear here when you choose Save as Draft.
-            </AppText>
-          ))}
-        <Chips
-          value={report.id}
-          options={all.map((r) => ({ id: r.id, label: `Week ${r.week} · ${r.status}` }))}
-          onChange={onSelect}
-        />
-        <Button
-          title="Start next weekly report"
-          variant="soft"
-          onPress={async () => {
-            const week = Math.max(...all.map((r) => r.week)) + 1;
-            if (await act({ type: "weekly.create", projectId: project.id, week }))
-              onSelect("");
-          }}
-        />
-      </Panel>
+      <Disclosure title="Choose week & drafts">
+        <Panel tint="#eef2e7">
+          <View style={kit.row}>
+            <CalendarDays color="#728b5d" />
+            <AppText variant="heading">Your weeks</AppText>
+          </View>
+          <AppText tone="muted">One shared report per project, each week.</AppText>
+          <Button
+            title={`Saved Drafts (${drafts.length})`}
+            variant="soft"
+            onPress={() => setDraftsOpen(!draftsOpen)}
+          />
+          {draftsOpen &&
+            (drafts.length ? (
+              drafts.map((d) => (
+                <Button
+                  key={d.id}
+                  title={`Week ${d.week} · Saved ${new Date(d.savedAt!).toLocaleString()}`}
+                  variant="ghost"
+                  onPress={() => onSelect(d.id)}
+                />
+              ))
+            ) : (
+              <AppText tone="muted">
+                Saved reports will appear here when you choose Save as Draft.
+              </AppText>
+            ))}
+          <Chips
+            value={report.id}
+            options={all.map((r) => ({ id: r.id, label: `Week ${r.week} · ${r.status}` }))}
+            onChange={onSelect}
+          />
+          <Button
+            title="Start next weekly report"
+            variant="soft"
+            onPress={async () => {
+              const week = Math.max(...all.map((r) => r.week)) + 1;
+              if (await act({ type: "weekly.create", projectId: project.id, week })) onSelect("");
+            }}
+          />
+        </Panel>
+      </Disclosure>
       <Panel>
         <AppText variant="caption" tone="primary">
           {project.title} / WEEKLY UPDATE
@@ -602,8 +614,18 @@ export function WeeklyReportEditor({
               <X color="#526443" />
             </Pressable>
           </View>
-          {!!saveError && <AppText accessibilityRole="alert" tone="danger">{saveError}</AppText>}
-          <ScrollView contentContainerStyle={{ padding: 10 }}>{paper}</ScrollView>
+          {!!saveError && (
+            <AppText accessibilityRole="alert" tone="danger">
+              {saveError}
+            </AppText>
+          )}
+          <ScrollView
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={{ padding: 10 }}
+          >
+            {paper}
+          </ScrollView>
           <View style={s.modalFooter}>
             <Button title="Back to editing" variant="soft" onPress={() => setPreview(false)} />
             <Button title={editing ? "Confirm Changes" : "Confirm Submission"} onPress={submit} />
@@ -670,7 +692,7 @@ const s = StyleSheet.create({
     borderColor: "#dddccb",
     backgroundColor: "#ffffffc9",
   },
-  icon: { minWidth: 42, minHeight: 42, alignItems: "center", justifyContent: "center" },
+  icon: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
   paper: {
     borderRadius: 22,
     overflow: "hidden",
@@ -678,7 +700,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ddd8c7",
   },
-  paperContent: { paddingTop: 28, paddingBottom: 35, paddingLeft: 35, paddingRight: 17, gap: 26 },
+  paperContent: { paddingTop: 20, paddingBottom: 24, paddingHorizontal: 16, gap: 20 },
   kicker: { fontSize: 10, letterSpacing: 1.6, color: "#6f7784" },
   paperTitle: { fontFamily: "Georgia", fontSize: 29, lineHeight: 37, color: "#111a2b" },
   serif: { fontFamily: "Georgia", fontSize: 15, lineHeight: 27, color: "#354039" },
@@ -739,4 +761,3 @@ const s = StyleSheet.create({
   },
   overlay: { flex: 1, backgroundColor: "#17201670", justifyContent: "center", padding: 22 },
 });
-

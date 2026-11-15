@@ -36,14 +36,14 @@ export function DepartmentAvatar({ person }: { person: DepartmentPerson }) {
 }
 
 export function DepartmentAccountStatus({ person }: { person: DepartmentPerson }) {
-  const storedStatus =
+  const status =
     person.status ??
     (typeof person.active === "boolean"
       ? effectiveAccountStatus({ ...person, active: person.active })
       : undefined);
-  const status = storedStatus === "PENDING_ACTIVATION" ? "ACTIVE" : storedStatus;
   const labels = {
     ACTIVE: "Active",
+    PENDING_ACTIVATION: "Pending",
     DISABLED: "Disabled",
     REFERENCE_ONLY: "Reference only",
   };

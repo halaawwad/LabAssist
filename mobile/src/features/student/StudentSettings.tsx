@@ -1,5 +1,8 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { MobileModal as Modal } from "@/components/MobileModal";
+import { SignOutButton } from "@/components/SignOutButton";
 import { useState } from "react";
-import { Modal, Pressable, Switch, View, StyleSheet, Platform, Share } from "react-native";
+import { Switch, View, StyleSheet, Platform, Share } from "react-native";
 import {
   Settings,
   MessageSquare,
@@ -120,8 +123,9 @@ export function StudentSettings() {
     <View style={kit.stack}>
       <View style={s.heading}>
         <View>
-          <AppText style={s.eyebrow}>YOUR WORKSPACE / YOUR WAY</AppText>
-          <AppText variant="title">Settings</AppText>
+          <AppText variant="caption" tone="muted">
+            Your account & preferences
+          </AppText>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -131,6 +135,9 @@ export function StudentSettings() {
           <Portrait userId={actorId} size={43} />
         </Pressable>
       </View>
+      <Panel title="Account">
+        <SignOutButton />
+      </Panel>
       <Panel title="Language">
         <LanguageToggle />
       </Panel>

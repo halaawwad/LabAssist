@@ -1,5 +1,6 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { Box, CheckSquare, FileText, Users } from "lucide-react-native";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { AppText, Avatar, Card, EmptyState } from "@/components";
 import { useLanguage } from "@/i18n";

@@ -20,6 +20,7 @@
 
 - Provision Student, Supervisor and Workshop Manager accounts, validate duplicates, and manage groups/supervisor links.
 - New accounts await owner activation and password selection; real activation delivery and password hashing require the backend.
+- Department web and mobile create/import Pending local records and preserve existing statuses. Pending links are permitted only in draft planning groups. This does not change backend account or membership approval. Mixed student-number batches are allowed; each student needs an eight-digit number and `s<number>@stu.najah.edu` email.
 - Disable referenced accounts; delete only eligible unused accounts. Do not activate accounts on behalf of owners.
 
 ## Student

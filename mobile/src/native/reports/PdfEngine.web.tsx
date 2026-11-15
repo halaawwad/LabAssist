@@ -1,5 +1,5 @@
+import { Asset } from "expo-asset";
 import { useEffect, useRef, useState } from "react";
-import { reportEngineHTML } from "./reportEngine.generated";
 import type { EngineProps, EngineReply } from "./pdfTypes";
 export default function PdfEngine({ request, onResult }: EngineProps) {
   const ref = useRef<HTMLIFrameElement>(null);
@@ -23,7 +23,7 @@ export default function PdfEngine({ request, onResult }: EngineProps) {
     <iframe
       ref={ref}
       title="Report PDF renderer"
-      srcDoc={reportEngineHTML}
+      src={Asset.fromModule(require("../../../assets/engines/report.html")).uri}
       sandbox="allow-scripts allow-same-origin"
       style={{
         position: "absolute",

@@ -1,11 +1,13 @@
-﻿import { PresentationEditor } from "@/native/reports/PresentationEditor";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { MobileModal as Modal } from "@/components/MobileModal";
+import { PresentationEditor } from "@/native/reports/PresentationEditor";
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { X } from "lucide-react-native";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import Svg, { Rect, Ellipse, Path, Circle, G, Text as SvgText } from "react-native-svg";
+import Svg, { Rect, Ellipse, Text as SvgText } from "react-native-svg";
 import { AppText, Button } from "@/components";
 import { Chips, Field, Panel, kit, useCopy } from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
@@ -16,6 +18,15 @@ import { FinalReportEditor } from "@/native/reports/FinalReportEditor";
 import { WeeklyReportEditor } from "@/native/reports/WeeklyReportEditor";
 
 const labels: Record<string, [string, string]> = {
+  progressPercent: [
+    "Project progress (%)",
+    "\u0646\u0633\u0628\u0629 \u062a\u0642\u062f\u0645 \u0627\u0644\u0645\u0634\u0631\u0648\u0639 (%)",
+  ],
+  hasDelays: ["Delays reported", "\u0627\u0644\u062a\u0623\u062e\u064a\u0631\u0627\u062a"],
+  recovery: [
+    "Recovery plan",
+    "\u062e\u0637\u0629 \u0627\u0644\u0645\u0639\u0627\u0644\u062c\u0629",
+  ],
   completed: ["Completed work", "العمل المنجز"],
   progress: ["Progress", "التقدم"],
   tasks: ["Tasks completed", "المهام المنجزة"],
@@ -103,35 +114,20 @@ export function ReportsPanel({
     }
   }
   const hero = !supervisor && (
-    <Panel tint={colors.primaryWash}>
-      <AppText variant="caption" tone="primary">
-        SMALL UPDATES. A COMPLETE STORY.
+    <View style={{ gap: 4 }}>
+      <AppText variant="heading">
+        {t(
+          "Reports & submissions",
+          "\u0627\u0644\u062a\u0642\u0627\u0631\u064a\u0631 \u0648\u0627\u0644\u062a\u0633\u0644\u064a\u0645\u0627\u062a",
+        )}
       </AppText>
-      <AppText variant="title">From this week’s work{"\n"}to your final report.</AppText>
-      <AppText tone="muted">
-        Capture what you learned, show what you built, and keep the evidence together.
+      <AppText variant="caption" tone="muted">
+        {t(
+          "Weekly updates, final report and presentation.",
+          "\u062a\u0642\u0627\u0631\u064a\u0631 \u0623\u0633\u0628\u0648\u0639\u064a\u0629 \u0648\u062a\u0642\u0631\u064a\u0631 \u0646\u0647\u0627\u0626\u064a \u0648\u0639\u0631\u0636 \u062a\u0642\u062f\u064a\u0645\u064a.",
+        )}
       </AppText>
-      <Svg width={170} height={110} viewBox="0 0 170 110" style={{ alignSelf: "flex-end" }}>
-        <G transform="rotate(-7 85 55)">
-          <Rect x={22} y={7} width={126} height={97} rx={12} fill="#fffff6" stroke="#bbcba5" />
-          <Path d="M39 8V103M50 27H135M50 42H135M50 57H135M50 72H135M50 87H135" stroke="#d5dfc7" />
-          <Path
-            d="M58 48H77V33H96V65H121M57 80H70L80 68L91 76L105 59L126 45"
-            stroke="#78915d"
-            strokeWidth={1.6}
-            fill="none"
-          />
-          <Circle cx={58} cy={48} r={3} fill="#98b17c" />
-          <Circle cx={121} cy={65} r={3} fill="#98b17c" />
-          <SvgText x={58} y={25} fontSize={8} fill="#74865f">
-            V = IR · f(t)
-          </SvgText>
-          <SvgText x={56} y={96} fontSize={7} fill="#74865f">
-            one idea at a time
-          </SvgText>
-        </G>
-      </Svg>
-    </Panel>
+    </View>
   );
   if (kind === "weekly" && !supervisor && reports.length) {
     const weeklyReport = report ?? [...reports].sort((a, b) => b.week - a.week)[0];
@@ -361,23 +357,33 @@ export function ReportsPanel({
               />
             </>
           )}
-          {Object.entries(draft).map(([key, value]) => (
-            <Panel key={key}>
-              {!supervisor && report.status === "draft" ? (
-                <Field
-                  label={labels[key] ? t(...labels[key]) : key}
-                  value={value}
-                  multiline
-                  onChangeText={(text) => setFields({ ...draft, [key]: text })}
-                />
-              ) : (
-                <>
-                  <AppText variant="heading">{labels[key] ? t(...labels[key]) : key}</AppText>
-                  <AppText>{value || "—"}</AppText>
-                </>
-              )}
-            </Panel>
-          ))}
+          <Panel>
+            {Object.entries(draft).map(([key, value]) => (
+              <View
+                key={key}
+                style={{
+                  paddingVertical: 12,
+                  gap: 8,
+                  borderBottomWidth: 1,
+                  borderColor: "#e5eadf",
+                }}
+              >
+                {!supervisor && report.status === "draft" ? (
+                  <Field
+                    label={labels[key] ? t(...labels[key]) : key}
+                    value={value}
+                    multiline
+                    onChangeText={(text) => setFields({ ...draft, [key]: text })}
+                  />
+                ) : (
+                  <>
+                    <AppText variant="heading">{labels[key] ? t(...labels[key]) : key}</AppText>
+                    <AppText>{value || "—"}</AppText>
+                  </>
+                )}
+              </View>
+            ))}
+          </Panel>
           {!supervisor && report.status === "draft" && (
             <View style={kit.wrap}>
               <Button title={t("Save draft", "حفظ المسودة")} onPress={save} />
@@ -513,7 +519,11 @@ export function ReportsPanel({
                   <X color={colors.text} />
                 </Pressable>
               </View>
-              <ScrollView contentContainerStyle={{ padding: 20, gap: 20 }}>
+              <ScrollView
+                automaticallyAdjustKeyboardInsets
+                keyboardDismissMode="on-drag"
+                contentContainerStyle={{ padding: 20, gap: 20 }}
+              >
                 {kind === "presentation" ? (
                   <>
                     <TemplatePreview

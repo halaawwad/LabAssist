@@ -1,14 +1,8 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { Disclosure } from "@/components/Disclosure";
+import { MobileModal as Modal } from "@/components/MobileModal";
 import { useEffect, useRef, useState } from "react";
-import {
-  Image,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Image, Platform, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
@@ -336,7 +330,7 @@ export function PresentationEditor({
   }
   async function exportFile(operation: "pdf" | "pptx") {
     if (busy) return;
-    if (editable && !await save()) return;
+    if (editable && !(await save())) return;
     setBusy(true);
     setRequest({ id: String(Date.now()), operation, deck });
   }
@@ -352,31 +346,34 @@ export function PresentationEditor({
       <AppText variant="caption" tone="muted">
         {project.title} · {report.status} · {deck.slides.length} slides
       </AppText>
-      <View style={kit.wrap}>
-        <Button
-          title="Export PowerPoint"
-          variant="soft"
-          size="sm"
-          disabled={busy}
-          onPress={async () => await exportFile("pptx")}
-        />
-        <Button
-          title="Export PDF"
-          variant="soft"
-          size="sm"
-          disabled={busy}
-          onPress={async () => await exportFile("pdf")}
-        />
-        {editable && (
+      <Disclosure title="Import & export">
+        {" "}
+        <View style={kit.wrap}>
           <Button
-            title="Import PowerPoint"
-            variant="ghost"
+            title="Export PowerPoint"
+            variant="soft"
             size="sm"
             disabled={busy}
-            onPress={importPptx}
+            onPress={async () => await exportFile("pptx")}
           />
-        )}
-      </View>
+          <Button
+            title="Export PDF"
+            variant="soft"
+            size="sm"
+            disabled={busy}
+            onPress={async () => await exportFile("pdf")}
+          />
+          {editable && (
+            <Button
+              title="Import PowerPoint"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onPress={importPptx}
+            />
+          )}
+        </View>
+      </Disclosure>
       {!!notice && (
         <AppText accessibilityRole="alert" tone="primary">
           {notice}
@@ -746,7 +743,10 @@ export function PresentationEditor({
         </Panel>
       )}
       {editable && (
-        <Button title="Submit presentation" onPress={async () => await save() && setConfirm(true)} />
+        <Button
+          title="Submit presentation"
+          onPress={async () => (await save()) && setConfirm(true)}
+        />
       )}
       {supervisor && (
         <Panel title="Supervisor feedback">
@@ -763,7 +763,7 @@ export function PresentationEditor({
               if (
                 await act({
                   type: "report.review",
-                        submissionId: report.history?.at(-1)?.id ?? "",
+                  submissionId: report.history?.at(-1)?.id ?? "",
                   status: "reviewed",
                   id: report.id,
                   body: feedback,

@@ -1,5 +1,9 @@
+import { MobileInput as TextInput } from "@/components/MobileInput";
+import { Disclosure } from "@/components/Disclosure";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { MobileModal as Modal } from "@/components/MobileModal";
 import { useEffect, useState } from "react";
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Linking, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   CalendarDays,
@@ -181,7 +185,7 @@ export function StudentMeetingsPanel() {
     let id = target?.id;
     if (!id && !team) {
       const other = ids.find((id) => id !== actorId);
-      if (other && await act({ type: "thread.create", userId: other })) id = `person:${other}`;
+      if (other && (await act({ type: "thread.create", userId: other }))) id = `person:${other}`;
     }
     if (!id) return setNotice("A conversation is not available for these participants.");
     setSheet(null);
@@ -211,55 +215,62 @@ export function StudentMeetingsPanel() {
           <Plus color="white" size={21} />
         </Pressable>
       </View>
-      <View style={s.hero}>
-        <View style={s.projectLabel}>
-          <Users size={14} color="#667e54" />
-          <AppText style={s.projectName}>{project?.title ?? "Your project"}</AppText>
-        </View>
-        <AppText style={s.heroTitle}>A shared moment.</AppText>
-        <AppText style={[s.heroTitle, s.accent]}>A clearer next step.</AppText>
-        <AppText style={s.copy}>
-          Bring your questions, review the progress, and leave with a plan.
-        </AppText>
-        <View style={s.stats}>
-          {[
-            [upcoming.length, "Upcoming"],
-            [meetings.filter((m) => m.completed).length, "Completed"],
-            [project?.studentIds.length ?? 1, "Teammates"],
-          ].map(([n, label], i) => (
-            <View style={s.stat} key={label}>
-              <AppText style={[s.statValue, { color: ["#6b8ca6", "#7d9270", "#aa8a60"][i] }]}>
-                {n}
-              </AppText>
-              <AppText style={s.small}>{label}</AppText>
-            </View>
-          ))}
-        </View>
-        <View style={s.next}>
-          <MeetingClock {...(next ? { next: start(next) } : {})} />
-          <AppText style={s.eyebrow}>NEXT ON YOUR CALENDAR</AppText>
-          <AppText style={s.nextTitle}>{next?.title ?? "A little space to plan."}</AppText>
+      <Disclosure
+        title={t(
+          "Meeting overview",
+          "\u0646\u0638\u0631\u0629 \u0639\u0644\u0649 \u0627\u0644\u0627\u062c\u062a\u0645\u0627\u0639\u0627\u062a",
+        )}
+      >
+        <View style={s.hero}>
+          <View style={s.projectLabel}>
+            <Users size={14} color="#667e54" />
+            <AppText style={s.projectName}>{project?.title ?? "Your project"}</AppText>
+          </View>
+          <AppText style={s.heroTitle}>A shared moment.</AppText>
+          <AppText style={[s.heroTitle, s.accent]}>A clearer next step.</AppText>
           <AppText style={s.copy}>
-            {next ? `${labelDate(next)} · ${labelTime(next)}` : "No upcoming meetings."}
+            Bring your questions, review the progress, and leave with a plan.
           </AppText>
-          {next && (
-            <AppText style={s.small}>
-              {next.duration ?? 30} min · {next.sample ? "Example meeting" : "Scheduled"}
+          <View style={s.stats}>
+            {[
+              [upcoming.length, "Upcoming"],
+              [meetings.filter((m) => m.completed).length, "Completed"],
+              [project?.studentIds.length ?? 1, "Teammates"],
+            ].map(([n, label], i) => (
+              <View style={s.stat} key={label}>
+                <AppText style={[s.statValue, { color: ["#6b8ca6", "#7d9270", "#aa8a60"][i] }]}>
+                  {n}
+                </AppText>
+                <AppText style={s.small}>{label}</AppText>
+              </View>
+            ))}
+          </View>
+          <View style={s.next}>
+            <MeetingClock {...(next ? { next: start(next) } : {})} />
+            <AppText style={s.eyebrow}>NEXT ON YOUR CALENDAR</AppText>
+            <AppText style={s.nextTitle}>{next?.title ?? "A little space to plan."}</AppText>
+            <AppText style={s.copy}>
+              {next ? `${labelDate(next)} · ${labelTime(next)}` : "No upcoming meetings."}
             </AppText>
-          )}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={next ? "View next meeting" : "Schedule your next meeting"}
-            style={s.link}
-            onPress={() => (next ? (setSelected(next.id), setSheet("detail")) : openForm())}
-          >
-            <AppText style={s.linkText}>
-              {next ? "View meeting" : "Schedule your next meeting"}
-            </AppText>
-            <ChevronRight size={16} color="#7496b1" />
-          </Pressable>
+            {next && (
+              <AppText style={s.small}>
+                {next.duration ?? 30} min · {next.sample ? "Example meeting" : "Scheduled"}
+              </AppText>
+            )}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={next ? "View next meeting" : "Schedule your next meeting"}
+              style={s.link}
+              onPress={() => (next ? (setSelected(next.id), setSheet("detail")) : openForm())}
+            >
+              <AppText style={s.linkText}>
+                {next ? "View meeting" : "Schedule your next meeting"}
+              </AppText>
+              <ChevronRight size={16} color="#7496b1" />
+            </Pressable>
+          </View>
         </View>
-      </View>
+      </Disclosure>
       {!!notice && (
         <View accessibilityRole="alert" style={s.notice}>
           <AppText style={[s.copy, s.flex]}>{notice}</AppText>
@@ -457,7 +468,12 @@ export function StudentMeetingsPanel() {
               <X size={22} color="#61774e" />
             </Pressable>
           </View>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.modalContent}>
+          <ScrollView
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={s.modalContent}
+          >
             {sheet === "form" && (
               <>
                 <View style={s.formIntro}>
@@ -730,7 +746,9 @@ export function StudentMeetingsPanel() {
                   label="Meeting notes & next steps"
                   placeholder="Capture decisions, action items, and what happens next…"
                   value={active.notes ?? ""}
-                  onChangeText={async (notes) => await act({ type: "meeting.notes", id: active.id, notes })}
+                  onChangeText={async (notes) =>
+                    await act({ type: "meeting.notes", id: active.id, notes })
+                  }
                   maxLength={5000}
                   multiline
                 />
@@ -774,7 +792,11 @@ export function StudentMeetingsPanel() {
                           size="sm"
                           onPress={async () => {
                             if (
-                              await act({ type: "meeting.respond", id: active.id, response: "accepted" })
+                              await act({
+                                type: "meeting.respond",
+                                id: active.id,
+                                response: "accepted",
+                              })
                             )
                               setNotice("Invitation accepted.");
                           }}
@@ -785,7 +807,11 @@ export function StudentMeetingsPanel() {
                           variant="ghost"
                           onPress={async () => {
                             if (
-                              await act({ type: "meeting.respond", id: active.id, response: "declined" })
+                              await act({
+                                type: "meeting.respond",
+                                id: active.id,
+                                response: "declined",
+                              })
                             )
                               setNotice("Invitation declined.");
                           }}
@@ -824,7 +850,7 @@ const s = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 9 },
   eyebrow: { fontSize: 9, lineHeight: 15, letterSpacing: 1.2, color: "#8a967c", fontWeight: "600" },
-  title: { fontSize: 28, lineHeight: 36, fontWeight: "800", color: "#182335" },
+  title: { fontSize: 21, lineHeight: 30, fontWeight: "800", color: "#182335" },
   add: {
     backgroundColor: "#61784f",
     height: 44,
@@ -844,8 +870,8 @@ const s = StyleSheet.create({
   projectLabel: { flexDirection: "row", gap: 7, alignItems: "center", marginBottom: 4 },
   projectName: { fontSize: 12, color: "#637950" },
   heroTitle: {
-    fontSize: 31,
-    lineHeight: 37,
+    fontSize: 22,
+    lineHeight: 30,
     letterSpacing: -1,
     fontWeight: "800",
     color: "#152031",

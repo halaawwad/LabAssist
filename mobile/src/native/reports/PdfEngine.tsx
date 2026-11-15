@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import WebView from "react-native-webview";
-import { reportEngineHTML } from "./reportEngine.generated";
 import type { EngineProps, EngineReply } from "./pdfTypes";
 export default function PdfEngine({ request, onResult }: EngineProps) {
   const ref = useRef<WebView<unknown>>(null);
@@ -17,7 +16,7 @@ export default function PdfEngine({ request, onResult }: EngineProps) {
     >
       <WebView
         ref={ref}
-        source={{ html: reportEngineHTML, baseUrl: "https://report.labassist.local" }}
+        source={require("../../../assets/engines/report.html")}
         originWhitelist={["*"]}
         javaScriptEnabled
         onMessage={(e) => {

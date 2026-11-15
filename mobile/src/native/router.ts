@@ -11,6 +11,15 @@ export function nativeHref(href: Href): Href {
 function adapt(router: ReturnType<typeof useExpoRouter>) {
   return {
     ...router,
+    // Expo binds the imperative router after its first render. Delegate at call
+    // time rather than retaining the initial unbound Back/dismiss functions.
+    back: () => router.back(),
+    canGoBack: () => router.canGoBack(),
+    dismissAll: () => router.dismissAll(),
+    canDismiss: () => router.canDismiss(),
+    dismiss: (...options: Parameters<typeof router.dismiss>) => router.dismiss(...options),
+    dismissTo: (href: Href, ...options: Tail<Parameters<typeof router.dismissTo>>) =>
+      router.dismissTo(nativeHref(href), ...options),
     push: (href: Href, ...options: Tail<Parameters<typeof router.push>>) =>
       router.push(nativeHref(href), ...options),
     replace: (href: Href, ...options: Tail<Parameters<typeof router.replace>>) =>

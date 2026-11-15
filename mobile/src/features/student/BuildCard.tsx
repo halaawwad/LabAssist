@@ -48,9 +48,9 @@ export function BuildCard({
         </AppText>
       </View>
       <View style={kit.row}>
-        <View style={{ width: 150, height: 164, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ width: 120, height: 128, alignItems: "center", justifyContent: "center" }}>
           <Animated.View style={{ position: "absolute", inset: 0, opacity: light }}>
-            <Svg width={150} height={164} viewBox="0 0 168 152">
+            <Svg width={120} height={128} viewBox="0 0 168 152">
               <Path
                 d="M84 12V36M12 55H31L46 70M11 113H29L47 95M156 44H136L119 64M157 112H137L119 94M84 140V119"
                 stroke="#91aa79"
@@ -105,7 +105,7 @@ export function BuildCard({
             <Check size={15} color={colors.primary} />
           </View>
         </View>
-        <View style={{ flex: 1, minWidth: 105, gap: 10 }}>
+        <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
           <AppText variant="heading">{t("Project progress.", "إنجاز المشروع.")}</AppText>
           <AppText variant="caption" tone="muted">
             {completed} / {total} {t("tasks complete", "مهام مكتملة")}

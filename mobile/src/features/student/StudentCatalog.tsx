@@ -1,15 +1,8 @@
+import { MobileInput as TextInput } from "@/components/MobileInput";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { MobileModal as Modal } from "@/components/MobileModal";
 import { useMemo, useState } from "react";
-import {
-  Image,
-  Keyboard,
-  Linking,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import { Image, Keyboard, Linking, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ArrowLeft,
@@ -124,28 +117,6 @@ export function CatalogPanel() {
   };
   return (
     <View style={[s.stack, { direction: dir }]}>
-      <View style={s.intro}>
-        <View style={s.row}>
-          <View style={s.libraryIcon}>
-            <CircuitBoard size={23} color={colors.primary} />
-          </View>
-          <View style={s.grow}>
-            <AppText variant="heading">
-              {t("Find your next component", "اكتشف قطعتك التالية")}
-            </AppText>
-            <AppText variant="caption" tone="muted">
-              {t("Explore. Connect. Build.", "استكشف. وصّل. ابتكر.")}
-            </AppText>
-          </View>
-        </View>
-        <AppText variant="caption" tone="muted">
-          {t(
-            "Your hardware library, from pinout to prototype.",
-            "مكتبة مكوناتك، من توصيل الأطراف إلى النموذج الأولي.",
-          )}
-        </AppText>
-      </View>
-
       <View style={s.search}>
         <Search size={21} color={colors.primary} />
         <TextInput
@@ -370,6 +341,8 @@ export function CatalogPanel() {
               </View>
             </View>
             <ScrollView
+              automaticallyAdjustKeyboardInsets
+              keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
               contentContainerStyle={s.detailContent}
             >

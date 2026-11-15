@@ -1,32 +1,11 @@
-import { demoTerm, type AccountStatus, type ProjectGroup } from "../../../../shared/web/domain";
+import { demoTerm } from "../../../../shared/web/domain";
 import { useState } from "react";
 import { Pencil, Plus, Search, X } from "lucide-react";
 import { eligibleForGroup, personDetails, projectNumber, scopeOf } from "../departmentRecords";
 import { DepartmentGroupCard, readableLabel } from "./DepartmentGroupCard";
 
-export type DepartmentAccount = {
-  id: string;
-  name: string;
-  number: string;
-  email: string;
-  role: "Supervisor" | "Workshop Manager" | "Student";
-  active: boolean;
-  status?: AccountStatus;
-  disabledFrom?: AccountStatus;
-  linked: boolean;
-  invited: boolean;
-  photoUrl?: string;
-  avatarUrl?: string;
-  profilePhotoUrl?: string;
-};
-export type DepartmentGroup = ProjectGroup & {
-  projectNumber?: string;
-  code?: string;
-  label?: string;
-  name?: string;
-  groupName?: string;
-  termName?: string;
-};
+export type { DepartmentAccount, DepartmentGroup } from "../../../../shared/department/records";
+import type { DepartmentAccount, DepartmentGroup } from "../../../../shared/department/records";
 
 export function DepartmentGroups({
   accounts,
@@ -160,7 +139,7 @@ export function DepartmentGroups({
           ))}
       </div>
       {groups.length === 0 && (
-        <p className="dept-empty">Select active accounts to create a project group.</p>
+        <p className="dept-empty">Select accounts to create a project group.</p>
       )}
       {groups.length > 0 &&
         !groups.some((g) =>
@@ -225,7 +204,7 @@ export function DepartmentGroups({
             {(draft.name || draft.groupName) && (
               <p>{readableLabel(draft.name || draft.groupName)}</p>
             )}
-            <p>Choose 2–3 students and one or more supervisors from active accounts.</p>
+            <p>Choose 2–3 students and one or more supervisors.</p>
             <label>
               Find people
               <input
@@ -254,7 +233,7 @@ export function DepartmentGroups({
                     .filter(
                       (a) =>
                         a.role === role &&
-                        (eligibleForGroup(a) ||
+                        (eligibleForGroup(a, draft) ||
                           draft[role === "Student" ? "studentIds" : "supervisorIds"].includes(
                             a.id,
                           )) &&
@@ -298,8 +277,8 @@ export function DepartmentGroups({
                       );
                     })}
                 </div>
-                {!accounts.some((a) => a.role === role && eligibleForGroup(a)) && (
-                  <p>No active {role.toLowerCase()} accounts. Create an account above.</p>
+                {!accounts.some((a) => a.role === role && eligibleForGroup(a, draft)) && (
+                  <p>No eligible {role.toLowerCase()} accounts. Create an account above.</p>
                 )}
               </fieldset>
             ))}

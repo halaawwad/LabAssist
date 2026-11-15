@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { StyleSheet, View } from "react-native";
 
 import { languages, useLanguage } from "@/i18n";
 import { colors, radius, shadows, spacing } from "@/theme";

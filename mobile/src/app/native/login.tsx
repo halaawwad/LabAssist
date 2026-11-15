@@ -1,22 +1,23 @@
-﻿import { useEffect, useRef, useState, type ComponentRef } from "react";
+import { MobileInput as TextInput } from "@/components/MobileInput";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { MobileModal as Modal } from "@/components/MobileModal";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import {
   Animated,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
-  Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ArrowRight,
   Check,
   ChevronDown,
-  Cpu,
   Eye,
   EyeOff,
   GraduationCap,
@@ -34,12 +35,15 @@ import { useLanguage } from "@/i18n";
 import { usePreferences } from "@/state/Preferences";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { router } from "@/native/router";
+import { LabAssistBrand } from "@/components/LabAssistBrand";
+import { sessionHome, useNativeSession } from "@/state/NativeSession";
+import { demoStudents } from "../../../../shared/web/domain";
 const roles = [
   {
     id: "student",
     en: "Student",
     ar: "طالب",
-    account: "noor@demo.com",
+    account: demoStudents[0].email,
     icon: GraduationCap,
     detail: "Projects, circuits & learning",
     detailAr: "المشاريع والدوائر والتعلّم",
@@ -73,6 +77,8 @@ const roles = [
   },
 ];
 export default function NativeLogin() {
+  const { signIn } = useNativeSession();
+  const { height } = useWindowDimensions();
   const { selectRole } = useWorkspace(),
     { language } = useLanguage(),
     { preferences } = usePreferences();
@@ -84,8 +90,19 @@ export default function NativeLogin() {
     [visible, setVisible] = useState(false),
     [error, setError] = useState(""),
     [picker, setPicker] = useState(false);
-  const glow = useRef(new Animated.Value(0.35)).current,
-    passwordRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const [busy, setBusy] = useState(false);
+  const [keyboard, setKeyboard] = useState(false);
+  const submitting = useRef(false);
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboard(true));
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboard(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  const [glow] = useState(() => new Animated.Value(0.35));
+  const passwordRef = useRef<ComponentRef<typeof TextInput>>(null);
   useEffect(() => {
     if (!preferences.motion) {
       glow.setValue(0.7);
@@ -102,8 +119,34 @@ export default function NativeLogin() {
   }, [glow, preferences.motion]);
   const selected = roles.find((r) => r.id === role)!,
     RoleIcon = selected.icon;
-  function login() {
-    if (account.trim().toLowerCase() !== selected.account || password !== "Noor123!") {
+  async function login() {
+    if (submitting.current) return;
+    const identifier = account.trim().toLowerCase();
+    const legacyStudentDemo = role === "student" && identifier === "noor@demo.com";
+    if (
+      (role === "student" && !legacyStudentDemo && !/^s\d{8}@stu\.najah\.edu$/.test(identifier)) ||
+      (role === "supervisor" && !/^\d{4}$/.test(identifier)) ||
+      (role === "workshop" && !/^\d{5}$/.test(identifier)) ||
+      (role === "department" && !/^\S+@\S+\.\S+$/.test(identifier))
+    ) {
+      setError(
+        role === "student"
+          ? copy(
+              "Use s<8-digit university number>@stu.najah.edu.",
+              "استخدم s<الرقم الجامعي من 8 أرقام>@stu.najah.edu.",
+            )
+          : role === "department"
+            ? copy("Enter a valid email address.", "أدخل بريدًا إلكترونيًا صحيحًا.")
+            : copy(
+                `Enter your ${role === "supervisor" ? "4" : "5"}-digit number.`,
+                role === "supervisor"
+                  ? "أدخل الرقم الوظيفي من 4 أرقام."
+                  : "أدخل الرقم الوظيفي من 5 أرقام.",
+              ),
+      );
+      return;
+    }
+    if ((!legacyStudentDemo && identifier !== selected.account) || password !== "Noor123!") {
       setError(
         copy(
           "Check your sign-in details and selected role.",
@@ -112,41 +155,44 @@ export default function NativeLogin() {
       );
       return;
     }
+    submitting.current = true;
+    setBusy(true);
     setError("");
-    if (role === "department") router.replace("/native/department" as import("expo-router").Href);
-    else {
-      selectRole(role as "student" | "supervisor" | "workshop");
+    try {
+      await signIn(role as Parameters<typeof signIn>[0]);
+      if (role !== "department") selectRole(role as "student" | "supervisor" | "workshop");
+      Keyboard.dismiss();
       router.replace(
-        (role === "student"
-          ? "/native"
-          : `/native/${role}/dashboard`) as import("expo-router").Href,
+        sessionHome(role as Parameters<typeof signIn>[0]) as import("expo-router").Href,
       );
+    } catch {
+      setError(
+        copy("Could not save your sign-in. Please retry.", "تعذّر حفظ تسجيل الدخول. أعد المحاولة."),
+      );
+    } finally {
+      submitting.current = false;
+      setBusy(false);
     }
   }
   return (
     <SafeAreaView style={s.screen}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
           showsVerticalScrollIndicator={false}
           contentContainerStyle={s.content}
         >
           <View style={[s.top, ar && s.reverse]}>
-            <View style={s.brand}>
-              <View style={s.logo}>
-                <Cpu size={22} color="#f6f7ec" />
-              </View>
-              <AppText weight="bold" style={s.brandText}>
-                LabAssist
-              </AppText>
-            </View>
+            <LabAssistBrand />
             <LanguageToggle compact />
           </View>
           <View
-            style={s.hero}
+            style={[s.hero, height < 740 && { height: 156 }, keyboard && { display: "none" }]}
             accessibilityLabel={copy("Electronics workbench illustration", "رسم طاولة إلكترونيات")}
           >
             <Svg width="100%" height="100%" viewBox="0 0 350 210" style={StyleSheet.absoluteFill}>
@@ -213,6 +259,7 @@ export default function NativeLogin() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={copy("Choose your role", "اختيار الدور")}
+              disabled={busy}
               onPress={() => setPicker(true)}
               style={[s.role, ar && s.reverse]}
             >
@@ -291,7 +338,12 @@ export default function NativeLogin() {
                   onSubmitEditing={login}
                 />
                 <Pressable
-                  hitSlop={12}
+                  style={{
+                    minWidth: 44,
+                    minHeight: 48,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                   accessibilityRole="button"
                   accessibilityLabel={
                     visible
@@ -315,11 +367,13 @@ export default function NativeLogin() {
             )}
             <Pressable
               accessibilityRole="button"
+              accessibilityState={{ disabled: busy, busy }}
+              disabled={busy}
               onPress={login}
               style={({ pressed }) => [s.submit, pressed && { opacity: 0.85 }, ar && s.reverse]}
             >
               <AppText weight="semibold" style={{ color: "#fff", fontSize: 16 }}>
-                {copy("Log in", "تسجيل الدخول")}
+                {busy ? copy("Signing in…", "جارٍ تسجيل الدخول…") : copy("Log in", "تسجيل الدخول")}
               </AppText>
               <ArrowRight
                 size={20}
@@ -329,6 +383,7 @@ export default function NativeLogin() {
             </Pressable>
             <Pressable
               accessibilityRole="button"
+              disabled={busy}
               onPress={() => {
                 setAccount(selected.account);
                 setPassword("Noor123!");
@@ -340,6 +395,12 @@ export default function NativeLogin() {
                 {copy("Try with demo details", "جرّب بيانات الدخول التجريبية")}
               </AppText>
             </Pressable>
+            <AppText variant="caption" tone="muted">
+              {copy(
+                `Demo access: ${selected.account} · Noor123!`,
+                `دخول تجريبي: ${selected.account} · Noor123!`,
+              )}
+            </AppText>
           </View>
           <View style={s.footer}>
             <View style={s.dot} />
@@ -361,51 +422,68 @@ export default function NativeLogin() {
             style={{ flex: 1 }}
             onPress={() => setPicker(false)}
           />
-          <SafeAreaView edges={["bottom"]} style={s.sheet}>
-            <View style={[s.top, ar && s.reverse]}>
-              <AppText variant="heading">
-                {copy("Choose your workspace", "اختار مساحة عملك")}
-              </AppText>
-              <Pressable accessibilityRole="button" hitSlop={12} onPress={() => setPicker(false)}>
-                <X color="#526443" size={22} />
-              </Pressable>
-            </View>
-            {roles.map((r) => {
-              const Icon = r.icon;
-              return (
+          <SafeAreaView edges={["bottom"]} style={[s.sheet, { maxHeight: "85%" }]}>
+            <ScrollView
+              automaticallyAdjustKeyboardInsets
+              keyboardDismissMode="on-drag"
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ gap: 13 }}
+            >
+              <View style={[s.top, ar && s.reverse]}>
+                <AppText variant="heading">
+                  {copy("Choose your workspace", "اختار مساحة عملك")}
+                </AppText>
                 <Pressable
-                  key={r.id}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: role === r.id }}
-                  onPress={() => {
-                    if (role !== r.id) {
-                      setRole(r.id);
-                      setAccount("");
-                      setPassword("");
-                      setVisible(false);
-                      setError("");
-                    }
-                    setPicker(false);
+                  accessibilityRole="button"
+                  accessibilityLabel={copy("Close role chooser", "إغلاق اختيار الدور")}
+                  style={{
+                    minWidth: 48,
+                    minHeight: 48,
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
-                  style={[
-                    s.roleChoice,
-                    role === r.id && { backgroundColor: "#e9efdf", borderColor: "#a9ba96" },
-                    ar && s.reverse,
-                  ]}
+                  onPress={() => setPicker(false)}
                 >
-                  <View style={s.roleIcon}>
-                    <Icon color="#526443" size={23} />
-                  </View>
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <AppText weight="semibold">{ar ? r.ar : r.en}</AppText>
-                    <AppText style={{ fontSize: 12, color: "#7c8872" }}>
-                      {ar ? r.detailAr : r.detail}
-                    </AppText>
-                  </View>
-                  {role === r.id && <Check color="#526443" size={20} />}
+                  <X color="#526443" size={22} />
                 </Pressable>
-              );
-            })}
+              </View>
+              {roles.map((r) => {
+                const Icon = r.icon;
+                return (
+                  <Pressable
+                    key={r.id}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: role === r.id }}
+                    onPress={() => {
+                      if (role !== r.id) {
+                        setRole(r.id);
+                        setAccount("");
+                        setPassword("");
+                        setVisible(false);
+                        setError("");
+                      }
+                      setPicker(false);
+                    }}
+                    style={[
+                      s.roleChoice,
+                      role === r.id && { backgroundColor: "#e9efdf", borderColor: "#a9ba96" },
+                      ar && s.reverse,
+                    ]}
+                  >
+                    <View style={s.roleIcon}>
+                      <Icon color="#526443" size={23} />
+                    </View>
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <AppText weight="semibold">{ar ? r.ar : r.en}</AppText>
+                      <AppText style={{ fontSize: 12, color: "#7c8872" }}>
+                        {ar ? r.detailAr : r.detail}
+                      </AppText>
+                    </View>
+                    {role === r.id && <Check color="#526443" size={20} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </SafeAreaView>
         </View>
       </Modal>
@@ -416,7 +494,7 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f7f7f0" },
   content: { flexGrow: 1, padding: 22, gap: 22, paddingBottom: 20 },
   top: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
-  reverse: { flexDirection: "row-reverse" },
+  reverse: { direction: "ltr", flexDirection: "row-reverse" },
   brand: { flexDirection: "row", alignItems: "center", gap: 9 },
   logo: {
     width: 36,
@@ -528,7 +606,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 21,
     marginTop: 3,
   },
-  demo: { alignItems: "center", paddingVertical: 5 },
+  demo: { alignItems: "center", justifyContent: "center", minHeight: 48, paddingVertical: 8 },
   footer: {
     flexDirection: "row",
     alignItems: "center",
@@ -556,4 +634,3 @@ const s = StyleSheet.create({
     backgroundColor: "#fff",
   },
 });
-

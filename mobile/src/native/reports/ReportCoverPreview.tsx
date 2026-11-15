@@ -1,15 +1,8 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { MobileModal as Modal } from "@/components/MobileModal";
 import { useState } from "react";
 import { useFonts } from "expo-font";
-import {
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Image, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Expand, Minus, Plus, Ruler, X } from "lucide-react-native";
 import { AppText, Button } from "@/components";
@@ -209,7 +202,11 @@ export function ReportCoverPreview({ meta }: { meta: Meta }) {
               <X color="#526443" size={23} />
             </Pressable>
           </View>
-          <ScrollView contentContainerStyle={s.fullContent}>
+          <ScrollView
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={s.fullContent}
+          >
             <ScrollView horizontal contentContainerStyle={{ paddingHorizontal: 18 }}>
               {fontsReady && <CoverPage meta={meta} width={fullWidth} guides={guides} />}
             </ScrollView>
@@ -292,8 +289,8 @@ const s = StyleSheet.create({
   size: { flexDirection: "row", alignItems: "center", gap: 7 },
   sizeText: { fontSize: 11, lineHeight: 17, color: "#6b8059", fontWeight: "600" },
   icon: {
-    minWidth: 36,
-    minHeight: 36,
+    minWidth: 44,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     padding: 7,

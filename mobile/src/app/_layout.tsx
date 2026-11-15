@@ -12,7 +12,7 @@ export default function RootLayout() {
         <OriginalWebsite key={target.portal} {...target} />
       ) : (
         <Stack
-          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#eee8dc" } }}
+          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#ffffff" } }}
         />
       )}
       <StatusBar style="dark" />

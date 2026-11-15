@@ -1,6 +1,9 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
+import { MobileModal as Modal } from "@/components/MobileModal";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { router } from "@/native/router";
-import { Image, Linking, Pressable, View } from "react-native";
+import { Image, Linking, ScrollView, View } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
@@ -432,13 +435,19 @@ export function MessagesPanel() {
               title={t("Send", "إرسال")}
               disabled={!body.trim()}
               onPress={async () => {
-                if (await act({ type: "message.send", threadId: thread.id, body, replyTo: reply })) {
+                if (
+                  await act({ type: "message.send", threadId: thread.id, body, replyTo: reply })
+                ) {
                   setBody("");
                   setReply(undefined);
                 }
               }}
             />
-            <Button title={t("Photo", "صورة")} variant="soft" onPress={async () => await attach(true)} />
+            <Button
+              title={t("Photo", "صورة")}
+              variant="soft"
+              onPress={async () => await attach(true)}
+            />
             <Pressable
               accessibilityLabel={t("Attach file", "إرفاق ملف")}
               accessibilityRole="button"
@@ -450,7 +459,7 @@ export function MessagesPanel() {
           </View>
         </>
       )}
-      {error && <AppText tone="danger">{error}</AppText>}
+      {!!error && <AppText tone="danger">{error}</AppText>}
       {forward && (
         <Panel title={t("Forward to", "إعادة التوجيه إلى")}>
           <Button title={t("Cancel", "إلغاء")} variant="ghost" onPress={() => setForward(null)} />
@@ -480,7 +489,7 @@ export function MessagesPanel() {
 }
 
 export function MeetingsPanel() {
-  const { state, actorId, act } = useWorkspace();
+  const { state, actorId, act, error: meetingError } = useWorkspace();
   const t = useCopy();
   const [create, setCreate] = useState(false);
   const [title, setTitle] = useState("");
@@ -507,79 +516,102 @@ export function MeetingsPanel() {
           ]}
         />
       </View>
-      {create && (
-        <Panel tint={colors.softBlue}>
-          <Field
-            label={t("Meeting title", "عنوان الاجتماع")}
-            value={title}
-            onChangeText={setTitle}
-          />
-          <Field
-            label={t("Find people", "ابحث عن الأشخاص")}
-            value={search}
-            onChangeText={setSearch}
-          />
-          <Chips
-            value=""
-            onChange={(id) =>
-              setInvitees((old) => (old.includes(id) ? old.filter((i) => i !== id) : [...old, id]))
-            }
-            options={state.users
-              .filter(
-                (u) => u.id !== actorId && u.name.toLowerCase().includes(search.toLowerCase()),
-              )
-              .slice(0, search ? 15 : 6)
-              .map((u) => ({ id: u.id, label: `${invitees.includes(u.id) ? "✓ " : ""}${u.name}` }))}
-          />
-          <AppText variant="caption">
-            {invitees.map((id) => state.users.find((u) => u.id === id)?.name).join(" · ")}
-          </AppText>
-          <Field
-            label={t("Date (YYYY-MM-DD)", "التاريخ (YYYY-MM-DD)")}
-            value={date}
-            onChangeText={setDate}
-            keyboardType="numbers-and-punctuation"
-          />
-          <Field
-            label={t("Time (HH:mm)", "الوقت (HH:mm)")}
-            value={time}
-            onChangeText={setTime}
-            keyboardType="numbers-and-punctuation"
-          />
-          <Field
-            label={t("Agenda", "أجندة الاجتماع")}
-            value={agenda}
-            onChangeText={setAgenda}
-            multiline
-          />
-          <Field
-            label={t("Location or meeting link", "المكان أو رابط الاجتماع")}
-            value={location}
-            onChangeText={setLocation}
-          />
-          <Button
-            title={t("Save invitations", "حفظ الدعوات")}
-            disabled={!title.trim() || !invitees.length}
-            onPress={async () => {
-              if (
-                await act({
-                  type: "meeting.create",
-                  title,
-                  inviteeIds: invitees,
-                  date,
-                  time,
-                  agenda,
-                  location,
-                })
-              ) {
-                setCreate(false);
-                setTitle("");
-                setInvitees([]);
-              }
-            }}
-          />
-        </Panel>
-      )}
+      <Modal visible={create} animationType="slide" onRequestClose={() => setCreate(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+          <ScrollView
+            automaticallyAdjustKeyboardInsets
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ padding: 16, gap: 16 }}
+          >
+            <Button
+              title={t("Close", "\u0625\u063a\u0644\u0627\u0642")}
+              variant="ghost"
+              onPress={() => setCreate(false)}
+            />
+            {!!meetingError && (
+              <AppText tone="danger" accessibilityRole="alert">
+                {meetingError}
+              </AppText>
+            )}
+            <Panel tint={colors.softBlue}>
+              <Field
+                label={t("Meeting title", "عنوان الاجتماع")}
+                value={title}
+                onChangeText={setTitle}
+              />
+              <Field
+                label={t("Find people", "ابحث عن الأشخاص")}
+                value={search}
+                onChangeText={setSearch}
+              />
+              <Chips
+                value=""
+                onChange={(id) =>
+                  setInvitees((old) =>
+                    old.includes(id) ? old.filter((i) => i !== id) : [...old, id],
+                  )
+                }
+                options={state.users
+                  .filter(
+                    (u) => u.id !== actorId && u.name.toLowerCase().includes(search.toLowerCase()),
+                  )
+                  .slice(0, search ? 15 : 6)
+                  .map((u) => ({
+                    id: u.id,
+                    label: `${invitees.includes(u.id) ? "✓ " : ""}${u.name}`,
+                  }))}
+              />
+              <AppText variant="caption">
+                {invitees.map((id) => state.users.find((u) => u.id === id)?.name).join(" · ")}
+              </AppText>
+              <Field
+                label={t("Date (YYYY-MM-DD)", "التاريخ (YYYY-MM-DD)")}
+                value={date}
+                onChangeText={setDate}
+                keyboardType="numbers-and-punctuation"
+              />
+              <Field
+                label={t("Time (HH:mm)", "الوقت (HH:mm)")}
+                value={time}
+                onChangeText={setTime}
+                keyboardType="numbers-and-punctuation"
+              />
+              <Field
+                label={t("Agenda", "أجندة الاجتماع")}
+                value={agenda}
+                onChangeText={setAgenda}
+                multiline
+              />
+              <Field
+                label={t("Location or meeting link", "المكان أو رابط الاجتماع")}
+                value={location}
+                onChangeText={setLocation}
+              />
+              <Button
+                title={t("Save invitations", "حفظ الدعوات")}
+                disabled={!title.trim() || !invitees.length}
+                onPress={async () => {
+                  if (
+                    await act({
+                      type: "meeting.create",
+                      title,
+                      inviteeIds: invitees,
+                      date,
+                      time,
+                      agenda,
+                      location,
+                    })
+                  ) {
+                    setCreate(false);
+                    setTitle("");
+                    setInvitees([]);
+                  }
+                }}
+              />
+            </Panel>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
       {state.meetings
         .filter(
           (m) =>
@@ -612,12 +644,16 @@ export function MeetingsPanel() {
               <View style={kit.wrap}>
                 <Button
                   title={t("Accept", "قبول")}
-                  onPress={async () => await act({ type: "meeting.respond", id: m.id, response: "accepted" })}
+                  onPress={async () =>
+                    await act({ type: "meeting.respond", id: m.id, response: "accepted" })
+                  }
                 />
                 <Button
                   title={t("Decline", "رفض")}
                   variant="ghost"
-                  onPress={async () => await act({ type: "meeting.respond", id: m.id, response: "declined" })}
+                  onPress={async () =>
+                    await act({ type: "meeting.respond", id: m.id, response: "declined" })
+                  }
                 />
               </View>
             )}

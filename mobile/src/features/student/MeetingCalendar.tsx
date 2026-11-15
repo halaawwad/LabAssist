@@ -1,5 +1,6 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import Svg, { Circle, Line } from "react-native-svg";
 import { AppText } from "@/components";

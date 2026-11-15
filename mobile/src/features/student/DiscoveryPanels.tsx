@@ -1,3 +1,4 @@
+import { Disclosure } from "@/components/Disclosure";
 import { useState } from "react";
 import { Linking, View } from "react-native";
 import { AppText, Button } from "@/components";
@@ -92,37 +93,41 @@ export function LearningPanel() {
               const item = hardware.parts.find((p) => p.key === l.key)!;
               return (
                 <Panel key={l.id}>
-                  <AppText variant="heading">{t(l.en, l.ar)}</AppText>
-                  <LabView
-                    height={220}
-                    nodes={l.models.map((model, i) => ({ model, x: i * 3 - 1.5, z: 0 }))}
-                  />
-                  <AppText>{t(l.result[0], l.result[1])}</AppText>
-                  {item.guide.steps.map((step, i) => (
-                    <AppText key={i}>
-                      {i + 1}. {step}
-                    </AppText>
-                  ))}
-                  <View style={kit.wrap}>
-                    <Button
-                      title={
-                        state.bookmarks.includes(`${actorId}:${l.id}`)
-                          ? t("Unsave", "إزالة الحفظ")
-                          : t("Save lesson", "حفظ الدرس")
-                      }
-                      variant="soft"
-                      onPress={async () => await act({ type: "bookmark.toggle", id: l.id })}
+                  <Disclosure title={t(l.en, l.ar)}>
+                    <AppText variant="heading">{t(l.en, l.ar)}</AppText>
+                    <LabView
+                      height={220}
+                      nodes={l.models.map((model, i) => ({ model, x: i * 3 - 1.5, z: 0 }))}
                     />
-                    <Button
-                      title={t("Original reference", "المرجع الأصلي")}
-                      variant="ghost"
-                      onPress={() =>
-                        Linking.openURL(
-                          item.guide.source ?? item.documents[0]?.url ?? "https://docs.arduino.cc/",
-                        ).catch(() => {})
-                      }
-                    />
-                  </View>
+                    <AppText>{t(l.result[0], l.result[1])}</AppText>
+                    {item.guide.steps.map((step, i) => (
+                      <AppText key={i}>
+                        {i + 1}. {step}
+                      </AppText>
+                    ))}
+                    <View style={kit.wrap}>
+                      <Button
+                        title={
+                          state.bookmarks.includes(`${actorId}:${l.id}`)
+                            ? t("Unsave", "إزالة الحفظ")
+                            : t("Save lesson", "حفظ الدرس")
+                        }
+                        variant="soft"
+                        onPress={async () => await act({ type: "bookmark.toggle", id: l.id })}
+                      />
+                      <Button
+                        title={t("Original reference", "المرجع الأصلي")}
+                        variant="ghost"
+                        onPress={() =>
+                          Linking.openURL(
+                            item.guide.source ??
+                              item.documents[0]?.url ??
+                              "https://docs.arduino.cc/",
+                          ).catch(() => {})
+                        }
+                      />
+                    </View>
+                  </Disclosure>
                 </Panel>
               );
             })}

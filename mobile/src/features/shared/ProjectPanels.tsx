@@ -1,5 +1,8 @@
+import { MobileModal as Modal } from "@/components/MobileModal";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { useState } from "react";
-import { Pressable, Switch, View } from "react-native";
+import { ScrollView, Switch, View } from "react-native";
 import { AppText, Button } from "@/components";
 import { Chips, Field, Panel, Ring, kit, useCopy } from "@/components/MobileKit";
 import { TeamPanels } from "./AccountPanels";
@@ -10,7 +13,7 @@ import { useWorkspace } from "@/state/WorkspaceProvider";
 import { colors } from "@/theme";
 
 export function TasksPanel({ readonly = false }: { readonly?: boolean }) {
-  const { state, actorId, act } = useWorkspace();
+  const { state, actorId, act, error: taskError, clearError } = useWorkspace();
   const t = useCopy();
   const projects = state.projects.filter((p) =>
     readonly ? p.supervisorIds.includes(actorId) : p.studentIds.includes(actorId),
@@ -18,6 +21,7 @@ export function TasksPanel({ readonly = false }: { readonly?: boolean }) {
   const [team, setTeam] = useState(projects[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [owner, setOwner] = useState(actorId);
+  const [creating, setCreating] = useState(false);
   const p = projects.find((p) => p.id === team);
   return (
     <View style={kit.stack}>
@@ -38,24 +42,60 @@ export function TasksPanel({ readonly = false }: { readonly?: boolean }) {
         </AppText>
       </Panel>
       {!readonly && p && (
-        <Panel>
-          <Field label={t("New task", "مهمة جديدة")} value={title} onChangeText={setTitle} />
-          <Chips
-            value={owner}
-            onChange={setOwner}
-            options={p.studentIds.map((id) => ({
-              id,
-              label: state.users.find((u) => u.id === id)!.name,
-            }))}
-          />
+        <>
           <Button
-            title={t("Add task", "إضافة المهمة")}
-            disabled={!title.trim()}
-            onPress={async () => {
-              if (await act({ type: "task.add", projectId: p.id, title, ownerId: owner })) setTitle("");
+            title={t("New task", "\u0645\u0647\u0645\u0629 \u062c\u062f\u064a\u062f\u0629")}
+            onPress={() => {
+              clearError();
+              setCreating(true);
             }}
           />
-        </Panel>
+          <Modal visible={creating} animationType="slide" onRequestClose={() => setCreating(false)}>
+            <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+              <ScrollView
+                automaticallyAdjustKeyboardInsets
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ padding: 16, gap: 16 }}
+              >
+                <Button
+                  title={t("Close", "\u0625\u063a\u0644\u0627\u0642")}
+                  variant="ghost"
+                  onPress={() => setCreating(false)}
+                />
+                {!!taskError && (
+                  <AppText tone="danger" accessibilityRole="alert">
+                    {taskError}
+                  </AppText>
+                )}
+                <Panel>
+                  <Field
+                    label={t("New task", "مهمة جديدة")}
+                    value={title}
+                    onChangeText={setTitle}
+                  />
+                  <Chips
+                    value={owner}
+                    onChange={setOwner}
+                    options={p.studentIds.map((id) => ({
+                      id,
+                      label: state.users.find((u) => u.id === id)!.name,
+                    }))}
+                  />
+                  <Button
+                    title={t("Add task", "إضافة المهمة")}
+                    disabled={!title.trim()}
+                    onPress={async () => {
+                      if (await act({ type: "task.add", projectId: p.id, title, ownerId: owner })) {
+                        setTitle("");
+                        setCreating(false);
+                      }
+                    }}
+                  />
+                </Panel>
+              </ScrollView>
+            </SafeAreaView>
+          </Modal>
+        </>
       )}
       {state.tasks
         .filter((task) => task.projectId === team)
@@ -70,7 +110,15 @@ export function TasksPanel({ readonly = false }: { readonly?: boolean }) {
             disabled={readonly || task.ownerId !== actorId}
             onPress={async () => await act({ type: "task.toggle", id: task.id })}
           >
-            <Panel tint={task.done ? colors.primaryWash : undefined}>
+            <View
+              style={{
+                paddingVertical: 14,
+                gap: 5,
+                borderBottomWidth: 1,
+                borderColor: "#e5eadf",
+                backgroundColor: task.done ? colors.primaryWash : "transparent",
+              }}
+            >
               <AppText weight="semibold">
                 {task.done ? "✓" : "○"} {task.title}
               </AppText>
@@ -78,7 +126,7 @@ export function TasksPanel({ readonly = false }: { readonly?: boolean }) {
                 {state.users.find((u) => u.id === task.ownerId)?.name} ·{" "}
                 {task.done ? t("Completed", "مكتملة") : t("To do", "متبقية")}
               </AppText>
-            </Panel>
+            </View>
           </Pressable>
         ))}
     </View>
@@ -160,7 +208,9 @@ export function FinancePanel({ parts = false }: { parts?: boolean }) {
         <Button
           title={t("Update budget", "تعديل الميزانية")}
           variant="ghost"
-          onPress={async () => await act({ type: "budget.set", projectId: p.id, amount: Number(budget) })}
+          onPress={async () =>
+            await act({ type: "budget.set", projectId: p.id, amount: Number(budget) })
+          }
         />
         <AppText variant="heading">{t("Project budget", "ميزانية المشروع")}</AppText>
         <AppText variant="title">₪{(p.budget - spent).toFixed(2)}</AppText>
@@ -233,7 +283,11 @@ export function FinancePanel({ parts = false }: { parts?: boolean }) {
                 <Chips
                   value={part.status}
                   onChange={async (status) =>
-                    await act({ type: "part.status", id: part.id, status: status as typeof part.status })
+                    await act({
+                      type: "part.status",
+                      id: part.id,
+                      status: status as typeof part.status,
+                    })
                   }
                   options={[
                     { id: "needed", label: t("Needed", "مطلوبة") },
@@ -423,13 +477,18 @@ export function ProjectDetails({
   );
 }
 export function SupervisorProjectsPanel() {
-  const { state, actorId, act } = useWorkspace();
+  const { state, actorId } = useWorkspace();
   const t = useCopy();
   const projects = state.projects.filter((p) => p.supervisorIds.includes(actorId));
   const [selected, setSelected] = useState("");
   return (
     <View style={kit.stack}>
-      <AppText>{t("Accounts and groups are provisioned by the Department Head.", "\u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062d\u0633\u0627\u0628\u0627\u062a \u0648\u0627\u0644\u0645\u062c\u0645\u0648\u0639\u0627\u062a \u0645\u0646 \u0635\u0644\u0627\u062d\u064a\u0627\u062a \u0631\u0626\u064a\u0633 \u0627\u0644\u0642\u0633\u0645.")}</AppText>
+      <AppText>
+        {t(
+          "Accounts and groups are provisioned by the Department Head.",
+          "\u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062d\u0633\u0627\u0628\u0627\u062a \u0648\u0627\u0644\u0645\u062c\u0645\u0648\u0639\u0627\u062a \u0645\u0646 \u0635\u0644\u0627\u062d\u064a\u0627\u062a \u0631\u0626\u064a\u0633 \u0627\u0644\u0642\u0633\u0645.",
+        )}
+      </AppText>
       <Chips
         value={selected}
         onChange={setSelected}

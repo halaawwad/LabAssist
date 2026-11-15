@@ -1,6 +1,6 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   type PressableProps,
   type StyleProp,
@@ -66,7 +66,7 @@ export function Button({
       ]}
     >
       {loading ? <ActivityIndicator size="small" color={spinnerColors[variant]} /> : null}
-      <AppText variant="button" tone={labelTones[variant]} numberOfLines={1}>
+      <AppText variant="button" tone={labelTones[variant]} align="center" style={{ flexShrink: 1 }}>
         {title}
       </AppText>
     </Pressable>
@@ -81,16 +81,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignSelf: "flex-start",
     gap: spacing.sm,
+    maxWidth: "100%",
+    flexShrink: 1,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: "transparent",
     borderRadius: radius.sm,
   },
   medium: {
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: spacing.lg,
   },
   small: {
-    minHeight: 36,
+    minHeight: 48,
     paddingHorizontal: spacing.md,
   },
   fullWidth: {

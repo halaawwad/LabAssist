@@ -1,5 +1,7 @@
+import { Disclosure } from "@/components/Disclosure";
+import { MobileModal as Modal } from "@/components/MobileModal";
 import { useState } from "react";
-import { Modal, View } from "react-native";
+import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText, Button } from "@/components";
@@ -154,7 +156,7 @@ export function CircuitLabPanel() {
             />
           </Panel>
           {!!nodes.length && (
-            <Panel title={t("Position component", "تحريك القطعة")}>
+            <Disclosure title={t("Position component", "تحريك القطعة")}>
               <Chips
                 value={part}
                 onChange={setPart}
@@ -202,7 +204,7 @@ export function CircuitLabPanel() {
                   }}
                 />
               </View>
-            </Panel>
+            </Disclosure>
           )}
           {nodes.length > 1 && (
             <Panel title={t("Connect a wire", "توصيل سلك")}>
@@ -269,7 +271,7 @@ export function CircuitLabPanel() {
               />
             </Panel>
           )}
-          {notice && (
+          {!!notice && (
             <Panel>
               <AppText>{notice}</AppText>
             </Panel>

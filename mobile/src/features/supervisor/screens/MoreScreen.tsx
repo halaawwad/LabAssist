@@ -1,6 +1,7 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { useRouter } from "@/native/router";
 import { ChevronRight } from "lucide-react-native";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { AppText, Card, LanguageToggle, ScreenContainer, ScreenHeader } from "@/components";
 import { useLanguage } from "@/i18n";

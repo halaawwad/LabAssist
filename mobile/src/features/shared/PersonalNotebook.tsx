@@ -1,6 +1,7 @@
+import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { AppText, Button } from "@/components";
 import { Field, Panel, Ring, kit, useCopy } from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
@@ -57,7 +58,7 @@ export function PersonalNotebook() {
   if (!ready) return <AppText>{error || t("Loading your notebook…", "جارٍ تحميل دفترك…")}</AppText>;
   return (
     <View style={kit.stack}>
-      {error && <AppText tone="danger">{error}</AppText>}
+      {!!error && <AppText tone="danger">{error}</AppText>}
       <Panel title={t("My information", "معلوماتي")}>
         {profileFields.map(([key, en, ar]) =>
           editing ? (
