@@ -20,6 +20,7 @@ import {
 import { AppText, Button } from "@/components";
 import { Chips, Field, useCopy } from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
+import { useLanguage } from "@/i18n";
 import {
   stores,
   storeOffers,
@@ -45,6 +46,8 @@ type Request = {
   note?: string;
   sample?: boolean;
 };
+// Ids are created when a request is saved, never during render.
+const newRequestId = () => `request-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const tabs = ["Find Parts", "Workshop Stock", "Local Stores", "My Requests"];
 const categories = ["All categories", ...new Set(workshopStock.map((p) => p.category))];
 const statuses: RequestStatus[] = [
@@ -108,10 +111,59 @@ const toneFor = (category: string) =>
         : "#edf1e6";
 const money = (n: number) => `₪${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
+/** Display labels for inventory vocabularies (stored values keep their English ids). */
+const terms: Record<string, string> = {
+  "Find Parts": "ابحث عن قطع",
+  "Workshop Stock": "مخزون الورشة",
+  "Local Stores": "المتاجر المحلية",
+  "My Requests": "طلباتي",
+  "All sources": "كل المصادر",
+  Workshop: "الورشة",
+  "Student Resale": "إعادة بيع الطلاب",
+  "All cities": "كل المدن",
+  "All categories": "كل الفئات",
+  "Control Boards": "لوحات التحكم",
+  "Electronic Parts": "قطع إلكترونية",
+  "Motors & Actuators": "المحركات والمشغلات",
+  "Power Drivers": "مشغلات الطاقة",
+  Sensors: "الحساسات",
+  Tools: "الأدوات",
+  "All statuses": "كل الحالات",
+  "In Stock": "متوفر",
+  "Low Stock": "مخزون منخفض",
+  "Out of Stock": "غير متوفر",
+  "All types": "كل الأنواع",
+  "For Sale": "للبيع",
+  "For Use": "للاستخدام",
+  New: "جديدة",
+  Used: "مستعملة",
+  All: "الكل",
+  Active: "النشطة",
+  Draft: "مسودة",
+  Pending: "معلق",
+  Approved: "موافق عليه",
+  "Ready for Pickup": "جاهز للاستلام",
+  Completed: "مكتمل",
+  Rejected: "مرفوض",
+  Cancelled: "ملغى",
+  Example: "مثال",
+  "Listed in stock": "متوفر حسب الإعلان",
+  "Ask store": "اسأل المتجر",
+  "Lowest listed price": "أقل سعر معلن",
+  "Stores in my city": "متاجر في مدينتي",
+  "In your city": "في مدينتك",
+};
+function useTerm() {
+  const t = useCopy();
+  return (value: string) => t(value, terms[value] ?? value);
+}
 function Tag({ children, danger = false }: { children: ReactNode; danger?: boolean }) {
+  const vocab = useTerm();
   return (
     <View style={[s.tag, danger && s.tagDanger]}>
-      <AppText style={[s.tagText, danger && s.dangerText]}>{children}</AppText>
+      <AppText style={[s.tagText, danger && s.dangerText]}>
+        {typeof children === "string" ? vocab(children) : children}
+      </AppText>
     </View>
   );
 }
@@ -121,6 +173,8 @@ export function InventoryPanel() {
 }
 function InventoryContent({ actorId }: { actorId: string }) {
   const t = useCopy();
+  const vocab = useTerm();
+  const { formatLongDate, formatDateTime } = useLanguage();
   const [tab, setTab] = useState("Find Parts"),
     [query, setQuery] = useState("");
   const [category, setCategory] = useState("All categories"),
@@ -158,7 +212,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
       .catch(() => {
         if (alive) {
           setRequests(examples());
-          setNotice("Saved requests could not be loaded.");
+          setNotice(t("Saved requests could not be loaded.", "تعذر تحميل الطلبات المحفوظة."));
         }
       })
       .finally(() => {
@@ -167,13 +221,13 @@ function InventoryContent({ actorId }: { actorId: string }) {
     return () => {
       alive = false;
     };
-  }, [storageKey]);
+  }, [storageKey, t]);
   useEffect(() => {
     if (loaded)
       AsyncStorage.setItem(storageKey, JSON.stringify(requests)).catch(() =>
-        setNotice("Could not save requests on this device."),
+        setNotice(t("Could not save requests on this device.", "تعذر حفظ الطلبات على هذا الجهاز.")),
       );
-  }, [requests, loaded, storageKey]);
+  }, [requests, loaded, storageKey, t]);
   const term = query.trim().toLowerCase();
   const filtered = workshopStock.filter(
     (item) =>
@@ -258,14 +312,19 @@ function InventoryContent({ actorId }: { actorId: string }) {
     if (!loaded || !selectedPart || (actual && !editable(actual))) return;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty < 1 || qty > selectedPart.quantity)
-      return setError(`Choose a whole quantity between 1 and ${selectedPart.quantity}.`);
+      return setError(
+        t(
+          `Choose a whole quantity between 1 and ${selectedPart.quantity}.`,
+          `اختر كمية صحيحة بين 1 و${selectedPart.quantity}.`,
+        ),
+      );
     if (!use.trim())
       return setError(
         t("Add a short description of what you need this part for.", "اكتب سبب حاجتك لهذه القطعة."),
       );
     const at = new Date().toISOString();
     const next: Request = {
-      id: actual?.id ?? `request-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      id: actual?.id ?? newRequestId(),
       partId: selectedPart.id,
       quantity: qty,
       purpose: use.trim(),
@@ -311,9 +370,9 @@ function InventoryContent({ actorId }: { actorId: string }) {
           <AppText style={s.difference}>
             {offer.price === min
               ? out
-                ? "Lowest listing · unavailable"
-                : "Lowest listed · compare variant"
-              : `+${money(offer.price - min)} vs lowest listing`}
+                ? t("Lowest listing · unavailable", "أقل سعر · غير متوفر")
+                : t("Lowest listed · compare variant", "أقل سعر معلن · قارن الطراز")
+              : `+${money(offer.price - min)} ${t("vs lowest listing", "عن أقل سعر")}`}
           </AppText>
         )}
         <Tag danger={out}>{offer.availability}</Tag>
@@ -321,8 +380,15 @@ function InventoryContent({ actorId }: { actorId: string }) {
           {offer.name}
         </AppText>
         <AppText style={s.copy}>{offer.note}</AppText>
-        <AppText style={s.meta}>Condition: ask store · Check included accessories</AppText>
-        <AppText style={s.meta}>Checked {offer.checked} · Shipping excluded</AppText>
+        <AppText style={s.meta}>
+          {t(
+            "Condition: ask store · Check included accessories",
+            "الحالة: اسأل المتجر · تحقق من الملحقات المرفقة",
+          )}
+        </AppText>
+        <AppText style={s.meta}>
+          {t("Checked", "تم التحقق")} {offer.checked} · {t("Shipping excluded", "غير شامل الشحن")}
+        </AppText>
         <View style={s.actions}>
           <Button
             title={t("Map", "الخريطة")}
@@ -362,14 +428,13 @@ function InventoryContent({ actorId }: { actorId: string }) {
     <View style={s.page}>
       <View style={s.between}>
         <View style={s.grow}>
-          <AppText style={s.eyebrow}>
-            {t("YOUR WORKSPACE / FIND YOUR NEXT PART", "مساحتك / ابحث عن قطعتك التالية")}
+          <AppText variant="caption" tone="muted">
+            {t("Find your next part", "ابحث عن قطعتك التالية")}
           </AppText>
-          <AppText style={s.title}>{t("Workshop Inventory", "قطع الورشة")}</AppText>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Open My Requests"
+          accessibilityLabel={t("Open My Requests", "فتح طلباتي")}
           onPress={() => setTab("My Requests")}
           style={s.requestBadge}
         >
@@ -421,9 +486,11 @@ function InventoryContent({ actorId }: { actorId: string }) {
       <View style={s.search}>
         <Search size={18} color="#819277" />
         <TextInput
-          accessibilityLabel="Search inventory"
+          accessibilityLabel={t("Search inventory", "البحث في المخزون")}
           placeholder={
-            tab === "My Requests" ? "Search your requested parts…" : "Search a component or store…"
+            tab === "My Requests"
+              ? t("Search your requested parts…", "ابحث في القطع التي طلبتها…")
+              : t("Search a component or store…", "ابحث عن قطعة أو متجر…")
           }
           value={query}
           onChangeText={setQuery}
@@ -433,14 +500,19 @@ function InventoryContent({ actorId }: { actorId: string }) {
         {!!query && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Clear search"
+            accessibilityLabel={t("Clear search", "مسح البحث")}
             onPress={() => setQuery("")}
           >
             <X size={18} color="#657459" />
           </Pressable>
         )}
       </View>
-      {!!query && <AppText style={s.meta}>Searching for “{query}” · kept across tabs</AppText>}
+      {!!query && (
+        <AppText style={s.meta}>
+          {t("Searching for", "البحث عن")} “{query}” ·{" "}
+          {t("kept across tabs", "يبقى عند تبديل الأقسام")}
+        </AppText>
+      )}
       <View style={s.tabs}>
         {tabs.map((value) => (
           <Pressable
@@ -450,7 +522,9 @@ function InventoryContent({ actorId }: { actorId: string }) {
             onPress={() => switchTab(value)}
             style={[s.tab, tab === value && s.activeTab]}
           >
-            <AppText style={[s.tabLabel, tab === value && s.activeTabLabel]}>{value}</AppText>
+            <AppText style={[s.tabLabel, tab === value && s.activeTabLabel]}>
+              {vocab(value)}
+            </AppText>
           </Pressable>
         ))}
       </View>
@@ -459,7 +533,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
           <AppText style={[s.copy, s.grow]}>{notice}</AppText>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Dismiss notice"
+            accessibilityLabel={t("Dismiss notice", "إخفاء الإشعار")}
             onPress={() => setNotice("")}
           >
             <X size={16} color="#526443" />
@@ -472,21 +546,30 @@ function InventoryContent({ actorId }: { actorId: string }) {
             <View style={s.grow}>
               <AppText style={s.sectionTitle}>
                 {tab === "Find Parts"
-                  ? "One part. Every available option."
+                  ? t("One part. Every available option.", "قطعة واحدة. كل الخيارات المتاحة.")
                   : tab === "Workshop Stock"
-                    ? "On the workshop shelf"
-                    : "A little closer to your next component"}
+                    ? t("On the workshop shelf", "على رف الورشة")
+                    : t("A little closer to your next component", "أقرب قليلًا إلى قطعتك القادمة")}
               </AppText>
               <AppText style={s.copy}>
                 {tab === "Find Parts"
-                  ? "Workshop stock and published store offers together."
+                  ? t(
+                      "Workshop stock and published store offers together.",
+                      "مخزون الورشة وعروض المتاجر المنشورة معًا.",
+                    )
                   : tab === "Workshop Stock"
-                    ? "New and used components · Student view only"
-                    : "Palestinian stores · Published contact details"}
+                    ? t(
+                        "New and used components · Student view only",
+                        "قطع جديدة ومستعملة · عرض الطالب فقط",
+                      )
+                    : t(
+                        "Palestinian stores · Published contact details",
+                        "متاجر فلسطينية · بيانات تواصل منشورة",
+                      )}
               </AppText>
             </View>
           </View>
-          <Disclosure title="Filters & comparison">
+          <Disclosure title={t("Filters & comparison", "التصفية والمقارنة")}>
             <View style={s.actions}>
               <Button
                 title={t("Compare prices ↗", "قارن الأسعار ↗")}
@@ -506,11 +589,11 @@ function InventoryContent({ actorId }: { actorId: string }) {
               <View style={s.filterPanel}>
                 {tab === "Local Stores" ? (
                   <>
-                    <AppText style={s.filterLabel}>City</AppText>
+                    <AppText style={s.filterLabel}>{t("City", "المدينة")}</AppText>
                     <Chips
                       options={["All cities", ...new Set(stores.map((p) => p.city))].map((v) => ({
                         id: v,
-                        label: v,
+                        label: vocab(v),
                       }))}
                       value={city}
                       onChange={setCity}
@@ -518,28 +601,28 @@ function InventoryContent({ actorId }: { actorId: string }) {
                   </>
                 ) : (
                   <>
-                    <AppText style={s.filterLabel}>Category</AppText>
+                    <AppText style={s.filterLabel}>{t("Category", "الفئة")}</AppText>
                     <Chips
-                      options={categories.map((v) => ({ id: v, label: v }))}
+                      options={categories.map((v) => ({ id: v, label: vocab(v) }))}
                       value={category}
                       onChange={setCategory}
                     />
-                    <AppText style={s.filterLabel}>Stock status</AppText>
+                    <AppText style={s.filterLabel}>{t("Stock status", "حالة المخزون")}</AppText>
                     <Chips
                       options={["All statuses", "In Stock", "Low Stock", "Out of Stock"].map(
                         (v) => ({
                           id: v,
-                          label: v,
+                          label: vocab(v),
                         }),
                       )}
                       value={status}
                       onChange={setStatus}
                     />
-                    <AppText style={s.filterLabel}>Availability type</AppText>
+                    <AppText style={s.filterLabel}>{t("Availability type", "نوع التوفر")}</AppText>
                     <Chips
                       options={["All types", "For Sale", "For Use"].map((v) => ({
                         id: v,
-                        label: v,
+                        label: vocab(v),
                       }))}
                       value={purpose}
                       onChange={setPurpose}
@@ -554,7 +637,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
               <Chips
                 options={["All sources", "Workshop", "Student Resale"].map((v) => ({
                   id: v,
-                  label: `${v}  ${workshopStock.filter((p) => v === "All sources" || (p.source || "Workshop") === v).length}`,
+                  label: `${vocab(v)}  ${workshopStock.filter((p) => v === "All sources" || (p.source || "Workshop") === v).length}`,
                 }))}
                 value={source}
                 onChange={setSource}
@@ -564,13 +647,15 @@ function InventoryContent({ actorId }: { actorId: string }) {
                   <Package color="#8c719e" size={23} />
                   <View style={s.grow}>
                     <AppText weight="bold" style={s.name}>
-                      Give good parts another project.
+                      {t("Give good parts another project.", "امنح القطع الجيدة مشروعًا آخر.")}
                     </AppText>
                     <AppText style={s.copy}>
-                      Components from previous students, listed through the workshop assistant.
-                      Check condition and inspection notes before requesting.
+                      {t(
+                        "Components from previous students, listed through the workshop assistant. Check condition and inspection notes before requesting.",
+                        "قطع من طلاب سابقين، معروضة عبر مساعد الورشة. تحقق من الحالة وملاحظات الفحص قبل الطلب.",
+                      )}
                     </AppText>
-                    <AppText style={s.meta}>Preview listings</AppText>
+                    <AppText style={s.meta}>{t("Preview listings", "معاينة العروض")}</AppText>
                   </View>
                 </View>
               )}
@@ -605,14 +690,14 @@ function InventoryContent({ actorId }: { actorId: string }) {
                     <Tag danger={item.quantity === 0}>{stockStatus(item)}</Tag>
                   </View>
                   <AppText style={s.meta}>
-                    {item.source || "Workshop"} · {item.category}
+                    {vocab(item.source || "Workshop")} · {vocab(item.category)}
                   </AppText>
                   <AppText style={s.partTitle}>{item.name}</AppText>
                   <AppText style={s.copy}>{item.detail}</AppText>
                   <View style={s.actions}>
                     <Tag>{item.condition}</Tag>
                     <Tag>{item.purpose}</Tag>
-                    {item.source && <Tag>Student Resale</Tag>}
+                    {item.source && <Tag>{t("Student Resale", "إعادة بيع الطلاب")}</Tag>}
                   </View>
                   {item.source && (
                     <View
@@ -620,8 +705,8 @@ function InventoryContent({ actorId }: { actorId: string }) {
                     >
                       <AppText weight="semibold" style={s.name}>
                         {item.inspection === "Tested"
-                          ? "Tested · sample inspection"
-                          : "Inspection pending · sample"}
+                          ? t("Tested · sample inspection", "تم الفحص · فحص تجريبي")
+                          : t("Inspection pending · sample", "بانتظار الفحص · تجريبي")}
                       </AppText>
                       <AppText style={s.copy}>{item.resaleNote}</AppText>
                     </View>
@@ -629,7 +714,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
                   <View style={s.stockMeta}>
                     <View>
                       <AppText style={s.quantity}>{item.quantity}</AppText>
-                      <AppText style={s.meta}>Available quantity</AppText>
+                      <AppText style={s.meta}>{t("Available quantity", "الكمية المتاحة")}</AppText>
                     </View>
                     <View style={s.location}>
                       <MapPin size={14} color="#7a8c69" />
@@ -639,15 +724,23 @@ function InventoryContent({ actorId }: { actorId: string }) {
                   <View style={s.stockFooter}>
                     <View style={s.grow}>
                       <AppText style={s.price}>
-                        {item.price === undefined ? "Workshop use" : money(item.price)}
+                        {item.price === undefined
+                          ? t("Workshop use", "للاستخدام في الورشة")
+                          : money(item.price)}
                       </AppText>
                       {item.price !== undefined && (
-                        <AppText style={s.meta}>/ unit · sample</AppText>
+                        <AppText style={s.meta}>
+                          {t("/ unit · sample", "/ للقطعة · تجريبي")}
+                        </AppText>
                       )}
                     </View>
                     <Button
-                      title={item.quantity ? "Request Part" : "Unavailable"}
-                      accessibilityLabel={`Request ${item.id}`}
+                      title={
+                        item.quantity
+                          ? t("Request Part", "طلب القطعة")
+                          : t("Unavailable", "غير متوفرة")
+                      }
+                      accessibilityLabel={`${t("Request", "طلب")} ${item.name}`}
                       disabled={!item.quantity || !loaded}
                       size="sm"
                       onPress={() => request(item)}
@@ -661,7 +754,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
                   <View key={offer.offerId} style={s.storeOfferWrap}>
                     <OfferCard offer={offer} />
                     <Button
-                      title="Compare this part"
+                      title={t("Compare this part", "قارن هذه القطعة")}
                       variant="ghost"
                       size="sm"
                       onPress={() => {
@@ -677,21 +770,33 @@ function InventoryContent({ actorId }: { actorId: string }) {
                 !(tab === "Find Parts" && source === "All sources" && matchingOffers.length) && (
                   <View style={s.empty}>
                     <Package color="#8c9b7a" size={32} />
-                    <AppText weight="bold">No matching parts</AppText>
-                    <Button title="Clear filters" variant="soft" onPress={reset} />
+                    <AppText weight="bold">{t("No matching parts", "لا توجد قطع مطابقة")}</AppText>
+                    <Button
+                      title={t("Clear filters", "مسح التصفية")}
+                      variant="soft"
+                      onPress={reset}
+                    />
                   </View>
                 )}
             </>
           ) : (
             <>
               <View style={s.compareIntro}>
-                <AppText style={s.kicker}>COMPARE BEFORE YOU BUY</AppText>
-                <AppText style={s.sectionTitle}>One component. Different stores.</AppText>
+                <AppText style={s.kicker}>{t("COMPARE BEFORE YOU BUY", "قارن قبل الشراء")}</AppText>
+                <AppText style={s.sectionTitle}>
+                  {t("One component. Different stores.", "قطعة واحدة. متاجر مختلفة.")}
+                </AppText>
                 <AppText style={s.copy}>
-                  Prices, availability and location — together, where you can compare them.
+                  {t(
+                    "Prices, availability and location — together, where you can compare them.",
+                    "الأسعار والتوفر والموقع — معًا لتقارن بينها.",
+                  )}
                 </AppText>
                 <AppText style={s.meta}>
-                  Sources checked · 15–16 Oct 2026 · Confirm current prices
+                  {t(
+                    "Sources checked · 15–16 Oct 2026 · Confirm current prices",
+                    "تم التحقق من المصادر · 15–16 أكتوبر 2026 · تأكد من الأسعار الحالية",
+                  )}
                 </AppText>
                 {!term && (
                   <Chips
@@ -709,8 +814,11 @@ function InventoryContent({ actorId }: { actorId: string }) {
                   <View key={part.id} style={s.comparisonGroup}>
                     <AppText style={s.partTitle}>{part.name}</AppText>
                     <AppText style={s.meta}>
-                      {new Set(offers.map((o) => o.storeId)).size} stores · Compare exact variants
-                      below
+                      {new Set(offers.map((o) => o.storeId)).size}{" "}
+                      {t(
+                        "stores · Compare exact variants below",
+                        "متاجر · قارن الطرازات المحددة أدناه",
+                      )}
                     </AppText>
                     {min !== undefined && max !== undefined && (
                       <View style={s.range}>
@@ -719,8 +827,8 @@ function InventoryContent({ actorId }: { actorId: string }) {
                         </AppText>
                         <AppText style={s.copy}>
                           {max > min
-                            ? `${money(max - min)} difference across listed variants`
-                            : "One published price"}
+                            ? `${money(max - min)} ${t("difference across listed variants", "فرق بين الطرازات المعلنة")}`
+                            : t("One published price", "سعر منشور واحد")}
                         </AppText>
                       </View>
                     )}
@@ -732,17 +840,25 @@ function InventoryContent({ actorId }: { actorId: string }) {
                     {priced.length > 1 && (
                       <AppText style={s.caveat}>
                         {offers.some((o) => o.availability === "Out of Stock")
-                          ? "The cheaper listing is out of stock, and board versions may differ. This is not a like-for-like saving."
-                          : "Prices cover different variants. Confirm the USB chip, accessories and condition."}
+                          ? t(
+                              "The cheaper listing is out of stock, and board versions may differ. This is not a like-for-like saving.",
+                              "العرض الأرخص غير متوفر، وقد تختلف نسخ اللوحة. هذا ليس توفيرًا مكافئًا.",
+                            )
+                          : t(
+                              "Prices cover different variants. Confirm the USB chip, accessories and condition.",
+                              "الأسعار لطرازات مختلفة. تأكد من شريحة USB والملحقات والحالة.",
+                            )}
                       </AppText>
                     )}
                   </View>
                 );
               })}
               {!groups.length && (
-                <AppText style={s.copy}>No store listings for this search.</AppText>
+                <AppText style={s.copy}>
+                  {t("No store listings for this search.", "لا توجد عروض متاجر لهذا البحث.")}
+                </AppText>
               )}
-              <AppText style={s.sectionTitle}>Store directory</AppText>
+              <AppText style={s.sectionTitle}>{t("Store directory", "دليل المتاجر")}</AppText>
               {storeList.map((store) => (
                 <View style={s.stockCard} key={store.id}>
                   <View style={s.between}>
@@ -763,25 +879,27 @@ function InventoryContent({ actorId }: { actorId: string }) {
                     </View>
                     <Store size={23} color="#8b9a7b" />
                   </View>
-                  <AppText style={s.meta}>{store.city} · Palestine</AppText>
+                  <AppText style={s.meta}>
+                    {store.city} · {t("Palestine", "فلسطين")}
+                  </AppText>
                   <AppText style={s.partTitle}>{store.name}</AppText>
                   <AppText style={s.copy}>{store.address}</AppText>
                   <AppText style={s.meta}>{store.note}</AppText>
                   <View style={s.actions}>
                     <Button
-                      title="View map"
+                      title={t("View map", "عرض الخريطة")}
                       size="sm"
                       variant="soft"
                       onPress={() => showMap(store)}
                     />
                     <Button
-                      title="Call store"
+                      title={t("Call store", "الاتصال بالمتجر")}
                       size="sm"
                       variant="ghost"
                       onPress={() => open(`tel:${store.phone}`)}
                     />
                     <Button
-                      title="Website ↗"
+                      title={t("Website ↗", "الموقع ↗")}
                       size="sm"
                       variant="ghost"
                       onPress={() => open(store.website)}
@@ -793,7 +911,11 @@ function InventoryContent({ actorId }: { actorId: string }) {
                 </View>
               ))}
               {!storeList.length && (
-                <Button title="No stores match · Clear filters" variant="soft" onPress={reset} />
+                <Button
+                  title={t("No stores match · Clear filters", "لا توجد متاجر مطابقة · مسح التصفية")}
+                  variant="soft"
+                  onPress={reset}
+                />
               )}
             </>
           )}
@@ -801,28 +923,33 @@ function InventoryContent({ actorId }: { actorId: string }) {
       ) : (
         <>
           <View style={s.requestHero}>
-            <AppText style={s.kicker}>FROM YOUR REQUEST TO YOUR WORKBENCH</AppText>
-            <AppText style={s.sectionTitle}>My Requests</AppText>
+            <AppText style={s.kicker}>
+              {t("FROM YOUR REQUEST TO YOUR WORKBENCH", "من طلبك إلى طاولة عملك")}
+            </AppText>
+            <AppText style={s.sectionTitle}>{t("My Requests", "طلباتي")}</AppText>
             <AppText style={s.copy}>
-              Workshop stock and student resale, followed in one place.
+              {t(
+                "Workshop stock and student resale, followed in one place.",
+                "مخزون الورشة وإعادة بيع الطلاب، تتابعها في مكان واحد.",
+              )}
             </AppText>
             <View style={s.stats}>
               <Pressable
                 style={s.stat}
                 onPress={() => setRequestFilter("Draft")}
                 accessibilityRole="button"
-                accessibilityLabel="Your drafts"
+                accessibilityLabel={t("Your drafts", "مسوداتك")}
               >
                 <AppText style={s.statValue}>
                   {own.filter((r) => r.status === "Draft").length}
                 </AppText>
-                <AppText style={s.statLabel}>Your drafts</AppText>
+                <AppText style={s.statLabel}>{t("Your drafts", "مسوداتك")}</AppText>
               </Pressable>
               <Pressable
                 style={s.stat}
                 onPress={() => setRequestFilter("Active")}
                 accessibilityRole="button"
-                accessibilityLabel="Your active requests"
+                accessibilityLabel={t("Your active requests", "طلباتك النشطة")}
               >
                 <AppText style={s.statValue}>
                   {
@@ -831,12 +958,17 @@ function InventoryContent({ actorId }: { actorId: string }) {
                     ).length
                   }
                 </AppText>
-                <AppText style={s.statLabel}>Active requests</AppText>
+                <AppText style={s.statLabel}>{t("Active requests", "الطلبات النشطة")}</AppText>
               </Pressable>
             </View>
-            <AppText style={s.copy}>Follow the handover: Approval → Ready → Pickup</AppText>
+            <AppText style={s.copy}>
+              {t(
+                "Follow the handover: Approval → Ready → Pickup",
+                "تابع التسليم: الموافقة ← الجاهزية ← الاستلام",
+              )}
+            </AppText>
             <Button
-              title="Browse parts"
+              title={t("Browse parts", "تصفح القطع")}
               variant="soft"
               size="sm"
               onPress={() => switchTab("Workshop Stock")}
@@ -845,7 +977,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
           <Chips
             value={requestFilter}
             onChange={setRequestFilter}
-            options={["All", "Active", ...statuses].map((v) => ({ id: v, label: v }))}
+            options={["All", "Active", ...statuses].map((v) => ({ id: v, label: vocab(v) }))}
           />
           {visibleRequests.map((r) => {
             const part = workshopStock.find((p) => p.id === r.partId);
@@ -854,22 +986,25 @@ function InventoryContent({ actorId }: { actorId: string }) {
               <View style={s.stockCard} key={r.id}>
                 <View style={s.actions}>
                   <Tag danger={r.status === "Rejected" || r.status === "Cancelled"}>{r.status}</Tag>
-                  {r.sample && <Tag>Example</Tag>}
+                  {r.sample && <Tag>{t("Example", "مثال")}</Tag>}
                   <Tag>{part.source || "Workshop"}</Tag>
                 </View>
                 <AppText style={s.partTitle}>{part.name}</AppText>
                 <AppText style={s.copy}>{r.purpose}</AppText>
                 <AppText style={s.meta}>
-                  Qty {r.quantity} · {part.condition} · {r.submittedAt ? "Requested" : "Saved"}{" "}
-                  {new Date(r.submittedAt || r.createdAt).toLocaleDateString()}
+                  {t("Qty", "الكمية")} {r.quantity} · {vocab(part.condition)} ·{" "}
+                  {r.submittedAt ? t("Requested", "طُلبت") : t("Saved", "حُفظت")}{" "}
+                  {formatLongDate(r.submittedAt || r.createdAt)}
                 </AppText>
                 {r.note && <AppText style={s.note}>{r.note}</AppText>}
                 <AppText style={s.price}>
-                  {part.price === undefined ? "For workshop use" : money(part.price * r.quantity)}
+                  {part.price === undefined
+                    ? t("For workshop use", "للاستخدام في الورشة")
+                    : money(part.price * r.quantity)}
                 </AppText>
                 <View style={s.actions}>
                   <Button
-                    title="View details"
+                    title={t("View details", "عرض التفاصيل")}
                     variant="soft"
                     size="sm"
                     onPress={() => {
@@ -879,7 +1014,11 @@ function InventoryContent({ actorId }: { actorId: string }) {
                   />
                   {editable(r) && (
                     <Button
-                      title={r.status === "Draft" ? "Continue draft" : "Edit request"}
+                      title={
+                        r.status === "Draft"
+                          ? t("Continue draft", "متابعة المسودة")
+                          : t("Edit request", "تعديل الطلب")
+                      }
                       size="sm"
                       variant="ghost"
                       onPress={() => request(part, r)}
@@ -892,12 +1031,15 @@ function InventoryContent({ actorId }: { actorId: string }) {
           {!visibleRequests.length && (
             <View style={s.empty}>
               <Package size={32} color="#82956e" />
-              <AppText weight="bold">No requests here yet</AppText>
+              <AppText weight="bold">{t("No requests here yet", "لا توجد طلبات هنا بعد")}</AppText>
               <AppText style={s.copy}>
-                Choose a workshop part to start a request, or try another filter.
+                {t(
+                  "Choose a workshop part to start a request, or try another filter.",
+                  "اختر قطعة من الورشة لبدء طلب، أو جرّب تصفية أخرى.",
+                )}
               </AppText>
               <Button
-                title="Show all requests"
+                title={t("Show all requests", "عرض كل الطلبات")}
                 variant="soft"
                 onPress={() => {
                   setQuery("");
@@ -919,21 +1061,21 @@ function InventoryContent({ actorId }: { actorId: string }) {
             <AppText style={s.sectionTitle}>
               {sheet === "request"
                 ? actual
-                  ? "Edit part request"
-                  : "Request a part"
+                  ? t("Edit part request", "تعديل طلب القطعة")
+                  : t("Request a part", "طلب قطعة")
                 : sheet === "compare"
-                  ? "Compare prices"
+                  ? t("Compare prices", "مقارنة الأسعار")
                   : sheet === "map"
-                    ? "Store location"
+                    ? t("Store location", "موقع المتجر")
                     : sheet === "receipt"
-                      ? "Request summary"
+                      ? t("Request summary", "ملخص الطلب")
                       : sheet === "cancel"
-                        ? "Cancel this request?"
-                        : "Request details"}
+                        ? t("Cancel this request?", "إلغاء هذا الطلب؟")
+                        : t("Request details", "تفاصيل الطلب")}
             </AppText>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Close inventory dialog"
+              accessibilityLabel={t("Close inventory dialog", "إغلاق")}
               onPress={() => setSheet(null)}
               style={s.close}
             >
@@ -954,32 +1096,39 @@ function InventoryContent({ actorId }: { actorId: string }) {
                     {selectedPart.source || "Workshop"} · {selectedPart.condition}
                   </AppText>
                   <AppText style={s.copy}>
-                    {selectedPart.location} · {selectedPart.quantity} available
+                    {selectedPart.location} · {selectedPart.quantity} {t("available", "متاح")}
                   </AppText>
                 </View>
                 <Field
-                  label="Quantity"
+                  label={t("Quantity", "الكمية")}
                   value={quantity}
                   onChangeText={setQuantity}
                   keyboardType="number-pad"
                 />
                 <Field
-                  label="What will you use it for?"
+                  label={t("What will you use it for?", "فيمَ ستستخدمها؟")}
                   value={use}
                   onChangeText={setUse}
                   multiline
                   maxLength={1000}
-                  placeholder="For example: testing obstacle detection on our prototype…"
+                  placeholder={t(
+                    "For example: testing obstacle detection on our prototype…",
+                    "مثال: اختبار كشف العوائق في نموذجنا…",
+                  )}
                 />
                 {selectedPart.source && (
                   <AppText style={s.copy}>
-                    Student resale · The assistant coordinates inspection, availability and
-                    handover.
+                    {t(
+                      "Student resale · The assistant coordinates inspection, availability and handover.",
+                      "إعادة بيع الطلاب · ينسّق المساعد الفحص والتوفر والتسليم.",
+                    )}
                   </AppText>
                 )}
                 {selectedPart.price !== undefined && (
                   <View style={s.range}>
-                    <AppText style={s.copy}>Estimated total · Sample price</AppText>
+                    <AppText style={s.copy}>
+                      {t("Estimated total · Sample price", "الإجمالي التقديري · سعر تجريبي")}
+                    </AppText>
                     <AppText style={s.price}>
                       {money(
                         selectedPart.price *
@@ -993,16 +1142,6 @@ function InventoryContent({ actorId }: { actorId: string }) {
                     {error}
                   </AppText>
                 )}
-                <View style={s.actions}>
-                  <Button title="Cancel" variant="ghost" onPress={() => setSheet(null)} />
-                  {actual?.status !== "Pending" && (
-                    <Button title="Save draft" variant="soft" onPress={() => save("Draft")} />
-                  )}
-                  <Button
-                    title={actual?.status === "Pending" ? "Update request" : "Send request"}
-                    onPress={() => save("Pending")}
-                  />
-                </View>
               </>
             )}
             {(sheet === "details" || sheet === "receipt") && actual && activePart && (
@@ -1011,7 +1150,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
                 <AppText style={s.partTitle}>{activePart.name}</AppText>
                 <Tag>{actual.status}</Tag>
                 <AppText style={s.copy}>
-                  {activePart.source || "Workshop"} · {activePart.condition}
+                  {vocab(activePart.source || "Workshop")} · {vocab(activePart.condition)}
                 </AppText>
                 {sheet === "details" && (
                   <View style={s.steps}>
@@ -1027,43 +1166,51 @@ function InventoryContent({ actorId }: { actorId: string }) {
                         ]}
                       >
                         <AppText style={s.meta}>
-                          {i + 1} · {step}
+                          {i + 1} · {vocab(step)}
                         </AppText>
                       </View>
                     ))}
                   </View>
                 )}
                 <View style={s.detailsBox}>
-                  <AppText style={s.copy}>Quantity: {actual.quantity}</AppText>
                   <AppText style={s.copy}>
-                    Unit price:{" "}
-                    {activePart.price === undefined ? "Workshop use" : money(activePart.price)}
+                    {t("Quantity:", "الكمية:")} {actual.quantity}
+                  </AppText>
+                  <AppText style={s.copy}>
+                    {t("Unit price:", "سعر الوحدة:")}{" "}
+                    {activePart.price === undefined
+                      ? t("Workshop use", "للاستخدام في الورشة")
+                      : money(activePart.price)}
                   </AppText>
                   <AppText weight="bold">
-                    Estimated total:{" "}
+                    {t("Estimated total:", "الإجمالي التقديري:")}{" "}
                     {activePart.price === undefined
-                      ? "Workshop use"
+                      ? t("Workshop use", "للاستخدام في الورشة")
                       : money(activePart.price * actual.quantity)}
                   </AppText>
-                  <AppText style={s.copy}>Workshop location: {activePart.location}</AppText>
+                  <AppText style={s.copy}>
+                    {t("Workshop location:", "الموقع في الورشة:")} {activePart.location}
+                  </AppText>
                   <AppText style={s.meta}>
-                    Updated {new Date(actual.updatedAt).toLocaleString()}
+                    {t("Updated", "آخر تحديث")} {formatDateTime(actual.updatedAt)}
                   </AppText>
                 </View>
-                <AppText weight="bold">Purpose</AppText>
+                <AppText weight="bold">{t("Purpose", "الغرض")}</AppText>
                 <AppText style={s.copy}>{actual.purpose}</AppText>
                 {actual.note && (
                   <View style={s.inspection}>
-                    <AppText weight="bold">Workshop assistant</AppText>
+                    <AppText weight="bold">{t("Workshop assistant", "مساعد الورشة")}</AppText>
                     <AppText style={s.copy}>{actual.note}</AppText>
                   </View>
                 )}
                 {actual.status === "Draft" && (
-                  <AppText style={s.meta}>This draft has not been sent.</AppText>
+                  <AppText style={s.meta}>
+                    {t("This draft has not been sent.", "لم تُرسل هذه المسودة بعد.")}
+                  </AppText>
                 )}
                 {sheet === "receipt" ? (
                   <Button
-                    title="Track request"
+                    title={t("Track request", "متابعة الطلب")}
                     onPress={() => {
                       setRequestFilter("All");
                       setSheet("details");
@@ -1078,7 +1225,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
                         onPress={() => request(activePart, actual)}
                       />
                       <Button
-                        title="Cancel request"
+                        title={t("Cancel request", "إلغاء الطلب")}
                         variant="ghost"
                         onPress={() => setSheet("cancel")}
                       />
@@ -1090,11 +1237,18 @@ function InventoryContent({ actorId }: { actorId: string }) {
             {sheet === "cancel" && actual && (
               <>
                 <AppText style={s.copy}>
-                  The request will stay in your history as Cancelled.
+                  {t(
+                    "The request will stay in your history as Cancelled.",
+                    "سيبقى الطلب في سجلك كملغى.",
+                  )}
                 </AppText>
-                <Button title="Keep request" variant="soft" onPress={() => setSheet("details")} />
                 <Button
-                  title="Confirm cancellation"
+                  title={t("Keep request", "الإبقاء على الطلب")}
+                  variant="soft"
+                  onPress={() => setSheet("details")}
+                />
+                <Button
+                  title={t("Confirm cancellation", "تأكيد الإلغاء")}
                   variant="danger"
                   onPress={() => {
                     setRequests((items) =>
@@ -1105,7 +1259,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
                       ),
                     );
                     setSheet(null);
-                    setNotice("Request cancelled.");
+                    setNotice(t("Request cancelled.", "تم إلغاء الطلب."));
                   }}
                 />
               </>
@@ -1120,7 +1274,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
                 <AppText style={s.copy}>{mapStore.address}</AppText>
                 <AppText style={s.meta}>{mapStore.note}</AppText>
                 <Button
-                  title="Open in maps ↗"
+                  title={t("Open in maps ↗", "فتح في الخرائط ↗")}
                   onPress={() =>
                     open(
                       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapStore.name + " " + mapStore.address)}`,
@@ -1128,16 +1282,20 @@ function InventoryContent({ actorId }: { actorId: string }) {
                   }
                 />
                 <Button
-                  title={`Call ${mapStore.phone}`}
+                  title={`${t("Call", "اتصال")} ${mapStore.phone}`}
                   variant="soft"
                   onPress={() => open(`tel:${mapStore.phone}`)}
                 />
-                <Button title="Website ↗" variant="ghost" onPress={() => open(mapStore.website)} />
+                <Button
+                  title={t("Website ↗", "الموقع ↗")}
+                  variant="ghost"
+                  onPress={() => open(mapStore.website)}
+                />
               </>
             )}
             {sheet === "compare" && (
               <>
-                <AppText style={s.filterLabel}>Component</AppText>
+                <AppText style={s.filterLabel}>{t("Component", "القطعة")}</AppText>
                 <Chips
                   value={comparePart}
                   onChange={setComparePart}
@@ -1145,7 +1303,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
                     .filter((p) => storeOffers.some((o) => o.id === p.id))
                     .map((p) => ({ id: p.id, label: p.name }))}
                 />
-                <AppText style={s.filterLabel}>Your city</AppText>
+                <AppText style={s.filterLabel}>{t("Your city", "مدينتك")}</AppText>
                 <Chips
                   value={compareCity}
                   onChange={setCompareCity}
@@ -1156,42 +1314,74 @@ function InventoryContent({ actorId }: { actorId: string }) {
                     "Hebron",
                     "Tulkarm",
                     "Qalqilya",
-                  ].map((v) => ({ id: v, label: v }))}
+                  ].map((v) => ({ id: v, label: v === "All cities" ? t("All cities", "كل المدن") : v }))}
                 />
-                <AppText style={s.filterLabel}>Show first</AppText>
+                <AppText style={s.filterLabel}>{t("Show first", "اعرض أولًا")}</AppText>
                 <Chips
                   value={sort}
                   onChange={setSort}
                   options={["Lowest listed price", "Stores in my city"].map((v) => ({
                     id: v,
-                    label: v,
+                    label:
+                      v === "Lowest listed price"
+                        ? t("Lowest listed price", "أقل سعر معلن")
+                        : t("Stores in my city", "متاجر في مدينتي"),
                   }))}
                 />
                 {prices.length > 1 && (
                   <View style={s.range}>
                     <AppText weight="bold">
-                      {money(Math.max(...prices) - Math.min(...prices))} price spread
+                      {money(Math.max(...prices) - Math.min(...prices))}{" "}
+                      {t("price spread", "فرق الأسعار")}
                     </AppText>
-                    <AppText style={s.copy}>Across listed variants · Shipping excluded</AppText>
+                    <AppText style={s.copy}>
+                      {t(
+                        "Across listed variants · Shipping excluded",
+                        "عبر الطرازات المعلنة · غير شامل الشحن",
+                      )}
+                    </AppText>
                   </View>
                 )}
                 <AppText style={s.caveat}>
-                  Compare the exact model, condition and included accessories. Out-of-stock prices
-                  remain visible; they are not available offers. City matching does not measure
-                  travel distance.
+                  {t(
+                    "Compare the exact model, condition and included accessories. Out-of-stock prices remain visible; they are not available offers. City matching does not measure travel distance.",
+                    "قارن الطراز والحالة والملحقات المرفقة. تبقى أسعار المنتجات غير المتوفرة ظاهرة لكنها ليست عروضًا متاحة. تطابق المدينة لا يقيس مسافة السفر.",
+                  )}
                 </AppText>
                 {comparisons.map((o) => (
                   <View key={o.offerId}>
-                    {compareCity === storeForOffer(o).city && <Tag>In your city</Tag>}
+                    {compareCity === storeForOffer(o).city && (
+                      <Tag>{t("In your city", "في مدينتك")}</Tag>
+                    )}
                     <OfferCard offer={o} min={prices.length ? Math.min(...prices) : undefined} />
                   </View>
                 ))}
                 <AppText style={s.meta}>
-                  Workshop prices are sample data and are excluded from real-store price rankings.
+                  {t(
+                    "Workshop prices are sample data and are excluded from real-store price rankings.",
+                    "أسعار الورشة بيانات تجريبية ولا تدخل في ترتيب أسعار المتاجر الفعلية.",
+                  )}
                 </AppText>
               </>
             )}
           </ScrollView>
+          {/* Request actions stay pinned above the keyboard and the home indicator. */}
+          {sheet === "request" && selectedPart && (
+            <View style={s.footer}>
+              <Button
+                title={actual?.status === "Pending" ? "Update request" : "Send request"}
+                onPress={() => save("Pending")}
+              />
+              {actual?.status !== "Pending" && (
+                <Button
+                  title={t("Save draft", "حفظ كمسودة")}
+                  variant="secondary"
+                  fullWidth
+                  onPress={() => save("Draft")}
+                />
+              )}
+            </View>
+          )}
         </SafeAreaView>
       </Modal>
     </View>
@@ -1199,6 +1389,14 @@ function InventoryContent({ actorId }: { actorId: string }) {
 }
 
 const s = StyleSheet.create({
+  footer: {
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderColor: "#e2e7d8",
+    backgroundColor: "#fafbf7",
+  },
   page: { gap: 16 },
   grow: { flex: 1, minWidth: 0 },
   between: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
@@ -1266,14 +1464,14 @@ const s = StyleSheet.create({
   tab: {
     width: "48%",
     flexGrow: 1,
-    minHeight: 43,
+    minHeight: 44,
     borderRadius: 13,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 5,
   },
   activeTab: { backgroundColor: "#526443" },
-  tabLabel: { fontSize: 12, lineHeight: 17, color: "#627357", fontWeight: "600" },
+  tabLabel: { fontSize: 13, lineHeight: 18, color: "#4f5f45", fontWeight: "600" },
   activeTabLabel: { color: "white" },
   sectionTitle: { fontSize: 20, lineHeight: 28, fontWeight: "700", color: "#1b2d36" },
   copy: { fontSize: 12, lineHeight: 20, color: "#5e6e62" },

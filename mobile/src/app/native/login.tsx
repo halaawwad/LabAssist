@@ -31,13 +31,14 @@ import {
 } from "lucide-react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { AppText, LanguageToggle } from "@/components";
-import { useLanguage } from "@/i18n";
+import { directionStyle, useLanguage } from "@/i18n";
 import { usePreferences } from "@/state/Preferences";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { router } from "@/native/router";
 import { LabAssistBrand } from "@/components/LabAssistBrand";
 import { sessionHome, useNativeSession } from "@/state/NativeSession";
 import { demoStudents } from "../../../../shared/web/domain";
+import { departmentHead } from "@/features/department/departmentIdentity";
 const roles = [
   {
     id: "student",
@@ -70,7 +71,7 @@ const roles = [
     id: "department",
     en: "Department Head",
     ar: "رئيس القسم",
-    account: "head@demo.com",
+    account: departmentHead.email,
     icon: ShieldCheck,
     detail: "Accounts & team assignments",
     detailAr: "الحسابات وتوزيع الفرق",
@@ -175,7 +176,7 @@ export default function NativeLogin() {
     }
   }
   return (
-    <SafeAreaView style={s.screen}>
+    <SafeAreaView style={[s.screen, directionStyle(ar ? "rtl" : "ltr")]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -187,7 +188,7 @@ export default function NativeLogin() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={s.content}
         >
-          <View style={[s.top, ar && s.reverse]}>
+          <View style={[s.top]}>
             <LabAssistBrand />
             <LanguageToggle compact />
           </View>
@@ -261,7 +262,7 @@ export default function NativeLogin() {
               accessibilityLabel={copy("Choose your role", "اختيار الدور")}
               disabled={busy}
               onPress={() => setPicker(true)}
-              style={[s.role, ar && s.reverse]}
+              style={[s.role]}
             >
               <View style={s.roleIcon}>
                 <RoleIcon size={21} color="#536a45" />
@@ -280,7 +281,7 @@ export default function NativeLogin() {
                     ? copy("Email", "الإيميل")
                     : copy("University number", "الرقم الجامعي")}
               </AppText>
-              <View style={[s.inputBox, !!error && s.invalid, ar && s.reverse]}>
+              <View style={[s.inputBox, !!error && s.invalid]}>
                 {role === "student" || role === "department" ? (
                   <Mail size={19} color="#7a886f" />
                 ) : (
@@ -317,7 +318,7 @@ export default function NativeLogin() {
             </View>
             <View style={{ gap: 9 }}>
               <AppText variant="label">{copy("Password", "كلمة المرور")}</AppText>
-              <View style={[s.inputBox, !!error && s.invalid, ar && s.reverse]}>
+              <View style={[s.inputBox, !!error && s.invalid]}>
                 <LockKeyhole size={19} color="#7a886f" />
                 <TextInput
                   ref={passwordRef}
@@ -370,7 +371,7 @@ export default function NativeLogin() {
               accessibilityState={{ disabled: busy, busy }}
               disabled={busy}
               onPress={login}
-              style={({ pressed }) => [s.submit, pressed && { opacity: 0.85 }, ar && s.reverse]}
+              style={({ pressed }) => [s.submit, pressed && { opacity: 0.85 }]}
             >
               <AppText weight="semibold" style={{ color: "#fff", fontSize: 16 }}>
                 {busy ? copy("Signing in…", "جارٍ تسجيل الدخول…") : copy("Log in", "تسجيل الدخول")}
@@ -429,7 +430,7 @@ export default function NativeLogin() {
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ gap: 13 }}
             >
-              <View style={[s.top, ar && s.reverse]}>
+              <View style={[s.top]}>
                 <AppText variant="heading">
                   {copy("Choose your workspace", "اختار مساحة عملك")}
                 </AppText>
@@ -467,7 +468,6 @@ export default function NativeLogin() {
                     style={[
                       s.roleChoice,
                       role === r.id && { backgroundColor: "#e9efdf", borderColor: "#a9ba96" },
-                      ar && s.reverse,
                     ]}
                   >
                     <View style={s.roleIcon}>
@@ -494,7 +494,6 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f7f7f0" },
   content: { flexGrow: 1, padding: 22, gap: 22, paddingBottom: 20 },
   top: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
-  reverse: { direction: "ltr", flexDirection: "row-reverse" },
   brand: { flexDirection: "row", alignItems: "center", gap: 9 },
   logo: {
     width: 36,

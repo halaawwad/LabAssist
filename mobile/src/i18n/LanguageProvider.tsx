@@ -21,7 +21,18 @@ import {
   type TranslationKey,
   type TranslationParams,
 } from "./dictionary";
-import { formatDay, formatRelative, formatTime } from "./format";
+import { syncDocumentDirection } from "./direction";
+import {
+  formatDateTime,
+  formatDay,
+  formatFileSize,
+  formatLongDate,
+  formatNumber,
+  formatRelative,
+  formatTime,
+  isolate,
+  isolateLtr,
+} from "./format";
 
 const STORAGE_KEY = "labassist.language";
 const DEFAULT_LANGUAGE: Language = "en";
@@ -39,6 +50,15 @@ type LanguageContextValue = {
   formatTime: (time: string) => string;
   /** "2 hours ago" style text for a past ISO timestamp. */
   formatRelative: (isoTimestamp: string) => string;
+  /** "19 November 2026" / "19 نوفمبر 2026". */
+  formatLongDate: (value: string | Date, weekday?: boolean) => string;
+  formatDateTime: (value: string | Date) => string;
+  formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string;
+  formatFileSize: (megabytes: number) => string;
+  /** Display-only isolation for Latin tokens (emails, codes, versions) in Arabic text. */
+  ltr: (value: string | number) => string;
+  /** Display-only isolation for values of unknown direction (names, titles). */
+  isolate: (value: string | number) => string;
 };
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
@@ -64,8 +84,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (language) syncNativeDirection(directionOf(language) === "rtl");
+    if (!language) return;
+    syncNativeDirection(directionOf(language) === "rtl");
+    syncDocumentDirection(directionOf(language), language);
   }, [language]);
+
+  // Leaving the native app (for example to the original web preview) restores the default.
+  useEffect(() => () => syncDocumentDirection("ltr", DEFAULT_LANGUAGE), []);
 
   const setLanguage = useCallback((next: Language) => {
     setLanguageState(next);
@@ -87,6 +112,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       formatDay: (isoDate) => formatDay(language, isoDate),
       formatTime: (time) => formatTime(language, time),
       formatRelative: (isoTimestamp) => formatRelative(language, isoTimestamp),
+      formatLongDate: (value, weekday) => formatLongDate(language, value, weekday),
+      formatDateTime: (value) => formatDateTime(language, value),
+      formatNumber: (value, options) => formatNumber(language, value, options),
+      formatFileSize: (megabytes) => formatFileSize(language, megabytes),
+      ltr: isolateLtr,
+      isolate,
     };
   }, [language, setLanguage]);
 

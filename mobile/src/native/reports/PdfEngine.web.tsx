@@ -1,7 +1,9 @@
 import { Asset } from "expo-asset";
 import { useEffect, useRef, useState } from "react";
+import { useCopy } from "@/components/MobileKit";
 import type { EngineProps, EngineReply } from "./pdfTypes";
 export default function PdfEngine({ request, onResult }: EngineProps) {
+  const t = useCopy();
   const ref = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -22,7 +24,7 @@ export default function PdfEngine({ request, onResult }: EngineProps) {
   return (
     <iframe
       ref={ref}
-      title="Report PDF renderer"
+      title={t("Report PDF renderer", "عارض PDF للتقرير")}
       src={Asset.fromModule(require("../../../assets/engines/report.html")).uri}
       sandbox="allow-scripts allow-same-origin"
       style={{

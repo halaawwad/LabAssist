@@ -5,7 +5,7 @@ import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText, Button } from "@/components";
-import { Chips, Field, Panel, kit, useCopy } from "@/components/MobileKit";
+import { Chips, Field, Panel, kit, useCopy, SearchField } from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { projectFor, type Circuit } from "@/domain/workspace";
 import { checkWireFit, translatedWireFit } from "@/lib/hardware/wireCompatibility";
@@ -135,8 +135,9 @@ export function CircuitLabPanel() {
             />
           </View>
           <Panel title={t("Add a component", "إضافة قطعة")}>
-            <Field
+            <SearchField
               label={t("Search models", "البحث في الموديلات")}
+              placeholder={t("Search saved models by name…", "ابحث في الموديلات المحفوظة بالاسم…")}
               value={search}
               onChangeText={setSearch}
             />
@@ -279,8 +280,12 @@ export function CircuitLabPanel() {
         </>
       ) : (
         <>
-          <Field
+          <SearchField
             label={t("Search student, project or component", "ابحث بالطالب أو المشروع أو القطعة")}
+            placeholder={t(
+              "Search student, project or component…",
+              "ابحث بالطالب أو المشروع أو القطعة…",
+            )}
             value={search}
             onChangeText={setSearch}
           />

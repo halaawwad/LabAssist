@@ -135,9 +135,14 @@ function useWorkspaceState() {
     saveDetails: (title: string, description: string) =>
       act({ type: "project.edit", id: active.id, title, description }),
     toggleTask: (id: string) => act({ type: "task.toggle", id }),
-    issues: state.issues
-      .filter((issue) => issue.projectId === active.id && !issue.resolved)
-      .map((issue) => issue.title),
+    // Reference samples and stored records are de-duplicated by stable ID only: a sample
+    // is hidden once any stored issue carries its ID. Stored records are never changed.
+    openIssues: [
+      ...referenceIssues.filter((sample) => !state.issues.some((issue) => issue.id === sample.id)),
+      ...state.issues
+        .filter((issue) => issue.projectId === active.id && !issue.resolved)
+        .map(({ id, title }) => ({ id, title })),
+    ],
     addIssue: (title: string) => act({ type: "issue.add", projectId: active.id, title }),
     submitted: !!currentReport && currentReport.status !== "draft",
     progress: Math.round((completed.length / Math.max(1, teamTasks.length)) * 100),
@@ -149,6 +154,12 @@ function useWorkspaceState() {
   };
 }
 const WorkspaceContext = createContext<ReturnType<typeof useWorkspaceState> | null>(null);
+/** Open issues shown with the reference project; `issue1` is also the seeded record. */
+const referenceIssues = [
+  { id: "issue1", title: "Distance sensor needs calibration" },
+  { id: "reference-motor-load", title: "Motor response under load needs testing" },
+  { id: "reference-power", title: "Power consumption needs review" },
+];
 export function ProjectWorkspaceProvider({ children }: { children: ReactNode }) {
   const workspace = useWorkspaceState();
   return <WorkspaceContext.Provider value={workspace}>{children}</WorkspaceContext.Provider>;

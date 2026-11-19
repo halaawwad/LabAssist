@@ -1,9 +1,21 @@
 import { useState } from "react";
-import { Switch, ScrollView, View, Platform } from "react-native";
+import { ScrollView, StyleSheet, View, Platform } from "react-native";
 import { router, type Href } from "@/native/router";
 import Svg, { Rect, Ellipse, G, Text as SvgText } from "react-native-svg";
 import { AppText, Button } from "@/components";
-import { Chips, Field, Page, Panel, MenuRow, kit, useCopy } from "@/components/MobileKit";
+import {
+  Chips,
+  Field,
+  Page,
+  Panel,
+  MenuRow,
+  kit,
+  useCopy,
+  SearchField,
+  DateField,
+  SegmentedControl,
+  ToggleSwitch,
+} from "@/components/MobileKit";
 import { calendarDay } from "@/domain/workspace";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { colors } from "@/theme";
@@ -117,87 +129,219 @@ function WorkshopDashboard() {
     </>
   );
 }
+/** Attendance: a work day, a fixed present/absent summary, then compact rows grouped by team. */
 export function AttendancePanel() {
   const { state, act } = useWorkspace();
   const t = useCopy();
   const [date, setDate] = useState(calendarDay());
   const [search, setSearch] = useState("");
+  // One save at a time per student, and one bulk run at a time (no duplicate submissions).
+  const [pending, setPending] = useState<string[]>([]);
+  const [bulk, setBulk] = useState(false);
+  const [notice, setNotice] = useState("");
   const open = state.days[date] === true;
+  const record = state.attendance[date] ?? {};
+  const students = state.users.filter((u) => u.role === "student");
+  const present = students.filter((u) => record[u.id] === true).length;
+  const absent = students.filter((u) => record[u.id] === false).length;
+  const unrecorded = students.length - present - absent;
+  const query = search.trim().toLowerCase();
+  const visible = students.filter((u) =>
+    `${u.name} ${u.universityNumber ?? ""}`.toLowerCase().includes(query),
+  );
+  const teams = [
+    ...state.projects.map((p) => ({
+      id: p.id,
+      title: p.table ? `${p.title} · ${p.table}` : p.title,
+      members: visible.filter((u) => p.studentIds.includes(u.id)),
+    })),
+    {
+      id: "none",
+      title: t("No team", "بلا فريق"),
+      members: visible.filter((u) => !state.projects.some((p) => p.studentIds.includes(u.id))),
+    },
+  ].filter((team) => team.members.length);
+  async function mark(userId: string, value: boolean) {
+    if (pending.includes(userId) || bulk) return;
+    setPending((ids) => [...ids, userId]);
+    setNotice("");
+    try {
+      // Existing rules apply: manager only, working days, 7-day edit window.
+      await act({ type: "attendance.set", userId, date, present: value });
+    } finally {
+      setPending((ids) => ids.filter((id) => id !== userId));
+    }
+  }
+  async function markAllPresent() {
+    if (bulk) return;
+    setBulk(true);
+    setNotice("");
+    let saved = 0;
+    try {
+      for (const u of students.filter((u) => record[u.id] === undefined)) {
+        // Stop at the first refused or failed save; the workspace error explains why.
+        if (!(await act({ type: "attendance.set", userId: u.id, date, present: true }))) break;
+        saved += 1;
+      }
+    } finally {
+      setBulk(false);
+      setNotice(t(`Marked ${saved} present.`, `تم تسجيل ${saved} حاضرين.`));
+    }
+  }
   return (
-    <>
-      <Field
-        label={t("Work day (YYYY-MM-DD)", "يوم الدوام (YYYY-MM-DD)")}
-        value={date}
-        onChangeText={setDate}
-      />
-      <Panel>
-        <View style={kit.row}>
-          <AppText style={kit.grow}>{t("Actual working day", "يوم دوام فعلي")}</AppText>
-          <Switch
+    <View style={att.screen}>
+      <View style={att.summary} accessibilityRole="summary" accessibilityLiveRegion="polite">
+        <View style={att.counts}>
+          <AppText weight="semibold" style={{ color: colors.success }}>
+            {t("Present", "حاضر")} {present}
+          </AppText>
+          <AppText weight="semibold" tone="danger">
+            {t("Absent", "غائب")} {absent}
+          </AppText>
+          <AppText tone="muted">
+            {t("Not recorded", "لم يسجل")} {unrecorded}
+          </AppText>
+        </View>
+        <Button
+          title={t("Mark all present", "تسجيل الجميع حاضرين")}
+          variant="secondary"
+          size="sm"
+          loading={bulk}
+          disabled={!open || !unrecorded}
+          accessibilityHint={t(
+            "Applies to students not yet recorded. Recorded absences stay.",
+            "يطبق على من لم يسجل بعد، ويبقى الغياب المسجل كما هو.",
+          )}
+          onPress={markAllPresent}
+        />
+      </View>
+      <ScrollView
+        contentContainerStyle={att.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
+        <DateField label={t("Work day", "يوم الدوام")} value={date} onChange={setDate} />
+        <View style={att.dayRow}>
+          <View style={kit.grow}>
+            <AppText weight="semibold">{t("Actual working day", "يوم دوام فعلي")}</AppText>
+            <AppText variant="caption" tone="muted">
+              {open
+                ? t(
+                    "Closed days are excluded from absence calculations.",
+                    "الأيام المغلقة لا تدخل في حساب الغياب.",
+                  )
+                : t(
+                    "Turn this on to record attendance for this day.",
+                    "فعّل هذا الخيار لتسجيل الحضور في هذا اليوم.",
+                  )}
+            </AppText>
+          </View>
+          <ToggleSwitch
+            accessibilityLabel={t("Actual working day", "يوم دوام فعلي")}
             value={open}
             onValueChange={async (value) => {
               await act({ type: "day.set", date, open: value });
             }}
           />
         </View>
-        <AppText variant="caption" tone="muted">
-          {t(
-            "Closed days are excluded from absence calculations.",
-            "الأيام المغلقة لا تدخل في حساب الغياب.",
-          )}
-        </AppText>
-      </Panel>
-      <Field
-        label={t("Search student or number", "ابحث بالاسم أو الرقم الجامعي")}
-        value={search}
-        onChangeText={setSearch}
-      />
-      {state.users
-        .filter(
-          (u) =>
-            u.role === "student" &&
-            `${u.name} ${u.universityNumber}`.toLowerCase().includes(search.toLowerCase()),
-        )
-        .map((u) => {
-          const value = state.attendance[date]?.[u.id];
-          return (
-            <View
-              key={u.id}
-              style={{ paddingVertical: 14, gap: 8, borderBottomWidth: 1, borderColor: "#e5eadf" }}
-            >
-              <AppText weight="semibold">{u.name}</AppText>
-              <AppText variant="caption" tone="muted">
-                {u.universityNumber} ·{" "}
-                {value === undefined
-                  ? t("Not recorded", "لم يسجل")
-                  : value
-                    ? t("Present", "حاضر")
-                    : t("Absent", "غائب")}
-              </AppText>
-              <View style={kit.wrap}>
-                <Button
-                  title={t("Present", "حاضر")}
-                  disabled={!open}
-                  variant={value === true ? "primary" : "ghost"}
-                  onPress={async () =>
-                    await act({ type: "attendance.set", userId: u.id, date, present: true })
-                  }
-                />
-                <Button
-                  title={t("Absent", "غائب")}
-                  disabled={!open}
-                  variant={value === false ? "danger" : "ghost"}
-                  onPress={async () =>
-                    await act({ type: "attendance.set", userId: u.id, date, present: false })
-                  }
-                />
-              </View>
-            </View>
-          );
-        })}
-    </>
+        <SearchField
+          label={t("Search student or number", "ابحث بالاسم أو الرقم الجامعي")}
+          placeholder={t("Search student or number…", "ابحث بالاسم أو الرقم الجامعي…")}
+          value={search}
+          onChangeText={setSearch}
+        />
+        {!!notice && (
+          <AppText tone="primary" accessibilityRole="alert">
+            {notice}
+          </AppText>
+        )}
+        {!teams.length && (
+          <AppText tone="muted">{t("No matching students.", "لا يوجد طلاب مطابقون.")}</AppText>
+        )}
+        {teams.map((team) => (
+          <View key={team.id} style={att.team}>
+            <AppText variant="label" tone="strong" accessibilityRole="header">
+              {team.title}
+            </AppText>
+            {team.members.map((u, index) => {
+              const value = record[u.id];
+              return (
+                <View key={u.id} style={[att.row, index > 0 && att.divider]}>
+                  <View style={att.person}>
+                    <AppText weight="semibold">{u.name}</AppText>
+                    <AppText variant="caption" tone="muted">
+                      {u.universityNumber}
+                      {value === undefined ? ` · ${t("Not recorded", "لم يسجل")}` : ""}
+                    </AppText>
+                  </View>
+                  <View style={att.control}>
+                    <SegmentedControl
+                      tone="status"
+                      accessibilityLabel={t(`Attendance for ${u.name}`, `حضور ${u.name}`)}
+                      disabled={!open || bulk || pending.includes(u.id)}
+                      value={value === undefined ? undefined : value ? "present" : "absent"}
+                      onChange={(next) => mark(u.id, next === "present")}
+                      options={[
+                        { id: "present", label: t("Present", "حاضر") },
+                        { id: "absent", label: t("Absent", "غائب") },
+                      ]}
+                    />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
+const att = StyleSheet.create({
+  screen: { flex: 1, minHeight: 0 },
+  summary: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#fffffff2",
+    borderBottomWidth: 1,
+    borderColor: colors.stroke,
+  },
+  counts: { flexDirection: "row", flexWrap: "wrap", columnGap: 14, rowGap: 2, flexShrink: 1 },
+  content: {
+    padding: 16,
+    gap: 14,
+    paddingBottom: 28,
+    width: "100%",
+    maxWidth: 600,
+    alignSelf: "center",
+  },
+  dayRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52 },
+  team: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 2,
+    borderRadius: 16,
+    backgroundColor: colors.panelStrong,
+    borderWidth: 1,
+    borderColor: colors.stroke,
+  },
+  row: {
+    minHeight: 64,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+  },
+  divider: { borderTopWidth: 1, borderColor: colors.line },
+  // Name and control share a line when they fit; the control drops below at large text sizes.
+  person: { flexGrow: 1, flexShrink: 1, flexBasis: 100, minWidth: 0, gap: 2 },
+  control: { flexGrow: 1, flexBasis: 150, maxWidth: 260 },
+});
 export function TablesPanel({ readonly = false }: { readonly?: boolean }) {
   const { state, act, actorId } = useWorkspace();
   const t = useCopy();
@@ -210,7 +354,7 @@ export function TablesPanel({ readonly = false }: { readonly?: boolean }) {
       {!readonly &&
         state.users.find((u) => u.id === actorId)?.role === "workshop" &&
         state.projects.some((p) => !!p.table) && (
-          <Panel title="Release table / Free capacity">
+          <Panel title={t("Release table / Free capacity", "إخلاء طاولة / تحرير السعة")}>
             {state.projects
               .filter((p) => p.table)
               .map((p) => (
@@ -232,8 +376,18 @@ export function TablesPanel({ readonly = false }: { readonly?: boolean }) {
         )}
       </AppText>
       <View style={kit.wrap}>
-        <Button title="−" variant="soft" onPress={() => setZoom((z) => Math.max(0.6, z - 0.2))} />
-        <Button title="+" variant="soft" onPress={() => setZoom((z) => Math.min(2, z + 0.2))} />
+        <Button
+          title="−"
+          accessibilityLabel={t("Zoom out", "تصغير")}
+          variant="soft"
+          onPress={() => setZoom((z) => Math.max(0.6, z - 0.2))}
+        />
+        <Button
+          title="+"
+          accessibilityLabel={t("Zoom in", "تكبير")}
+          variant="soft"
+          onPress={() => setZoom((z) => Math.min(2, z + 0.2))}
+        />
       </View>
       <ScrollView horizontal>
         <Svg
@@ -296,7 +450,7 @@ export function TablesPanel({ readonly = false }: { readonly?: boolean }) {
             );
           })}
           <SvgText x={1240} y={475} fontSize={24} fill="#526443">
-            Entrance
+            {t("Entrance", "المدخل")}
           </SvgText>
         </Svg>
       </ScrollView>
@@ -501,7 +655,11 @@ function NoticeEditor({ observations }: { observations: boolean }) {
         {!observations && (
           <View style={kit.row}>
             <AppText style={kit.grow}>{t("Include supervisors", "إشراك المشرفين")}</AppText>
-            <Switch value={supervisors} onValueChange={setSupervisors} />
+            <ToggleSwitch
+              accessibilityLabel={t("Include supervisors", "إشراك المشرفين")}
+              value={supervisors}
+              onValueChange={setSupervisors}
+            />
           </View>
         )}
         <Button

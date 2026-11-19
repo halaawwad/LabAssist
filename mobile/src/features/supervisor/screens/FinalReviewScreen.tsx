@@ -2,10 +2,22 @@ import { MobileModal as Modal } from "@/components/MobileModal";
 import { demoSupervisor } from "../../../../../shared/web/domain";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { useState } from "react";
-import { Image, ScrollView, Switch, View } from "react-native";
+import { Image, ScrollView, StyleSheet, View } from "react-native";
+import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppText, Button } from "@/components";
-import { Chips, Field, Panel, kit } from "@/components/MobileKit";
+import {
+  Field,
+  IconButton,
+  Panel,
+  SegmentedControl,
+  SelectField,
+  SheetHeader,
+  kit,
+  useCopy,
+  ToggleSwitch,
+} from "@/components/MobileKit";
+import { colors } from "@/theme";
 import {
   finalReportProjects,
   finalReportReviews,
@@ -13,6 +25,9 @@ import {
   type ReportBlock,
 } from "@/domain/webSupervisor/finalReportsMockData";
 import { useLocalPreview } from "@/lib/useLocalPreview";
+import { isolateLtr, useLanguage } from "@/i18n";
+import { formatDateTime, formatFileSize, formatLongDate } from "@/i18n/format";
+import { useStatusLabel } from "@/features/shared/reportLabels";
 
 function Block({ block }: { block: ReportBlock }) {
   if (block.kind === "figure")
@@ -100,6 +115,7 @@ function Block({ block }: { block: ReportBlock }) {
   );
 }
 export function FinalReviewScreen() {
+  const t = useCopy();
   const { state, actorId, retryLoading } = useWorkspace();
   const {
     value: reviews,
@@ -119,18 +135,27 @@ export function FinalReviewScreen() {
         (review) => review.id === project.id && review.submissions.at(-1)?.status !== "draft",
       ),
   );
-  if (!ready) return <AppText>Loading saved reviews...</AppText>;
-  if (error)
+  if (!ready)
+    return <AppText>{t("Loading saved reviews...", "جارٍ تحميل المراجعات المحفوظة...")}</AppText>;
+  if (error.startsWith("Could not load"))
     return (
-      <Panel title="Could not load reviews">
-        <AppText>{error}</AppText>
-        <Button title="Retry" onPress={retryLoading} />
+      <Panel title={t("Could not load reviews", "تعذر تحميل المراجعات")}>
+        <AppText>
+          {t(
+            "Could not load saved changes. Existing data is preserved; allow storage and retry loading.",
+            "تعذر تحميل التغييرات المحفوظة. البيانات الحالية محفوظة؛ اسمح بالتخزين وأعد المحاولة.",
+          )}
+        </AppText>
+        <Button title={t("Retry", "إعادة المحاولة")} onPress={retryLoading} />
       </Panel>
     );
   if (!projects.length)
     return (
       <AppText>
-        No submitted reports from linked project groups. Private drafts are not available.
+        {t(
+          "No submitted reports from linked project groups. Private drafts are not available.",
+          "لا توجد تقارير مسلّمة من مجموعات المشاريع المرتبطة. المسودات الخاصة غير متاحة.",
+        )}
       </AppText>
     );
   return (
@@ -139,6 +164,7 @@ export function FinalReviewScreen() {
       projects={projects}
       reviews={reviews}
       setReviews={setReviews}
+      saveError={error}
     />
   );
 }
@@ -146,9 +172,11 @@ function LinkedFinalReviewScreen({
   projects,
   reviews,
   setReviews,
+  saveError,
 }: {
   projects: typeof finalReportProjects;
   reviews: typeof finalReportReviews;
+  saveError: string;
   setReviews: (
     value:
       | typeof finalReportReviews
@@ -156,6 +184,9 @@ function LinkedFinalReviewScreen({
   ) => Promise<boolean>;
 }) {
   const { state, actorId } = useWorkspace();
+  const t = useCopy();
+  const { language } = useLanguage();
+  const statusLabel = useStatusLabel();
   const [chosen, setChosen] = useState(projects[0].id),
     [tab, setTab] = useState("Report"),
     [page, setPage] = useState(0),
@@ -211,12 +242,16 @@ function LinkedFinalReviewScreen({
     )
       return false;
     setBody("");
-    setNotice(kind === "approval" ? "Report approved." : "Feedback saved.");
+    setNotice(
+      kind === "approval"
+        ? t("Report approved.", "تم اعتماد التقرير.")
+        : t("Feedback saved.", "تم حفظ الملاحظات."),
+    );
   }
   const slideView = (
     <Panel tint="#eaf0e3">
       <AppText variant="caption">
-        {p.name} · Slide {slide + 1}/{p.slides.length}
+        {p.name} · {t("Slide", "الشريحة")} {isolateLtr(`${slide + 1}/${p.slides.length}`)}
       </AppText>
       <AppText variant="title">{currentSlide.title}</AppText>
       {currentSlide.subtitle && <AppText>{currentSlide.subtitle}</AppText>}
@@ -228,17 +263,77 @@ function LinkedFinalReviewScreen({
       )}
     </Panel>
   );
+  const pager = (index: number, count: number, set: (value: number) => void, unit: string) => (
+    <View style={styles.pager}>
+      <IconButton
+        icon={ChevronLeft}
+        flipInRTL
+        label={t(`Previous ${unit.toLowerCase()}`, `${unit} السابقة`)}
+        disabled={!index}
+        onPress={() => set(index - 1)}
+      />
+      <AppText weight="semibold" align="center" accessibilityLiveRegion="polite" style={kit.grow}>
+        {unit} {index + 1} / {count}
+      </AppText>
+      <IconButton
+        icon={ChevronRight}
+        flipInRTL
+        label={t(`Next ${unit.toLowerCase()}`, `${unit} التالية`)}
+        disabled={index === count - 1}
+        onPress={() => set(index + 1)}
+      />
+    </View>
+  );
+  const reviewPanel = (
+    <Panel title={t("Review this submitted version", "مراجعة النسخة المسلّمة")}>
+      <AppText variant="caption" tone="muted">
+        {isolateLtr(submission.fileName)} · {isolateLtr(submission.version)}
+      </AppText>
+      <Field
+        label={t("Page / section and feedback", "الصفحة / القسم والملاحظات")}
+        value={body}
+        onChangeText={setBody}
+        multiline
+      />
+      {!!saveError && (
+        <AppText tone="danger" accessibilityRole="alert">
+          {t(
+            "Could not save changes on this device. Your input is preserved; try again.",
+            "تعذر حفظ التغييرات على هذا الجهاز. ملاحظاتك محفوظة؛ حاول مجددًا.",
+          )}
+        </AppText>
+      )}
+      <Button
+        title={t("Add comment", "إضافة تعليق")}
+        fullWidth
+        disabled={!body.trim()}
+        onPress={async () => await feedback("comment")}
+      />
+      <View style={kit.wrap}>
+        <Button
+          title={t("Request changes", "طلب تعديلات")}
+          variant="secondary"
+          disabled={!body.trim() || submission.status !== "submitted"}
+          onPress={async () => await feedback("revision")}
+        />
+        <Button
+          title={t("Approve report", "اعتماد التقرير")}
+          variant="secondary"
+          disabled={submission.status !== "submitted"}
+          onPress={async () => await feedback("approval")}
+        />
+      </View>
+    </Panel>
+  );
   return (
     <ScrollView
       automaticallyAdjustKeyboardInsets
       keyboardDismissMode="on-drag"
-      contentContainerStyle={{ padding: 18, gap: 16 }}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={styles.content}
     >
-      <AppText variant="title">Final Reports</AppText>
-      <AppText tone="muted">
-        Submitted reports, presentation slides and supervisor feedback.
-      </AppText>
-      <Chips
+      <SelectField
+        label={t("Project", "المشروع")}
         value={chosen}
         onChange={(v) => {
           setChosen(v);
@@ -246,111 +341,127 @@ function LinkedFinalReviewScreen({
           setSlide(0);
           setBody("");
         }}
-        options={projects.map((p) => ({ id: p.id, label: p.name }))}
+        options={projects.map((item) => {
+          const latest = reviews.find((r) => r.id === item.id)?.submissions.at(-1);
+          return {
+            id: item.id,
+            label: item.name,
+            detail: `${isolateLtr(item.code)} · ${latest ? statusLabel(latest.status) : ""} ${latest ? isolateLtr(latest.version) : ""}`,
+          };
+        })}
       />
-      <Panel>
-        <Image
-          source={p.image as unknown as number}
-          style={{ width: "100%", height: 140, borderRadius: 18 }}
-        />
-        <AppText variant="title">{p.name}</AppText>
-        <AppText>
-          {p.code} · {p.students.map((s) => s.name).join(" · ")}
-        </AppText>
-        <AppText tone="primary">
-          {submission.status} · {submission.version}
-        </AppText>
-        <AppText variant="caption">
-          {submission.fileName} · {submission.pageCount} pages · {submission.fileSizeMb} MB
-        </AppText>
-        {submission.submittedAt && (
-          <AppText variant="caption">Submitted {submission.submittedAt.replace("T", " ")}</AppText>
-        )}
-      </Panel>
-      <Chips
+      <View style={styles.summary}>
+        <Image source={p.image as unknown as number} style={styles.thumb} />
+        <View style={kit.grow}>
+          <AppText variant="caption" tone="muted">
+            {isolateLtr(p.code)} · {p.students.map((s) => s.name).join(" · ")}
+          </AppText>
+          <AppText weight="semibold" tone="primary">
+            {statusLabel(submission.status)} · {isolateLtr(submission.version)}
+          </AppText>
+          <AppText variant="caption">
+            {isolateLtr(submission.fileName)} · {isolateLtr(submission.pageCount)}{" "}
+            {t("pages", "صفحة")} · {formatFileSize(language, submission.fileSizeMb)}
+          </AppText>
+          {submission.submittedAt && (
+            <AppText variant="caption" tone="muted">
+              {t("Submitted", "سُلّم")} {formatDateTime(language, submission.submittedAt)}
+            </AppText>
+          )}
+        </View>
+      </View>
+      <SegmentedControl
+        accessibilityLabel={t("Report section", "قسم التقرير")}
         value={tab}
         onChange={setTab}
-        options={["Report", "Presentation", "ABET", "History", "Feedback"].map((id) => ({
-          id,
-          label: id,
-        }))}
+        options={[
+          { id: "Report", label: t("Report", "التقرير") },
+          { id: "Presentation", label: t("Presentation", "العرض") },
+          { id: "ABET", label: "ABET" },
+          { id: "History", label: t("History", "السجل") },
+        ]}
       />
       {!submitted ? (
-        <Panel title="Not submitted">
+        <Panel title={t("Not submitted", "لم يُسلّم")}>
           <AppText>
-            This team’s working draft is private. It becomes available here after submission.
+            {t(
+              "This team’s working draft is private. It becomes available here after submission.",
+              "مسودة الفريق خاصة، وتظهر هنا بعد التسليم.",
+            )}
           </AppText>
         </Panel>
       ) : (
         <>
           {tab === "Report" && (
             <>
-              <Chips
-                value={String(page)}
-                onChange={(v) => setPage(Number(v))}
-                options={p.pages.map((v, i) => ({ id: String(i), label: v.title ?? v.section }))}
-              />
-              <Panel tint="#fffcf5">
-                <AppText variant="caption">
-                  {reportPage.section} · Page {reportPage.number || "Cover"}
-                </AppText>
-                {reportPage.title && (
-                  <AppText variant="title" align="center">
-                    {reportPage.title}
+              <View style={styles.viewer}>
+                <SelectField
+                  label={t("Go to section", "انتقل إلى قسم")}
+                  value={String(page)}
+                  onChange={(v) => setPage(Number(v))}
+                  options={p.pages.map((v, i) => ({
+                    id: String(i),
+                    label:
+                      v.title ??
+                      (v.section.toLowerCase() === "cover" ? t("Cover", "الغلاف") : v.section),
+                    detail: `${v.section.toLowerCase() === "cover" ? t("Cover", "الغلاف") : v.section} · ${v.number ? `${t("Page", "صفحة")} ${v.number}` : t("Cover", "الغلاف")}`,
+                  }))}
+                />
+                <View style={styles.paper}>
+                  <AppText variant="caption" tone="muted">
+                    {reportPage.section.toLowerCase() === "cover"
+                      ? t("Cover", "الغلاف")
+                      : reportPage.section}{" "}
+                    · {t("Page", "صفحة")} {reportPage.number || t("Cover", "الغلاف")}
                   </AppText>
-                )}
-                {reportPage.blocks.map((b) => (
-                  <Block key={b.id} block={b} />
-                ))}
-              </Panel>
-              <View style={kit.wrap}>
-                <Button
-                  title="Previous page"
-                  size="sm"
-                  disabled={!page}
-                  onPress={() => setPage(page - 1)}
-                />
-                <Button
-                  title="Next page"
-                  size="sm"
-                  disabled={page === p.pages.length - 1}
-                  onPress={() => setPage(page + 1)}
-                />
+                  {reportPage.title && (
+                    <AppText variant="title" align="center">
+                      {reportPage.title}
+                    </AppText>
+                  )}
+                  {reportPage.blocks.map((b) => (
+                    <Block key={b.id} block={b} />
+                  ))}
+                </View>
+                {pager(page, p.pages.length, setPage, t("Page", "الصفحة"))}
               </View>
+              {reviewPanel}
             </>
           )}
           {tab === "Presentation" && (
             <>
-              <AppText variant="caption">
-                {p.presentationFile.fileName} · {p.presentationFile.pageCount} slides
+              <AppText variant="caption" tone="muted">
+                {isolateLtr(p.presentationFile.fileName)} ·{" "}
+                {isolateLtr(p.presentationFile.pageCount)} {t("slides", "شرائح")}
               </AppText>
-              {slideView}
-              <View style={kit.wrap}>
-                <Button
-                  title="Previous"
-                  disabled={!slide}
-                  size="sm"
-                  onPress={() => setSlide(slide - 1)}
-                />
-                <Button
-                  title="Next"
-                  disabled={slide === p.slides.length - 1}
-                  size="sm"
-                  onPress={() => setSlide(slide + 1)}
-                />
-                <Button title="Present full screen" variant="soft" onPress={() => setFull(true)} />
+              <View style={styles.viewer}>
+                {slideView}
+                {pager(slide, p.slides.length, setSlide, t("Slide", "الشريحة"))}
               </View>
+              <Button
+                title={t("Present full screen", "عرض بملء الشاشة")}
+                variant="secondary"
+                onPress={() => setFull(true)}
+              />
               <Field
-                label={`Comment on slide ${slide + 1}`}
+                label={t(`Comment on slide ${slide + 1}`, `تعليق على الشريحة ${slide + 1}`)}
                 value={body}
                 onChangeText={setBody}
                 multiline
               />
+              {!!saveError && (
+                <AppText tone="danger" accessibilityRole="alert">
+                  {t(
+                    "Could not save changes on this device. Your input is preserved; try again.",
+                    "تعذر حفظ التغييرات على هذا الجهاز. ملاحظاتك محفوظة؛ حاول مجددًا.",
+                  )}
+                </AppText>
+              )}
               <Button
-                title="Save slide comment"
+                title={t("Save slide comment", "حفظ تعليق الشريحة")}
+                fullWidth
                 disabled={!body.trim()}
                 onPress={async () => {
-                  setBody(`Slide ${slide + 1}: ${body}`);
                   if (
                     (await setReviews(
                       reviews.map((r) =>
@@ -374,20 +485,21 @@ function LinkedFinalReviewScreen({
                   )
                     return false;
                   setBody("");
-                  setNotice("Slide comment saved.");
+                  setNotice(t("Slide comment saved.", "تم حفظ تعليق الشريحة."));
                 }}
               />
             </>
           )}
           {tab === "ABET" && (
-            <Panel title="Report coverage checklist">
+            <Panel title={t("Report coverage checklist", "قائمة تغطية التقرير")}>
               {abetCriteria.map((id) => (
-                <View key={id} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                  <View style={{ flex: 1 }}>
+                <View key={id} style={styles.criterion}>
+                  <View style={kit.grow}>
                     <AppText weight="semibold">{id}</AppText>
                     <AppText variant="caption">{p.criterionPages[id]}</AppText>
                   </View>
-                  <Switch
+                  <ToggleSwitch
+                    accessibilityLabel={id}
                     value={review.criteria[id] ?? !review.missing.includes(id)}
                     onValueChange={async (v) => {
                       await setReviews(
@@ -401,85 +513,89 @@ function LinkedFinalReviewScreen({
               ))}
             </Panel>
           )}
-          {tab === "History" &&
-            review.submissions.map((s) => (
-              <Panel key={s.version} title={s.version}>
-                <AppText>{s.fileName}</AppText>
-                <AppText>
-                  {s.status} · {s.submittedAt ?? "Draft"}
-                </AppText>
-                <AppText variant="caption">
-                  {s.pageCount} pages · {s.fileSizeMb} MB
-                </AppText>
-              </Panel>
-            ))}
-          {tab === "Feedback" && (
+          {tab === "History" && (
             <>
-              <Panel title="Review submitted version">
-                <Field
-                  label="Page / section and feedback"
-                  value={body}
-                  onChangeText={setBody}
-                  multiline
-                />
-                <View style={kit.wrap}>
-                  <Button
-                    title="Add comment"
-                    disabled={!body.trim()}
-                    onPress={async () => await feedback("comment")}
-                  />
-                  <Button
-                    title="Request changes"
-                    variant="soft"
-                    disabled={!body.trim() || submission.status !== "submitted"}
-                    onPress={async () => await feedback("revision")}
-                  />
-                  <Button
-                    title="Approve report"
-                    variant="soft"
-                    disabled={submission.status !== "submitted"}
-                    onPress={async () => await feedback("approval")}
-                  />
+              <AppText variant="label" tone="strong" accessibilityRole="header">
+                {t("Submitted versions", "النسخ المسلّمة")}
+              </AppText>
+              <View style={kit.list}>
+                {review.submissions.map((s, index) => (
+                  <View key={s.version} style={[styles.historyRow, index > 0 && styles.divider]}>
+                    <AppText weight="semibold">
+                      {isolateLtr(s.version)} · {statusLabel(s.status)}
+                    </AppText>
+                    <AppText variant="caption">{isolateLtr(s.fileName)}</AppText>
+                    <AppText variant="caption" tone="muted">
+                      {s.submittedAt
+                        ? formatDateTime(language, s.submittedAt)
+                        : t("Draft", "مسودة")}{" "}
+                      · {isolateLtr(s.pageCount)} {t("pages", "صفحة")} ·{" "}
+                      {formatFileSize(language, s.fileSizeMb)}
+                    </AppText>
+                  </View>
+                ))}
+              </View>
+              <AppText variant="label" tone="strong" accessibilityRole="header">
+                {t("Feedback", "الملاحظات")}
+              </AppText>
+              {!review.feedback.length && (
+                <AppText tone="muted">{t("No feedback yet.", "لا توجد ملاحظات بعد.")}</AppText>
+              )}
+              {!!review.feedback.length && (
+                <View style={kit.list}>
+                  {review.feedback.map((f, index) => (
+                    <View key={f.id} style={[styles.historyRow, index > 0 && styles.divider]}>
+                      <AppText weight="semibold">
+                        {statusLabel(f.kind)} · {isolateLtr(f.version)}
+                      </AppText>
+                      <AppText>{f.text}</AppText>
+                      <AppText variant="caption" tone="muted">
+                        {formatLongDate(language, f.date)}
+                      </AppText>
+                    </View>
+                  ))}
                 </View>
-              </Panel>
-              {review.feedback.map((f) => (
-                <Panel key={f.id}>
-                  <AppText weight="bold">
-                    {f.kind} · {f.version}
-                  </AppText>
-                  <AppText>{f.text}</AppText>
-                  <AppText variant="caption">{f.date}</AppText>
-                </Panel>
-              ))}
+              )}
             </>
           )}
         </>
       )}
       {!!notice && <AppText accessibilityRole="alert">{notice}</AppText>}
       <Modal visible={full} onRequestClose={() => setFull(false)}>
-        <SafeAreaView
-          style={{
-            flex: 1,
-            backgroundColor: "#f1f4eb",
-            padding: 18,
-            justifyContent: "center",
-            gap: 14,
-          }}
-        >
-          <ScrollView automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag">
-            {slideView}
-          </ScrollView>
-          <View style={kit.wrap}>
-            <Button title="Previous" disabled={!slide} onPress={() => setSlide(slide - 1)} />
-            <Button
-              title="Next"
-              disabled={slide === p.slides.length - 1}
-              onPress={() => setSlide(slide + 1)}
-            />
-            <Button title="Close" variant="soft" onPress={() => setFull(false)} />
+        <SafeAreaView edges={["top", "bottom"]} style={styles.full}>
+          <SheetHeader
+            title={p.name}
+            subtitle={`${t("Slide", "الشريحة")} ${slide + 1} / ${p.slides.length}`}
+            onClose={() => setFull(false)}
+          />
+          <ScrollView contentContainerStyle={styles.fullBody}>{slideView}</ScrollView>
+          <View style={styles.fullFooter}>
+            {pager(slide, p.slides.length, setSlide, t("Slide", "الشريحة"))}
           </View>
         </SafeAreaView>
       </Modal>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  content: { padding: 16, gap: 16, paddingBottom: 28 },
+  summary: { flexDirection: "row", gap: 12, alignItems: "center" },
+  thumb: { width: 72, height: 72, borderRadius: 14 },
+  viewer: {
+    gap: 12,
+    padding: 12,
+    borderRadius: 18,
+    backgroundColor: colors.panelStrong,
+    borderWidth: 1,
+    borderColor: colors.stroke,
+  },
+  paper: { gap: 12, padding: 14, borderRadius: 12, backgroundColor: "#fffcf5" },
+  pager: { flexDirection: "row", alignItems: "center", gap: 10 },
+  criterion: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 52 },
+  historyRow: { gap: 2, paddingVertical: 10 },
+  divider: { borderTopWidth: 1, borderColor: colors.line },
+  full: { flex: 1, backgroundColor: "#f1f4eb" },
+  fullBody: { padding: 16, flexGrow: 1, justifyContent: "center" },
+  fullFooter: { padding: 16, borderTopWidth: 1, borderColor: colors.line },
+});

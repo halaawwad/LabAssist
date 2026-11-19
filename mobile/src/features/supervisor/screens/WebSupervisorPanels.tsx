@@ -1,13 +1,22 @@
 import { Disclosure } from "@/components/Disclosure";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
-import { MobileModal as Modal } from "@/components/MobileModal";
 import { useState } from "react";
 import { demoSupervisor } from "../../../../../shared/web/domain";
 import { useWorkspace } from "@/state/WorkspaceProvider";
-import { Image, ScrollView, View, StyleSheet } from "react-native";
+import { Image, View, StyleSheet } from "react-native";
 import Svg, { Line, Polyline, Circle, Text as SvgText } from "react-native-svg";
 import { AppText, Button } from "@/components";
-import { Chips, Field, Panel, Ring, kit } from "@/components/MobileKit";
+import {
+  Chips,
+  Field,
+  Panel,
+  Ring,
+  kit,
+  SearchField,
+  FormSheet,
+  useCopy,
+} from "@/components/MobileKit";
+import { useLanguage } from "@/i18n";
 import { router } from "@/native/router";
 import { useLocalPreview } from "@/lib/useLocalPreview";
 import { supervisedProjects, upcomingReviews } from "@/domain/webSupervisor/projectsMockData";
@@ -20,7 +29,43 @@ import {
 } from "@/domain/webSupervisor/tasksMockData";
 
 const tones = ["#e9f0e2", "#e5eef7", "#eee7f4", "#f3e8eb"];
+const terms: Record<string, string> = {
+  All: "الكل",
+  "On Track": "في المسار",
+  "At Risk": "معرّض للخطر",
+  Delayed: "متأخر",
+  Completed: "مكتملة",
+  Complete: "مكتملة",
+  Current: "الحالية",
+  Upcoming: "القادمة",
+  Pending: "معلقة",
+  Urgent: "عاجلة",
+  High: "عالية",
+  Medium: "متوسطة",
+  Low: "منخفضة",
+  Present: "حاضر",
+  Absent: "غائب",
+  present: "الحضور",
+  absence: "الغياب",
+  "Repeated absence": "غياب متكرر",
+  Today: "اليوم",
+  Overdue: "متأخرة",
+  "Due date": "تاريخ الاستحقاق",
+  Priority: "الأولوية",
+  proposal: "المقترح",
+  circuit: "الدائرة",
+  prototype: "النموذج الأولي",
+  testing: "الاختبار",
+  final: "النهائي",
+  design: "التصميم",
+  demo: "العرض التوضيحي",
+  testingDelay: "تأخر الاختبار",
+  missingComponents: "قطع ناقصة",
+  reportPending: "تقرير معلق",
+  slowProgress: "تقدم بطيء",
+};
 function Badge({ text }: { text: string }) {
+  const tx = useCopy();
   return (
     <View
       style={{
@@ -37,7 +82,7 @@ function Badge({ text }: { text: string }) {
       }}
     >
       <AppText variant="caption" tone="primary">
-        {text}
+        {tx(text, terms[text] ?? text)}
       </AppText>
     </View>
   );
@@ -48,6 +93,11 @@ export function WebSupervisorPanels({
   page: "projects" | "students" | "progress" | "tasks";
 }) {
   const { state, actorId } = useWorkspace();
+  const tx = useCopy();
+  const { ltr, formatLongDate } = useLanguage();
+  const term = (value: string) => tx(value, terms[value] ?? value);
+  const day = (value: string) =>
+    /^\d{4}-\d{2}-\d{2}$/.test(value) ? formatLongDate(value) : value;
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("All"),
     [chosen, setChosen] = useState(0),
@@ -98,8 +148,13 @@ export function WebSupervisorPanels({
     (actor.canonicalId ?? (actor.id === "d1" ? demoSupervisor.id : actor.id)) !== demoSupervisor.id
   )
     return (
-      <Panel title="Linked projects">
-        <AppText>No linked projects in this local preview.</AppText>
+      <Panel title={tx("Linked projects", "المشاريع المرتبطة")}>
+        <AppText>
+          {tx(
+            "No linked projects in this local preview.",
+            "لا توجد مشاريع مرتبطة في هذه المعاينة المحلية.",
+          )}
+        </AppText>
       </Panel>
     );
   return (
@@ -111,27 +166,37 @@ export function WebSupervisorPanels({
       )}
       {page === "projects" && (
         <>
-          <AppText tone="muted">Your supervised projects, milestones and upcoming reviews.</AppText>
+          <AppText tone="muted">
+            {tx(
+              "Your supervised projects, milestones and upcoming reviews.",
+              "مشاريعك المشرف عليها ومراحلها ومراجعاتها القادمة.",
+            )}
+          </AppText>
           <Panel>
             <Image source={p.image as unknown as number} style={s.heroImage} />
             <Badge text={p.status} />
-            <AppText variant="heading">{p.name}</AppText>
             <AppText tone="muted">
-              {p.code} · {p.team} · {p.students} students
+              {p.code} · {p.team} · {p.students} {tx("students", "طلاب")}
             </AppText>
             <Ring value={p.progress} />
             <View style={kit.wrap}>
-              <Badge text={`${p.weeklyChange >= 0 ? "+" : ""}${p.weeklyChange}% this week`} />
-              <Badge text={`${p.openIssues} open issues`} />
+              <Badge
+                text={`${ltr(`${p.weeklyChange >= 0 ? "+" : ""}${p.weeklyChange}%`)} ${tx("this week", "هذا الأسبوع")}`}
+              />
+              <Badge text={`${p.openIssues} ${tx("open issues", "مشكلات مفتوحة")}`} />
             </View>
-            <AppText weight="bold">Next milestone</AppText>
+            <AppText weight="bold">{tx("Next milestone", "المرحلة التالية")}</AppText>
             <AppText>{p.nextMilestone}</AppText>
             <AppText variant="caption" tone="muted">
-              {p.milestoneDate}
+              {day(p.milestoneDate)}
             </AppText>
-            <Button title="View project details" variant="soft" onPress={() => setDetails(true)} />
+            <Button
+              title={tx("View project details", "عرض تفاصيل المشروع")}
+              variant="soft"
+              onPress={() => setDetails(true)}
+            />
           </Panel>
-          <Panel title="Other projects">
+          <Panel title={tx("Other projects", "مشاريع أخرى")}>
             {supervisedProjects.map(
               (item, i) =>
                 i !== chosen && (
@@ -149,12 +214,18 @@ export function WebSupervisorPanels({
                 ),
             )}
           </Panel>
-          <Panel title="Project overview">
+          <Panel title={tx("Project overview", "نظرة عامة على المشاريع")}>
             <View style={kit.wrap}>
               {[
-                [supervisedProjects.length, "Projects"],
-                [supervisedProjects.filter((p) => p.status === "On Track").length, "On Track"],
-                [supervisedProjects.reduce((n, p) => n + p.openIssues, 0), "Open issues"],
+                [supervisedProjects.length, tx("Projects", "المشاريع")],
+                [
+                  supervisedProjects.filter((p) => p.status === "On Track").length,
+                  term("On Track"),
+                ],
+                [
+                  supervisedProjects.reduce((n, p) => n + p.openIssues, 0),
+                  tx("Open issues", "المشكلات المفتوحة"),
+                ],
               ].map(([n, l]) => (
                 <View style={s.stat} key={l}>
                   <AppText variant="heading">{n}</AppText>
@@ -163,18 +234,18 @@ export function WebSupervisorPanels({
               ))}
             </View>
           </Panel>
-          <Panel title="Upcoming reviews">
+          <Panel title={tx("Upcoming reviews", "المراجعات القادمة")}>
             {upcomingReviews.map((r) => (
               <View key={r.id} style={s.rowBlock}>
                 <AppText weight="bold">{r.project}</AppText>
                 <AppText variant="caption">
-                  {r.date} · {r.time} · {r.location}
+                  {day(r.date)} · {ltr(r.time)} · {r.location}
                 </AppText>
                 <AppText variant="caption" tone="muted">
-                  {r.team} · {r.kind}
+                  {r.team} · {term(r.kind)}
                 </AppText>
                 <Button
-                  title="View reports"
+                  title={tx("View reports", "عرض التقارير")}
                   size="sm"
                   variant="ghost"
                   onPress={() => router.push("/native/supervisor/reports")}
@@ -186,17 +257,28 @@ export function WebSupervisorPanels({
       )}
       {page === "students" && (
         <>
-          <Disclosure title="Overview">
+          <Disclosure title={tx("Overview", "نظرة عامة")}>
             <Panel tint="#eef2e4">
-              <AppText variant="heading">A closer look at every student.</AppText>
+              <AppText variant="heading">
+                {tx("A closer look at every student.", "نظرة أقرب على كل طالب.")}
+              </AppText>
               <AppText tone="muted">
-                Follow project progress, attendance, open issues and update requests.
+                {tx(
+                  "Follow project progress, attendance, open issues and update requests.",
+                  "تابع تقدم المشاريع والحضور والمشكلات المفتوحة وطلبات التحديث.",
+                )}
               </AppText>
               <View style={kit.wrap}>
                 {[
-                  [supervisedStudents.length, "Students"],
-                  [supervisedStudents.filter((u) => u.repeatedAbsence).length, "Repeated absence"],
-                  [supervisedStudents.filter((u) => u.status === "At Risk").length, "At risk"],
+                  [supervisedStudents.length, tx("Students", "الطلاب")],
+                  [
+                    supervisedStudents.filter((u) => u.repeatedAbsence).length,
+                    term("Repeated absence"),
+                  ],
+                  [
+                    supervisedStudents.filter((u) => u.status === "At Risk").length,
+                    term("At Risk"),
+                  ],
                 ].map(([n, l]) => (
                   <View key={l} style={s.stat}>
                     <AppText variant="heading">{n}</AppText>
@@ -206,13 +288,21 @@ export function WebSupervisorPanels({
               </View>
             </Panel>
           </Disclosure>
-          <Field label="Search student, number or project" value={query} onChangeText={setQuery} />
+          <SearchField
+            label={tx("Search student, number or project", "ابحث بالطالب أو الرقم أو المشروع")}
+            placeholder={tx(
+              "Search student, number or project…",
+              "ابحث بالطالب أو الرقم أو المشروع…",
+            )}
+            value={query}
+            onChangeText={setQuery}
+          />
           <Chips
             value={filter}
             onChange={setFilter}
             options={["All", "On Track", "At Risk", "Delayed", "present", "absence"].map((id) => ({
               id,
-              label: id,
+              label: term(id),
             }))}
           />
           {filteredStudents.map((u, i) => (
@@ -231,13 +321,15 @@ export function WebSupervisorPanels({
               <View style={s.progressTrack}>
                 <View style={[s.progressFill, { width: `${u.progress}%` }]} />
               </View>
-              <AppText>{u.progress}% progress</AppText>
+              <AppText>
+                {ltr(`${u.progress}%`)} {tx("progress", "تقدم")}
+              </AppText>
               <View style={kit.wrap}>
                 <Badge text={u.attendance === "present" ? "Present" : "Absent"} />
                 {u.repeatedAbsence && <Badge text="Repeated absence" />}
               </View>
               <AppText variant="caption" tone="muted">
-                {u.issue === "none" ? "No open issues" : u.issue.replace(/([A-Z])/g, " $1")}
+                {u.issue === "none" ? tx("No open issues", "لا توجد مشكلات مفتوحة") : term(u.issue)}
               </AppText>
               {u.updateRequests?.map((text) => (
                 <AppText key={text} variant="caption">
@@ -245,7 +337,7 @@ export function WebSupervisorPanels({
                 </AppText>
               ))}
               <Button
-                title="Request an update"
+                title={tx("Request an update", "طلب تحديث")}
                 variant="soft"
                 size="sm"
                 onPress={() => {
@@ -270,15 +362,15 @@ export function WebSupervisorPanels({
             <Badge text={progress.status} />
             <AppText variant="heading">{progress.name}</AppText>
             <AppText variant="caption">
-              {progress.code} · Final deadline {progress.finalDeadline}
+              {progress.code} · {tx("Final deadline", "الموعد النهائي")}{" "}
+              {day(progress.finalDeadline)}
             </AppText>
             <Ring value={overall} />
             <AppText tone="primary">
-              {change >= 0 ? "+" : ""}
-              {change}% this week
+              {ltr(`${change >= 0 ? "+" : ""}${change}%`)} {tx("this week", "هذا الأسبوع")}
             </AppText>
           </Panel>
-          <Panel title="Progress overview">
+          <Panel title={tx("Progress overview", "نظرة عامة على التقدم")}>
             <Svg width="100%" height={190} viewBox="0 0 320 190">
               {[0, 25, 50, 75, 100].map((v) => (
                 <Line
@@ -315,10 +407,11 @@ export function WebSupervisorPanels({
               ))}
             </Svg>
             <AppText variant="caption">
-              Actual weekly project progress · {progress.weeklyProgress.length} completed weeks
+              {tx("Actual weekly project progress", "التقدم الأسبوعي الفعلي للمشروع")} ·{" "}
+              {progress.weeklyProgress.length} {tx("completed weeks", "أسابيع مكتملة")}
             </AppText>
           </Panel>
-          <Panel title="Milestone tracker">
+          <Panel title={tx("Milestone tracker", "متابعة المراحل")}>
             {projectMilestones.map((m, i) => (
               <View style={s.listRow} key={m}>
                 <Badge
@@ -330,11 +423,11 @@ export function WebSupervisorPanels({
                         : "Upcoming"
                   }
                 />
-                <AppText>{m}</AppText>
+                <AppText>{term(m)}</AppText>
               </View>
             ))}
           </Panel>
-          <Panel title="Project students">
+          <Panel title={tx("Project students", "طلاب المشروع")}>
             {progress.students.map((u) => (
               <View key={u.universityId} style={s.listRow}>
                 <View style={s.avatar}>
@@ -349,18 +442,18 @@ export function WebSupervisorPanels({
               </View>
             ))}
           </Panel>
-          <Panel title="Evidence & updates">
+          <Panel title={tx("Evidence & updates", "الأدلة والتحديثات")}>
             {progress.evidence.map((e) => (
               <View style={s.rowBlock} key={e.title}>
                 <Image source={e.photo as unknown as number} style={s.heroImage} />
                 <AppText weight="bold">{e.title}</AppText>
                 <AppText variant="caption" tone="muted">
-                  {e.date}
+                  {day(e.date)}
                 </AppText>
               </View>
             ))}
           </Panel>
-          <Panel title="Issues & blockers">
+          <Panel title={tx("Issues & blockers", "المشكلات والعوائق")}>
             {progress.issues.length ? (
               progress.issues.map((issue) => (
                 <View key={issue.title} style={s.rowBlock}>
@@ -369,13 +462,13 @@ export function WebSupervisorPanels({
                 </View>
               ))
             ) : (
-              <AppText>No open issues.</AppText>
+              <AppText>{tx("No open issues.", "لا توجد مشكلات مفتوحة.")}</AppText>
             )}
           </Panel>
-          <Panel title="Supervisor note">
+          <Panel title={tx("Supervisor note", "ملاحظة المشرف")}>
             {!!notesError && <AppText accessibilityRole="alert">{notesError}</AppText>}
             <Field
-              label="Note for this project"
+              label={tx("Note for this project", "ملاحظة لهذا المشروع")}
               multiline
               value={noteDrafts[progress.code] ?? notes[progress.code] ?? progress.note}
               onChangeText={(value) =>
@@ -383,7 +476,7 @@ export function WebSupervisorPanels({
               }
             />
             <Button
-              title="Save note"
+              title={tx("Save note", "حفظ الملاحظة")}
               size="sm"
               onPress={async () => {
                 if (
@@ -393,7 +486,12 @@ export function WebSupervisorPanels({
                       noteDrafts[progress.code] ?? notes[progress.code] ?? progress.note,
                   })
                 )
-                  setNotice("Project note saved on this device.");
+                  setNotice(
+                    tx(
+                      "Project note saved on this device.",
+                      "تم حفظ ملاحظة المشروع على هذا الجهاز.",
+                    ),
+                  );
               }}
             />
           </Panel>
@@ -401,18 +499,22 @@ export function WebSupervisorPanels({
       )}
       {page === "tasks" && (
         <>
-          <Disclosure title="Overview">
+          <Disclosure title={tx("Overview", "نظرة عامة")}>
             <Panel tint="#ecf0e4">
-              <AppText variant="heading">Small follow-ups. Clearer progress.</AppText>
+              <AppText variant="heading">
+                {tx("Small follow-ups. Clearer progress.", "متابعات صغيرة. تقدم أوضح.")}
+              </AppText>
               <AppText tone="muted">
-                Your supervision work, reviews and meetings — separate from student implementation
-                tasks.
+                {tx(
+                  "Your supervision work, reviews and meetings — separate from student implementation tasks.",
+                  "أعمالك الإشرافية ومراجعاتك واجتماعاتك — منفصلة عن مهام تنفيذ الطلاب.",
+                )}
               </AppText>
               <View style={kit.wrap}>
                 {[
-                  [tasks.length, "All tasks"],
-                  [tasks.filter((t) => t.status === "Completed").length, "Completed"],
-                  [tasks.filter((t) => t.status === "Pending").length, "Pending"],
+                  [tasks.length, tx("All tasks", "كل المهام")],
+                  [tasks.filter((t) => t.status === "Completed").length, term("Completed")],
+                  [tasks.filter((t) => t.status === "Pending").length, term("Pending")],
                 ].map(([n, l]) => (
                   <View key={l} style={s.stat}>
                     <AppText variant="heading">{n}</AppText>
@@ -422,10 +524,10 @@ export function WebSupervisorPanels({
               </View>
             </Panel>
           </Disclosure>
-          <Panel title="Quick actions">
+          <Panel title={tx("Quick actions", "إجراءات سريعة")}>
             <View style={kit.wrap}>
               <Button
-                title="Create task"
+                title={tx("Create task", "إنشاء مهمة")}
                 size="sm"
                 onPress={() =>
                   setEditing({
@@ -437,19 +539,19 @@ export function WebSupervisorPanels({
                 }
               />
               <Button
-                title="View reports"
+                title={tx("View reports", "عرض التقارير")}
                 size="sm"
                 variant="soft"
                 onPress={() => router.push("/native/supervisor/reports")}
               />
               <Button
-                title="Schedule meeting"
+                title={tx("Schedule meeting", "جدولة اجتماع")}
                 size="sm"
                 variant="soft"
                 onPress={() => router.push("/native/supervisor/meetings")}
               />
               <Button
-                title="Send feedback"
+                title={tx("Send feedback", "إرسال ملاحظات")}
                 size="sm"
                 variant="ghost"
                 onPress={() => {
@@ -459,18 +561,26 @@ export function WebSupervisorPanels({
               />
             </View>
           </Panel>
-          <Field label="Search tasks" value={query} onChangeText={setQuery} />
+          <SearchField
+            label={tx("Search tasks", "البحث في المهام")}
+            placeholder={tx(
+              "Search tasks by title, student or project…",
+              "ابحث في المهام بالعنوان أو الطالب أو المشروع…",
+            )}
+            value={query}
+            onChangeText={setQuery}
+          />
           <Chips
             value={filter}
             onChange={setFilter}
             options={["All", "Today", "Overdue", "Pending", "Completed", "Urgent", "High"].map(
-              (id) => ({ id, label: id }),
+              (id) => ({ id, label: term(id) }),
             )}
           />
           <Chips
             value={sort}
             onChange={setSort}
-            options={["Due date", "Priority"].map((id) => ({ id, label: id }))}
+            options={["Due date", "Priority"].map((id) => ({ id, label: term(id) }))}
           />
           {visibleTasks.map((task) => (
             <Panel key={task.id}>
@@ -482,10 +592,16 @@ export function WebSupervisorPanels({
               <AppText variant="caption" tone="muted">
                 {task.projectCode} · {task.projectName}
               </AppText>
-              <AppText variant="caption">Due {task.dueDate}</AppText>
+              <AppText variant="caption">
+                {tx("Due", "الاستحقاق")} {day(task.dueDate)}
+              </AppText>
               <View style={kit.wrap}>
                 <Button
-                  title={task.status === "Completed" ? "Mark pending" : "Mark complete"}
+                  title={
+                    task.status === "Completed"
+                      ? tx("Mark pending", "تعليم كمعلقة")
+                      : tx("Mark complete", "تعليم كمكتملة")
+                  }
                   variant="soft"
                   size="sm"
                   onPress={async () =>
@@ -499,7 +615,7 @@ export function WebSupervisorPanels({
                   }
                 />
                 <Button
-                  title="Edit task"
+                  title={tx("Edit task", "تعديل المهمة")}
                   variant="ghost"
                   size="sm"
                   onPress={() => setEditing({ ...task })}
@@ -509,128 +625,128 @@ export function WebSupervisorPanels({
           ))}
         </>
       )}
-      <Modal
+      <FormSheet
         visible={details || !!editing}
-        animationType="slide"
-        onRequestClose={() => {
+        title={
+          editing
+            ? editing.id
+              ? tx("Edit task", "تعديل المهمة")
+              : tx("Create task", "إنشاء مهمة")
+            : page === "projects"
+              ? p.name
+              : page === "students"
+                ? tx("Request student update", "طلب تحديث من الطالب")
+                : tx("Send project feedback", "إرسال ملاحظات على المشروع")
+        }
+        onClose={() => {
           setDetails(false);
           setEditing(null);
         }}
       >
-        <ScrollView
-          automaticallyAdjustKeyboardInsets
-          keyboardDismissMode="on-drag"
-          contentContainerStyle={{ padding: 24, paddingTop: 50, gap: 15 }}
-        >
-          <Button
-            title="Close details"
-            variant="ghost"
-            onPress={() => {
-              setDetails(false);
-              setEditing(null);
-            }}
-          />
-          {editing ? (
-            <>
-              <AppText variant="heading">{editing.id ? "Edit task" : "Create task"}</AppText>
-              <Field
-                label="Task title"
-                value={editing.title ?? ""}
-                onChangeText={(title) => setEditing({ ...editing, title })}
-              />
-              <Chips
-                value={editing.projectCode ?? ""}
-                onChange={(code) =>
-                  setEditing({
-                    ...editing,
-                    projectCode: code,
-                    projectName: progressProjects.find((p) => p.code === code)!.name,
-                  })
-                }
-                options={progressProjects.map((p) => ({ id: p.code, label: p.name }))}
-              />
-              <Chips
-                value={editing.priority ?? "Medium"}
-                onChange={(priority) =>
-                  setEditing({ ...editing, priority: priority as SupervisorTask["priority"] })
-                }
-                options={["Urgent", "High", "Medium", "Low"].map((id) => ({ id, label: id }))}
-              />
-              <Field
-                label="Due date (YYYY-MM-DD)"
-                value={editing.dueDate ?? ""}
-                onChangeText={(dueDate) => setEditing({ ...editing, dueDate })}
-              />
-              <Button
-                title="Save task"
-                disabled={
-                  !editing.title?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(editing.dueDate ?? "")
-                }
-                onPress={async () => {
-                  const task = {
-                    ...editing,
-                    id: editing.id ?? `task-${Date.now()}`,
-                    status: editing.status ?? "Pending",
-                  } as SupervisorTask;
-                  if (
-                    (await setTasks(
-                      editing.id
-                        ? tasks.map((t) => (t.id === task.id ? task : t))
-                        : [...tasks, task],
-                    )) === false
-                  )
-                    return false;
-                  setEditing(null);
-                }}
-              />
-            </>
-          ) : page === "projects" ? (
-            <>
-              <Image source={p.image as unknown as number} style={s.heroImage} />
-              <AppText variant="heading">{p.name}</AppText>
-              <Badge text={p.status} />
-              <AppText>
-                {p.code} · {p.team} · {p.students} students
-              </AppText>
-              <Ring value={p.progress} />
-              <AppText>Next milestone: {p.nextMilestone}</AppText>
-              <AppText>Due: {p.milestoneDate}</AppText>
-              <AppText>Open issues: {p.openIssues}</AppText>
-              <Button
-                title="Review final reports"
-                onPress={() => {
-                  setDetails(false);
-                  router.push("/native/supervisor/finalReports");
-                }}
-              />
-            </>
-          ) : (
-            <>
-              <AppText variant="heading">
-                {page === "students" ? "Request student update" : "Send project feedback"}
-              </AppText>
-              <Field label="Message" value={note} onChangeText={setNote} multiline />
-              <Button
-                title="Save feedback"
-                disabled={!note.trim()}
-                onPress={async () => {
-                  if (
-                    (await setNotes({
-                      ...notes,
-                      [page === "students"
-                        ? supervisedStudents[chosen].universityId
-                        : progress.code]: note,
-                    })) === false
-                  )
-                    return false;
-                  setDetails(false);
-                  setNotice("Feedback saved in this local preview.");
-                }}
-              />
-            </>
-          )}
-        </ScrollView>
-      </Modal>
+        {editing ? (
+          <>
+            <Field
+              label={tx("Task title", "عنوان المهمة")}
+              value={editing.title ?? ""}
+              onChangeText={(title) => setEditing({ ...editing, title })}
+            />
+            <Chips
+              value={editing.projectCode ?? ""}
+              onChange={(code) =>
+                setEditing({
+                  ...editing,
+                  projectCode: code,
+                  projectName: progressProjects.find((p) => p.code === code)!.name,
+                })
+              }
+              options={progressProjects.map((p) => ({ id: p.code, label: p.name }))}
+            />
+            <Chips
+              value={editing.priority ?? "Medium"}
+              onChange={(priority) =>
+                setEditing({ ...editing, priority: priority as SupervisorTask["priority"] })
+              }
+              options={["Urgent", "High", "Medium", "Low"].map((id) => ({ id, label: term(id) }))}
+            />
+            <Field
+              label={tx("Due date (YYYY-MM-DD)", "تاريخ الاستحقاق (YYYY-MM-DD)")}
+              value={editing.dueDate ?? ""}
+              onChangeText={(dueDate) => setEditing({ ...editing, dueDate })}
+            />
+            <Button
+              title={tx("Save task", "حفظ المهمة")}
+              disabled={
+                !editing.title?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(editing.dueDate ?? "")
+              }
+              onPress={async () => {
+                const task = {
+                  ...editing,
+                  id: editing.id ?? `task-${Date.now()}`,
+                  status: editing.status ?? "Pending",
+                } as SupervisorTask;
+                if (
+                  (await setTasks(
+                    editing.id ? tasks.map((t) => (t.id === task.id ? task : t)) : [...tasks, task],
+                  )) === false
+                )
+                  return false;
+                setEditing(null);
+              }}
+            />
+          </>
+        ) : page === "projects" ? (
+          <>
+            <Image source={p.image as unknown as number} style={s.heroImage} />
+            <AppText variant="heading">{p.name}</AppText>
+            <Badge text={p.status} />
+            <AppText>
+              {ltr(p.code)} · {p.team} · {p.students} {tx("students", "طلاب")}
+            </AppText>
+            <Ring value={p.progress} />
+            <AppText>
+              {tx("Next milestone:", "المرحلة القادمة:")} {p.nextMilestone}
+            </AppText>
+            <AppText>
+              {tx("Due:", "الاستحقاق:")} {day(p.milestoneDate)}
+            </AppText>
+            <AppText>
+              {tx("Open issues:", "المشكلات المفتوحة:")} {p.openIssues}
+            </AppText>
+            <Button
+              title={tx("Review final reports", "مراجعة التقارير النهائية")}
+              onPress={() => {
+                setDetails(false);
+                router.push("/native/supervisor/finalReports");
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <Field label={tx("Message", "الرسالة")} value={note} onChangeText={setNote} multiline />
+            <Button
+              title={tx("Save feedback", "حفظ الملاحظات")}
+              disabled={!note.trim()}
+              onPress={async () => {
+                if (
+                  (await setNotes({
+                    ...notes,
+                    [page === "students" ? supervisedStudents[chosen].universityId : progress.code]:
+                      note,
+                  })) === false
+                )
+                  return false;
+                setDetails(false);
+                setNotice(
+                  tx(
+                    "Feedback saved in this local preview.",
+                    "تم حفظ الملاحظات في المعاينة المحلية.",
+                  ),
+                );
+              }}
+            />
+          </>
+        )}
+      </FormSheet>
     </View>
   );
 }

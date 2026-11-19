@@ -1,16 +1,65 @@
 import { PersonalNotebook } from "./PersonalNotebook";
 import { useState } from "react";
-import { Alert, Switch, View } from "react-native";
+import { Alert, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { persistPickedFile } from "@/lib/files";
 import { router } from "@/native/router";
-import { AppText, Button, LanguageToggle } from "@/components";
-import { Chips, Field, Panel, Ring, Portrait, kit, useCopy } from "@/components/MobileKit";
+import { AppText, Button } from "@/components";
+import {
+  Chips,
+  Field,
+  Panel,
+  Ring,
+  Portrait,
+  kit,
+  useCopy,
+  ToggleSwitch,
+} from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { canSeeProject, projectProgress } from "@/domain/workspace";
 import { colors } from "@/theme";
+import { ShieldCheck } from "lucide-react-native";
+import { useLanguage } from "@/i18n";
 
-export function ProfilePanel() {
+/** The Department demo only provides an address, so its profile is read-only. */
+export function ProfilePanel({ identity }: { identity?: { email: string } }) {
+  const t = useCopy();
+  const { ltr } = useLanguage();
+  if (!identity) return <WorkspaceProfile />;
+  return (
+    <View style={kit.stack}>
+      <Panel>
+        <View style={[kit.row, { alignItems: "center" }]}>
+          <View
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: colors.primaryWash,
+            }}
+          >
+            <ShieldCheck size={26} color={colors.primary} />
+          </View>
+          <View style={kit.grow}>
+            <AppText variant="heading">{t("Department Head", "رئيس القسم")}</AppText>
+            <AppText tone="muted" selectable>
+              {ltr(identity.email)}
+            </AppText>
+          </View>
+        </View>
+        <AppText variant="caption" tone="muted">
+          {t(
+            "Signed in with the department demo account. A display name and photo are not available for this account, so profile editing is not offered.",
+            "تم تسجيل الدخول بحساب القسم التجريبي. لا يتوفر اسم أو صورة لهذا الحساب، لذا لا يتاح تعديل الملف الشخصي.",
+          )}
+        </AppText>
+      </Panel>
+    </View>
+  );
+}
+function WorkspaceProfile() {
   const { state, actorId, act } = useWorkspace();
   const user = state.users.find((u) => u.id === actorId)!;
   const [name, setName] = useState(user.name);
@@ -84,9 +133,6 @@ export function SettingsPanel() {
   const t = useCopy();
   return (
     <View style={kit.stack}>
-      <Panel title={t("Language", "اللغة")}>
-        <LanguageToggle />
-      </Panel>
       <Panel title={t("Preview account", "حساب المعاينة")}>
         <AppText tone="muted">
           {t(
@@ -118,12 +164,12 @@ export function SettingsPanel() {
             <AppText style={kit.grow}>
               {t("Workshop open for visits", "الورشة متاحة للزيارة")}
             </AppText>
-            <Switch
+            <ToggleSwitch
+              accessibilityLabel={t("Workshop open for visits", "الورشة متاحة للزيارة")}
               value={state.availability === "open"}
               onValueChange={async (value) => {
                 await act({ type: "availability.set", value: value ? "open" : "closed" });
               }}
-              trackColor={{ true: colors.primary }}
             />
           </View>
           <Field
@@ -135,7 +181,10 @@ export function SettingsPanel() {
           <Button
             title={t("Save threshold", "حفظ النسبة")}
             onPress={async () =>
-              await act({ type: "threshold.set", value: threshold.trim() ? Number(threshold) : null })
+              await act({
+                type: "threshold.set",
+                value: threshold.trim() ? Number(threshold) : null,
+              })
             }
           />
           <AppText variant="caption" tone="muted">
@@ -228,10 +277,7 @@ export function TeamPanels() {
           {
             state.tasks.filter(
               (x) =>
-                x.projectId === p.id &&
-                !x.done &&
-                x.dueDate &&
-                new Date(x.dueDate).getTime() < now,
+                x.projectId === p.id && !x.done && x.dueDate && new Date(x.dueDate).getTime() < now,
             ).length
           }
         </AppText>

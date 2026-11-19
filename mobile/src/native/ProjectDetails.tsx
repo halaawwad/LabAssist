@@ -4,13 +4,19 @@ import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { ReportsPanel } from "@/features/shared/ReportsPanel";
 import { router } from "./router";
 import { useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
+import { useLanguage } from "@/i18n";
 import { AppText, Button } from "@/components";
-import { Panel, Ring, kit } from "@/components/MobileKit";
+import { Panel, Ring, SegmentedControl, kit, useCopy } from "@/components/MobileKit";
 import { ProjectPhoto } from "@/components/ProjectPhoto";
 import { project, projectBom, useProjectWorkspace } from "./StudentReference";
 
 export function ReferenceProject({ initial = "Overview" }: { initial?: string }) {
+  const copy = useCopy();
+  const { formatLongDate, ltr } = useLanguage();
+  const money = (value: number) => ltr(`$${value}`);
+  const statusLabel = (status: string) =>
+    status === "In Progress" ? copy("In Progress", "قيد التنفيذ") : status;
   const workspace = useProjectWorkspace();
   const [tab, setTab] = useState(initial),
     [edit, setEdit] = useState(false),
@@ -22,17 +28,25 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
       {!!workspace.error && (
         <Panel>
           <AppText accessibilityRole="alert">{workspace.error}</AppText>
-          <Button title="Retry loading" onPress={workspace.retryLoading} />
+          <Button title={copy("Retry loading", "إعادة التحميل")} onPress={workspace.retryLoading} />
         </Panel>
       )}
       <Panel>
-        <AppText tone="primary">{project.status}</AppText>
+        <AppText tone="primary">{statusLabel(project.status)}</AppText>
         <AppText variant="title">{workspace.details.title}</AppText>
         <AppText tone="muted">{project.subtitle}</AppText>
-        <AppText variant="caption">{project.deadline} · 3 teammates</AppText>
-        <AppText weight="bold">{workspace.progress}% overall progress</AppText>
+        <AppText variant="caption">
+          {Number.isNaN(Date.parse(project.deadline))
+            ? project.deadline
+            : formatLongDate(new Date(project.deadline))}{" "}
+          · 3 {copy("teammates", "زملاء")}
+        </AppText>
+        <AppText weight="bold">
+          {ltr(`${workspace.progress}%`)} {copy("overall progress", "التقدم الكلي")}
+        </AppText>
         <AppText variant="caption" tone="muted">
-          {workspace.completedCount} of {workspace.taskCount} tasks complete
+          {workspace.completedCount} {copy("of", "من")} {workspace.taskCount}{" "}
+          {copy("tasks complete", "مهام مكتملة")}
         </AppText>
         <View style={{ height: 5, backgroundColor: "#e0e8d7", borderRadius: 4 }}>
           <View
@@ -45,9 +59,13 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
           />
         </View>
         <View style={kit.row}>
-          <Button title="Weekly report" size="sm" onPress={() => setTab("Reports")} />
           <Button
-            title="Add issue"
+            title={copy("Weekly report", "التقرير الأسبوعي")}
+            size="sm"
+            onPress={() => setTab("Reports")}
+          />
+          <Button
+            title={copy("Add issue", "إضافة مشكلة")}
             size="sm"
             variant="soft"
             onPress={() => {
@@ -56,40 +74,31 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
             }}
           />
         </View>
-        <Disclosure title="Project photo">
+        <Disclosure title={copy("Project photo", "صورة المشروع")}>
           <ProjectPhoto projectId="reference-smart-car" />
         </Disclosure>
       </Panel>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 8 }}
-      >
-        {["Overview", "Team & Tasks", "Components", "Reports"].map((name) => (
-          <Pressable
-            key={name}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === name }}
-            onPress={() => setTab(name)}
-            style={{
-              paddingVertical: 12,
-              paddingHorizontal: 17,
-              borderRadius: 18,
-              backgroundColor: tab === name ? "#526443" : "#fffffff0",
-            }}
-          >
-            <AppText style={{ fontSize: 13, color: tab === name ? "#fff" : "#526443" }}>
-              {name}
-            </AppText>
-          </Pressable>
-        ))}
-      </ScrollView>
+      {/* Every project section stays visible (2 × 2 on narrow phones) instead of a clipped scroller. */}
+      <SegmentedControl
+        accessibilityLabel={copy("Project sections", "أقسام المشروع")}
+        value={tab}
+        onChange={setTab}
+        minOptionWidth={110}
+        options={[
+          { id: "Overview", label: copy("Overview", "نظرة عامة") },
+          { id: "Team & Tasks", label: copy("Team & Tasks", "الفريق والمهام") },
+          { id: "Components", label: copy("Components", "المكونات") },
+          { id: "Reports", label: copy("Reports", "التقارير") },
+        ]}
+      />
       {tab === "Overview" && (
         <>
-          <Panel title="Project abstract">
+          <Panel title={copy("Project abstract", "ملخص المشروع")}>
             <AppText>{workspace.abstract}</AppText>
             <Button
-              title={edit ? "Close editor" : "Edit abstract"}
+              title={
+                edit ? copy("Close editor", "إغلاق المحرر") : copy("Edit abstract", "تعديل الملخص")
+              }
               variant="ghost"
               onPress={() => {
                 if (!edit) {
@@ -102,12 +111,12 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
             {edit && (
               <View style={kit.stack}>
                 <TextInput
-                  accessibilityLabel="Project title"
+                  accessibilityLabel={copy("Project title", "عنوان المشروع")}
                   value={titleDraft}
                   onChangeText={setTitleDraft}
                 />
                 <TextInput
-                  accessibilityLabel="Project abstract"
+                  accessibilityLabel={copy("Project abstract", "ملخص المشروع")}
                   multiline
                   value={abstractDraft}
                   onChangeText={setAbstractDraft}
@@ -121,7 +130,7 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
                   }}
                 />
                 <Button
-                  title="Save project details"
+                  title={copy("Save project details", "حفظ تفاصيل المشروع")}
                   disabled={workspace.saving || !titleDraft.trim() || !abstractDraft.trim()}
                   onPress={async () => {
                     if (await workspace.saveDetails(titleDraft, abstractDraft)) setEdit(false);
@@ -130,22 +139,19 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
               </View>
             )}
           </Panel>
-          <Panel title="Current milestone">
-            <AppText variant="heading">Prototype testing</AppText>
+          <Panel title={copy("Current milestone", "المرحلة الحالية")}>
+            <AppText variant="heading">{copy("Prototype testing", "اختبار النموذج")}</AppText>
             <AppText tone="muted">
-              Milestone {project.milestone} of {project.milestoneCount}
+              {copy("Milestone", "المرحلة")} {project.milestone} {copy("of", "من")} {project.milestoneCount}
             </AppText>
           </Panel>
-          <Panel title="Open issues">
-            <AppText>Distance sensor needs calibration</AppText>
-            <AppText>Motor response under load needs testing</AppText>
-            <AppText>Power consumption needs review</AppText>
-            {workspace.issues.map((x, i) => (
-              <AppText key={`${i}-${x}`}>{x}</AppText>
+          <Panel title={copy("Open issues", "المشكلات المفتوحة")}>
+            {workspace.openIssues.map((x) => (
+              <AppText key={x.id}>{x.title}</AppText>
             ))}
             <TextInput
-              accessibilityLabel="Issue description"
-              placeholder="Describe the issue"
+              accessibilityLabel={copy("Issue description", "وصف المشكلة")}
+              placeholder={copy("Describe the issue", "صف المشكلة")}
               value={issue}
               onChangeText={setIssue}
               style={{
@@ -157,29 +163,31 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
               }}
             />
             <Button
-              title="Add issue"
+              title={copy("Add issue", "إضافة مشكلة")}
               disabled={!issue.trim()}
               onPress={async () => {
                 if (await workspace.addIssue(issue.trim())) setIssue("");
               }}
             />
           </Panel>
-          <Panel title="Budget health">
-            <AppText variant="title">${project.budget - project.spent}</AppText>
-            <AppText>still available</AppText>
+          <Panel title={copy("Budget health", "حالة الميزانية")}>
+            <AppText variant="title">{money(project.budget - project.spent)}</AppText>
+            <AppText>{copy("still available", "ما زال متاحًا")}</AppText>
             <Ring value={Math.round((project.spent / project.budget) * 100)} />
             <AppText>
-              Spent ${project.spent} · Remaining ${project.budget - project.spent}
+              {copy("Spent", "المصروف")} {money(project.spent)} · {copy("Remaining", "المتبقي")}{" "}
+              {money(project.budget - project.spent)}
             </AppText>
             <AppText variant="caption" tone="muted">
-              Total project budget: ${project.budget}. Recorded expenses across the project.
+              {copy("Total project budget:", "إجمالي ميزانية المشروع:")} {money(project.budget)}.{" "}
+              {copy("Recorded expenses across the project.", "المصروفات المسجلة في المشروع.")}
             </AppText>
           </Panel>
         </>
       )}
       {tab === "Team & Tasks" && (
         <Button
-          title="Add task"
+          title={copy("Add task", "إضافة مهمة")}
           variant="soft"
           onPress={() => router.push("/native/student/tasks")}
         />
@@ -188,7 +196,7 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
         workspace.members.map((member, index) => (
           <Panel key={member.name} title={member.name}>
             <AppText variant="caption" tone="muted">
-              Computer Engineering
+              {copy("Computer Engineering", "هندسة الحاسوب")}
             </AppText>
             <Ring
               value={Math.round(
@@ -200,16 +208,17 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
               )}
               color={["#839b68", "#709ab8", "#bc9368"][index]}
             />
-            <AppText weight="semibold">Personal progress</AppText>
+            <AppText weight="semibold">{copy("Personal progress", "التقدم الشخصي")}</AppText>
             <AppText variant="caption">
               {
                 workspace.teamTasks.filter(
                   (task) => task.owner === index && workspace.completed.includes(task.id),
                 ).length
               }{" "}
-              of {workspace.teamTasks.filter((task) => task.owner === index).length} tasks complete
+              {copy("of", "من")} {workspace.teamTasks.filter((task) => task.owner === index).length}{" "}
+              {copy("tasks complete", "مهام مكتملة")}
             </AppText>
-            <AppText weight="semibold">Today’s Tasks</AppText>
+            <AppText weight="semibold">{copy("Today’s Tasks", "مهام اليوم")}</AppText>
             {workspace.teamTasks
               .filter((x) => x.owner === index)
               .map((task) => {
@@ -245,25 +254,35 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
                     </AppText>
                     <AppText variant="caption">
                       {task.due} ·{" "}
-                      {done ? "Completed" : task.inProgress ? "In progress" : "Remaining"}
+                      {done
+                        ? copy("Completed", "مكتملة")
+                        : task.inProgress
+                          ? copy("In progress", "قيد التنفيذ")
+                          : copy("Remaining", "متبقية")}
                     </AppText>
                   </Pressable>
                 );
               })}
             <AppText variant="caption" tone="muted">
-              Last activity:{" "}
-              {workspace.teamActivity.find((x) => x.owner === index)?.text ?? "No recent activity"}
+              {copy("Last activity:", "آخر نشاط:")}{" "}
+              {workspace.teamActivity.find((x) => x.owner === index)?.text ??
+                copy("No recent activity", "لا يوجد نشاط حديث")}
             </AppText>
           </Panel>
         ))}
       {tab === "Components" && (
         <>
-          <Panel title="Build readiness">
+          <Panel title={copy("Build readiness", "جاهزية البناء")}>
             <Ring value={40} />
-            <AppText weight="semibold">2 / 5 units available</AppText>
-            <AppText tone="muted">3 units still needed for the listed build.</AppText>
+            <AppText weight="semibold">{copy("2 / 5 units available", "2 / 5 قطع متوفرة")}</AppText>
+            <AppText tone="muted">
+              {copy(
+                "3 units still needed for the listed build.",
+                "ما زالت 3 قطع مطلوبة للبناء المدرج.",
+              )}
+            </AppText>
           </Panel>
-          <Panel title="Bill of Materials">
+          <Panel title={copy("Bill of Materials", "قائمة المواد")}>
             {projectBom.map((part) => (
               <View
                 key={part.name}
@@ -276,16 +295,24 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
               >
                 <AppText weight="semibold">{part.name}</AppText>
                 <AppText variant="caption">
-                  Quantity {part.quantity} · ${part.cost} ·{" "}
-                  {part.available ? "Available" : "Still needed"}
+                  {copy("Quantity", "الكمية")} {part.quantity} · {money(part.cost)} ·{" "}
+                  {part.available
+                    ? copy("Available", "متوفرة")
+                    : copy("Still needed", "ما زالت مطلوبة")}
                 </AppText>
               </View>
             ))}
           </Panel>
-          <Panel title="Budget health">
-            <AppText>Spent ${project.spent}</AppText>
-            <AppText>Remaining ${project.budget - project.spent}</AppText>
-            <AppText>Total project budget: ${project.budget}</AppText>
+          <Panel title={copy("Budget health", "حالة الميزانية")}>
+            <AppText>
+              {copy("Spent", "المصروف")} {money(project.spent)}
+            </AppText>
+            <AppText>
+              {copy("Remaining", "المتبقي")} {money(project.budget - project.spent)}
+            </AppText>
+            <AppText>
+              {copy("Total project budget:", "إجمالي ميزانية المشروع:")} {money(project.budget)}
+            </AppText>
           </Panel>
         </>
       )}

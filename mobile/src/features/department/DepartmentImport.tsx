@@ -1,10 +1,7 @@
-import { MobileModal as Modal } from "@/components/MobileModal";
 import { useMemo, useRef, useState } from "react";
-import { ScrollView, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View } from "react-native";
 import { AppText, Button } from "@/components";
-import { useLanguage } from "@/i18n";
-import { Chips, Panel, kit, useCopy } from "@/components/MobileKit";
+import { Chips, Panel, kit, useCopy, FormSheet } from "@/components/MobileKit";
 import {
   columns,
   initialMapping,
@@ -40,7 +37,6 @@ export function DepartmentImport({
   ) => Promise<ImportReview | false>;
 }) {
   const t = useCopy();
-  const { isRTL } = useLanguage();
   const [invalidFile, setInvalidFile] = useState(false);
   const [open, setOpen] = useState(false),
     [name, setName] = useState(""),
@@ -140,211 +136,191 @@ export function DepartmentImport({
           }}
         />
       </View>
-      <Modal
+      {/* Shared full-screen form: close X (blocked while reading or saving), one scroll. */}
+      <FormSheet
         visible={open}
-        onRequestClose={() => {
-          if (!saving && !busy) setOpen(false);
-        }}
+        title={t("Import groups", "استيراد مجموعات")}
+        busy={saving || busy}
+        onClose={() => setOpen(false)}
       >
-        <SafeAreaView
-          style={{ flex: 1, backgroundColor: "#fafbf7", direction: isRTL ? "rtl" : "ltr" }}
-        >
-          <ScrollView
-            automaticallyAdjustKeyboardInsets
-            keyboardDismissMode="on-drag"
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ padding: 20, gap: 14 }}
-          >
+        <Button
+          title={t("Choose Excel file", "اختيار ملف Excel")}
+          loading={busy}
+          disabled={saving}
+          onPress={pick}
+        />
+        {!!name && <AppText>{name}</AppText>}
+        {!!error && (
+          <AppText tone="danger" accessibilityRole="alert">
+            {error}
+          </AppText>
+        )}
+        {!!storageError && (
+          <View>
+            <AppText tone="danger" accessibilityRole="alert">
+              {storageError}
+            </AppText>
             <Button
-              title={t("Close", "إغلاق")}
+              title={t("Retry loading", "إعادة التحميل")}
               variant="ghost"
-              disabled={saving || busy}
-              onPress={() => setOpen(false)}
-            />
-            <AppText variant="title">{t("Import groups", "استيراد مجموعات")}</AppText>
-            <Button
-              title={t("Choose Excel file", "اختيار ملف Excel")}
-              loading={busy}
               disabled={saving}
-              onPress={pick}
+              onPress={onRetry}
             />
-            {!!name && <AppText>{name}</AppText>}
-            {!!error && (
-              <AppText tone="danger" accessibilityRole="alert">
-                {error}
+          </View>
+        )}
+        {!!book && (
+          <>
+            <Button
+              title={t("Adjust columns", "ضبط الأعمدة")}
+              variant="ghost"
+              accessibilityState={{ expanded: adjust }}
+              onPress={() => setAdjust(!adjust)}
+            />
+            {adjust &&
+              columns.map((c) => (
+                <Panel key={c} title={c}>
+                  <Chips
+                    value={String(mapping[c])}
+                    onChange={(value) => {
+                      setMapping({ ...mapping, [c]: Number(value) });
+                      setKeep([]);
+                      setTransfers(false);
+                    }}
+                    options={[
+                      { id: "-1", label: t("Select column", "اختيار عمود") },
+                      ...Array.from({ length: book.headers.length }, (_, i) => ({
+                        id: String(i),
+                        label: `${i + 1}: ${book.headers[i] || t("Blank", "فارغ")}`,
+                      })),
+                    ]}
+                  />
+                </Panel>
+              ))}
+            {!!review && (
+              <AppText>
+                {t("New groups", "مجموعات جديدة")}: {review.summary.groupsCreated} ·{" "}
+                {t("Reused groups", "مجموعات موجودة")}: {review.summary.groupsReused} ·{" "}
+                {t("New accounts", "حسابات جديدة")}: {review.summary.accountsCreated}
               </AppText>
             )}
-            {!!storageError && (
-              <View>
-                <AppText tone="danger" accessibilityRole="alert">
-                  {storageError}
+            {[...projects].map(([number, rows]) => (
+              <Panel
+                key={number}
+                title={`${number} · ${rows[0].values[1] || t("Untitled project", "مشروع بلا اسم")}`}
+              >
+                <AppText weight="bold">
+                  {t("Supervisor", "المشرف")}: {rows[0].values[3]} · {rows[0].values[2]}
                 </AppText>
-                <Button
-                  title={t("Retry loading", "إعادة التحميل")}
-                  variant="ghost"
-                  disabled={saving}
-                  onPress={onRetry}
-                />
-              </View>
-            )}
-            {!!book && (
-              <>
-                <Button
-                  title={t("Adjust columns", "ضبط الأعمدة")}
-                  variant="ghost"
-                  accessibilityState={{ expanded: adjust }}
-                  onPress={() => setAdjust(!adjust)}
-                />
-                {adjust &&
-                  columns.map((c) => (
-                    <Panel key={c} title={c}>
-                      <Chips
-                        value={String(mapping[c])}
-                        onChange={(value) => {
-                          setMapping({ ...mapping, [c]: Number(value) });
-                          setKeep([]);
-                          setTransfers(false);
-                        }}
-                        options={[
-                          { id: "-1", label: t("Select column", "اختيار عمود") },
-                          ...Array.from({ length: book.headers.length }, (_, i) => ({
-                            id: String(i),
-                            label: `${i + 1}: ${book.headers[i] || t("Blank", "فارغ")}`,
-                          })),
-                        ]}
-                      />
-                    </Panel>
-                  ))}
-                {!!review && (
-                  <AppText>
-                    {t("New groups", "مجموعات جديدة")}: {review.summary.groupsCreated} ·{" "}
-                    {t("Reused groups", "مجموعات موجودة")}: {review.summary.groupsReused} ·{" "}
-                    {t("New accounts", "حسابات جديدة")}: {review.summary.accountsCreated}
-                  </AppText>
-                )}
-                {[...projects].map(([number, rows]) => (
-                  <Panel
-                    key={number}
-                    title={`${number} · ${rows[0].values[1] || t("Untitled project", "مشروع بلا اسم")}`}
-                  >
-                    <AppText weight="bold">
-                      {t("Supervisor", "المشرف")}: {rows[0].values[3]} · {rows[0].values[2]}
+                {rows.map((row, i) => (
+                  <View key={i} style={{ gap: 4 }}>
+                    <AppText>
+                      {row.values[6]} · {row.values[5]}
                     </AppText>
-                    {rows.map((row, i) => (
-                      <View key={i} style={{ gap: 4 }}>
-                        <AppText>
-                          {row.values[6]} · {row.values[5]}
-                        </AppText>
-                        <AppText variant="caption">
-                          {row.values[7]} · {t("Row", "الصف")} {row.number}
-                        </AppText>
-                        {row.errors.map((message, j) => (
-                          <AppText key={j} tone="danger">
-                            {message}
-                          </AppText>
-                        ))}
-                      </View>
+                    <AppText variant="caption">
+                      {row.values[7]} · {t("Row", "الصف")} {row.number}
+                    </AppText>
+                    {row.errors.map((message, j) => (
+                      <AppText key={j} tone="danger">
+                        {message}
+                      </AppText>
                     ))}
-                  </Panel>
-                ))}
-                {review?.detailConflicts.map((c) => (
-                  <View key={c.key}>
-                    <AppText>{c.description}</AppText>
-                    <Button
-                      title={
-                        keep.includes(c.key)
-                          ? t("Saved details retained", "تم الاحتفاظ بالبيانات المحفوظة")
-                          : t("Keep saved details", "الاحتفاظ بالبيانات المحفوظة")
-                      }
-                      variant="soft"
-                      onPress={() =>
-                        setKeep(
-                          keep.includes(c.key) ? keep.filter((k) => k !== c.key) : [...keep, c.key],
-                        )
-                      }
-                    />
                   </View>
                 ))}
-                {!!review?.transfers.length && (
-                  <Panel title={t("Student transfers", "نقل الطلاب")}>
-                    {review.transfers.map((transfer, i) => (
-                      <AppText key={i}>{transfer}</AppText>
-                    ))}
-                    <Button
-                      title={
-                        transfers
-                          ? t("Transfers confirmed", "تم تأكيد النقل")
-                          : t("Confirm transfers", "تأكيد النقل")
-                      }
-                      variant="soft"
-                      onPress={() => setTransfers(!transfers)}
-                    />
-                  </Panel>
-                )}
-                {reasons.map((reason, i) => (
-                  <AppText key={i} tone="danger">
-                    {reason}
-                  </AppText>
+              </Panel>
+            ))}
+            {review?.detailConflicts.map((c) => (
+              <View key={c.key}>
+                <AppText>{c.description}</AppText>
+                <Button
+                  title={
+                    keep.includes(c.key)
+                      ? t("Saved details retained", "تم الاحتفاظ بالبيانات المحفوظة")
+                      : t("Keep saved details", "الاحتفاظ بالبيانات المحفوظة")
+                  }
+                  variant="soft"
+                  onPress={() =>
+                    setKeep(
+                      keep.includes(c.key) ? keep.filter((k) => k !== c.key) : [...keep, c.key],
+                    )
+                  }
+                />
+              </View>
+            ))}
+            {!!review?.transfers.length && (
+              <Panel title={t("Student transfers", "نقل الطلاب")}>
+                {review.transfers.map((transfer, i) => (
+                  <AppText key={i}>{transfer}</AppText>
                 ))}
-              </>
+                <Button
+                  title={
+                    transfers
+                      ? t("Transfers confirmed", "تم تأكيد النقل")
+                      : t("Confirm transfers", "تأكيد النقل")
+                  }
+                  variant="soft"
+                  onPress={() => setTransfers(!transfers)}
+                />
+              </Panel>
             )}
-            <Button
-              title={t("Add groups", "إضافة المجموعات")}
-              disabled={blocked}
-              loading={saving}
-              onPress={async () => {
-                if (!book || blocked || pending.current) return;
-                pending.current = true;
-                setError("");
-                try {
-                  const applied = await onConfirm(book, mapping, keep, transfers);
-                  if (!applied) {
-                    setError(
-                      t(
-                        "Could not save. Your preview is preserved. Retry loading, then save again.",
-                        "تعذر الحفظ. المعاينة محفوظة. أعد التحميل ثم الحفظ.",
-                      ),
-                    );
-                    return;
-                  }
-                  const failures = [
-                    ...applied.errors,
-                    ...applied.rows.flatMap((r) =>
-                      r.errors.map((message) => `${r.number}: ${message}`),
-                    ),
-                  ];
-                  if (failures.length) {
-                    setError(failures.join("\n"));
-                    return;
-                  }
-                  setOpen(false);
-                } catch (cause) {
-                  setError(
-                    cause instanceof Error
-                      ? cause.message
-                      : t(
-                          "Could not save. Your preview is preserved.",
-                          "تعذر الحفظ. المعاينة محفوظة.",
-                        ),
-                  );
-                } finally {
-                  pending.current = false;
-                }
-              }}
-            />
-            {blocked && (
-              <AppText tone="muted">
-                {(invalidFile ? error : reasons[0]) ||
-                  (!ready
-                    ? t("Load records before adding groups.", "حمّل السجلات أولًا.")
-                    : !book
-                      ? t("Choose an Excel file first.", "اختر ملف Excel أولًا.")
-                      : t("Please wait…", "يرجى الانتظار…"))}
+            {reasons.map((reason, i) => (
+              <AppText key={i} tone="danger">
+                {reason}
               </AppText>
-            )}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+            ))}
+          </>
+        )}
+        <Button
+          title={t("Add groups", "إضافة المجموعات")}
+          disabled={blocked}
+          loading={saving}
+          onPress={async () => {
+            if (!book || blocked || pending.current) return;
+            pending.current = true;
+            setError("");
+            try {
+              const applied = await onConfirm(book, mapping, keep, transfers);
+              if (!applied) {
+                setError(
+                  t(
+                    "Could not save. Your preview is preserved. Retry loading, then save again.",
+                    "تعذر الحفظ. المعاينة محفوظة. أعد التحميل ثم الحفظ.",
+                  ),
+                );
+                return;
+              }
+              const failures = [
+                ...applied.errors,
+                ...applied.rows.flatMap((r) =>
+                  r.errors.map((message) => `${r.number}: ${message}`),
+                ),
+              ];
+              if (failures.length) {
+                setError(failures.join("\n"));
+                return;
+              }
+              setOpen(false);
+            } catch (cause) {
+              setError(
+                cause instanceof Error
+                  ? cause.message
+                  : t("Could not save. Your preview is preserved.", "تعذر الحفظ. المعاينة محفوظة."),
+              );
+            } finally {
+              pending.current = false;
+            }
+          }}
+        />
+        {blocked && (
+          <AppText tone="muted">
+            {(invalidFile ? error : reasons[0]) ||
+              (!ready
+                ? t("Load records before adding groups.", "حمّل السجلات أولًا.")
+                : !book
+                  ? t("Choose an Excel file first.", "اختر ملف Excel أولًا.")
+                  : t("Please wait…", "يرجى الانتظار…"))}
+          </AppText>
+        )}
+      </FormSheet>
     </>
   );
 }
