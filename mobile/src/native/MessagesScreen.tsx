@@ -1,7 +1,15 @@
-import { useLanguage } from "@/i18n";
+import { directionStyle, useLanguage } from "@/i18n";
 import { MobileInput as TextInput } from "@/components/MobileInput";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { MobileModal as Modal } from "@/components/MobileModal";
+import { MessageBubble } from "@/components/MessageBubble";
+import {
+  ConversationInboxRow,
+  ConversationHeader,
+  ConversationComposer,
+  ConversationComposerRow,
+  ConversationText,
+} from "@/components/ConversationUI";
 import { usePreferences } from "@/state/Preferences";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useEffect, useCallback, useRef, useState, type ReactNode, type ComponentRef } from "react";
@@ -9,7 +17,6 @@ import {
   Alert,
   BackHandler,
   Image,
-  ImageBackground,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -20,7 +27,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ArrowLeft,
-  Check,
   ChevronRight,
   FileText,
   Forward,
@@ -43,7 +49,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
 import { AppText, Button } from "@/components";
-import { Portrait, useCopy } from "@/components/MobileKit";
+import { Chip, IconButton, Portrait, useCopy } from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { persistPickedFile } from "@/lib/files";
 import type { Message, Thread } from "@/domain/workspace";
@@ -59,7 +65,7 @@ export function NativeMessages({
 }) {
   const [conversationMenu, setConversationMenu] = useState(false);
   const { preferences } = usePreferences();
-  const { isRTL } = useLanguage();
+  const { isRTL, language, ltr } = useLanguage();
   const { state, actorId, act } = useWorkspace();
   const t = useCopy();
   const me = state.users.find((x) => x.id === actorId)!;
@@ -88,9 +94,24 @@ export function NativeMessages({
     [error, setError] = useState("");
   const [mediaTab, setMediaTab] = useState("all"),
     [highlight, setHighlight] = useState("");
+  const [newMessages, setNewMessages] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const nearBottom = useRef(true),
+    initialScroll = useRef(true),
+    sending = useRef(false);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null),
     input = useRef<ComponentRef<typeof TextInput>>(null),
     positions = useRef<Record<string, number>>({});
+  const messageScroll = useCallback(
+    () =>
+      scroll.current ??
+      (Platform.OS === "web"
+        ? (document.querySelector('[data-testid="message-history"]') as unknown as ComponentRef<
+            typeof ScrollView
+          > | null)
+        : null),
+    [],
+  );
   const threads = state.threads.filter((x) => x.memberIds.includes(actorId));
   const thread =
     threads.find((x) => x.id === selected) ||
@@ -103,6 +124,16 @@ export function NativeMessages({
   useEffect(() => {
     onConversationChange?.(!!thread);
   }, [thread, onConversationChange]);
+  useEffect(() => {
+    if (!thread?.id) return;
+    initialScroll.current = true;
+    nearBottom.current = true;
+    const timer = setTimeout(() => {
+      messageScroll()?.scrollToEnd({ animated: false });
+      initialScroll.current = false;
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [thread?.id, messageScroll]);
   const closeConversation = useCallback(() => {
     setSelected(null);
     setReply(null);
@@ -111,6 +142,9 @@ export function NativeMessages({
   }, []);
   useFocusEffect(
     useCallback(() => {
+      // Hardware Back exists only on Android; react-native-web reports BackHandler as
+      // unsupported. On the web the conversation's own Back control closes it.
+      if (Platform.OS !== "android") return undefined;
       const listener = BackHandler.addEventListener("hardwareBackPress", () => {
         if (!selected) return false;
         closeConversation();
@@ -120,6 +154,13 @@ export function NativeMessages({
     }, [selected, closeConversation]),
   );
   const messages = state.messages.filter((x) => x.threadId === thread?.id);
+  const previousMessages = useRef({ threadId: "", count: 0 });
+  useEffect(() => {
+    const previous = previousMessages.current;
+    if (previous.threadId === thread?.id && messages.length > previous.count && !nearBottom.current)
+      setNewMessages(true);
+    previousMessages.current = { threadId: thread?.id ?? "", count: messages.length };
+  }, [thread?.id, messages.length]);
   const self = thread?.memberIds.length === 1;
   const unread = (th: Thread) =>
     state.messages.filter(
@@ -139,7 +180,10 @@ export function NativeMessages({
         ? `${th.memberIds.length} ${t("members", "أعضاء")}`
         : (state.users.find((x) => x.id !== actorId && th.memberIds.includes(x.id))?.bio ?? "");
   const time = (value: string) =>
-    new Date(value).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    new Date(value).toLocaleTimeString(language === "ar" ? "ar-u-nu-latn" : "en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   const name = (id: string) =>
     id === actorId ? t("You", "أنت") : (state.users.find((x) => x.id === id)?.name ?? "");
   const visibleMessages = messages.filter((x) =>
@@ -157,6 +201,9 @@ export function NativeMessages({
     )
     .sort((a, b) => Number(b.memberIds.length === 1) - Number(a.memberIds.length === 1));
   async function open(th: Thread) {
+    initialScroll.current = true;
+    nearBottom.current = true;
+    setNewMessages(false);
     setSelected(th.id);
     setInfo(false);
     setText("");
@@ -182,21 +229,37 @@ export function NativeMessages({
     setPersonQuery("");
   }
   async function send() {
-    if (!thread || (!text.trim() && !attachment)) return;
-    if (
-      await act({
-        type: "message.send",
-        threadId: thread.id,
-        body: text.trim(),
-        replyTo: reply?.id,
-        attachment,
-      })
-    ) {
-      setText("");
-      setReply(null);
-      setAttachment(undefined);
-      setError("");
-      requestAnimationFrame(() => scroll.current?.scrollToEnd({ animated: true }));
+    if (!thread || sending.current || (!text.trim() && !attachment)) return;
+    sending.current = true;
+    setSendingMessage(true);
+    try {
+      if (
+        await act({
+          type: "message.send",
+          threadId: thread.id,
+          body: text.trim(),
+          replyTo: reply?.id,
+          attachment,
+        })
+      ) {
+        setText("");
+        setReply(null);
+        setAttachment(undefined);
+        setError("");
+        nearBottom.current = true;
+        setNewMessages(false);
+        requestAnimationFrame(() => messageScroll()?.scrollToEnd({ animated: true }));
+      } else {
+        setError(
+          t(
+            "Could not send. Your message is preserved; please try again.",
+            "تعذر الإرسال. رسالتك محفوظة؛ حاول مجددًا.",
+          ),
+        );
+      }
+    } finally {
+      sending.current = false;
+      setSendingMessage(false);
     }
   }
   async function attach(photo: boolean) {
@@ -277,13 +340,13 @@ export function NativeMessages({
     setSearchOpen(false);
     setHighlight(message.id);
     requestAnimationFrame(() =>
-      scroll.current?.scrollTo({
+      messageScroll()?.scrollTo({
         y: Math.max(0, (positions.current[message.id] ?? 0) - 25),
         animated: true,
       }),
     );
   }
-  const avatar = (th: Thread, size = 46) =>
+  const avatar = (th: Thread, size = 56) =>
     th.photo ? (
       <Image
         source={{ uri: th.photo }}
@@ -341,70 +404,42 @@ export function NativeMessages({
   ) => (
     <View style={s.filters}>
       {items.map((item) => (
-        <Pressable
+        <Chip
           key={item.id}
-          accessibilityRole="button"
-          accessibilityLabel={item.label}
-          accessibilityState={{ selected: value === item.id }}
+          label={item.label}
+          count={item.count}
+          selected={value === item.id}
           onPress={() => onChange(item.id)}
-          style={[s.filter, value === item.id && s.filterActive]}
-        >
-          <AppText style={[s.filterLabel, value === item.id && { color: "white" }]}>
-            {item.label}
-          </AppText>
-          {item.count !== undefined && (
-            <View style={s.count}>
-              <AppText style={{ fontSize: 10, color: "white" }}>{item.count}</AppText>
-            </View>
-          )}
-        </Pressable>
+        />
       ))}
     </View>
   );
   return (
     <SafeAreaView
-      style={[s.root, { direction: isRTL ? "rtl" : "ltr" }]}
+      style={[s.root, directionStyle(isRTL ? "rtl" : "ltr")]}
       edges={embedded ? [] : ["top", "bottom"]}
     >
       <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        <ImageBackground
-          source={require("../../assets/web/messages-desk-background.png")}
-          style={s.fill}
-          imageStyle={{ opacity: 0.12 }}
-        >
+        <View style={s.fill}>
           <View style={s.surface}>
             {!thread ? (
               <>
-                <View style={s.listHeading}>
-                  {icon(
-                    t("Back to workspace", "الرجوع لمساحة العمل"),
-                    () =>
-                      router.replace(
-                        (me.role === "student"
-                          ? "/native"
-                          : `/native/${me.role}/dashboard`) as import("expo-router").Href,
-                      ),
-                    <ArrowLeft size={20} color="#526443" />,
-                  )}
-                  <AppText style={s.title}>{t("Messages", "الرسائل")}</AppText>
-                  <View style={s.total}>
-                    <AppText style={{ fontSize: 12, color: "#788969" }}>{threads.length}</AppText>
+                <View style={s.inboxTools}>
+                  <View style={[s.listSearch, s.inboxSearch]}>
+                    <Search size={17} color="#8b997e" />
+                    <TextInput
+                      accessibilityLabel={t("Search conversations", "البحث في المحادثات")}
+                      placeholder={t("Search your conversations…", "ابحث في محادثاتك…")}
+                      value={query}
+                      onChangeText={setQuery}
+                      style={s.searchInput}
+                      placeholderTextColor="#626b5b"
+                    />
                   </View>
-                  {icon(
-                    t("New Message", "رسالة جديدة"),
-                    () => setNewChat(true),
-                    <Plus size={22} color="#526443" />,
-                  )}
-                </View>
-                <View style={s.listSearch}>
-                  <Search size={17} color="#8b997e" />
-                  <TextInput
-                    accessibilityLabel={t("Search conversations", "البحث في المحادثات")}
-                    placeholder={t("Search your conversations…", "ابحث في محادثاتك…")}
-                    value={query}
-                    onChangeText={setQuery}
-                    style={s.searchInput}
-                    placeholderTextColor="#9a9eaa"
+                  <IconButton
+                    icon={Plus}
+                    label={t("New Message", "رسالة جديدة")}
+                    onPress={() => setNewChat(true)}
                   />
                 </View>
                 {chips(
@@ -440,50 +475,29 @@ export function NativeMessages({
                     const last = state.messages.filter((x) => x.threadId === th.id).at(-1);
                     const count = unread(th);
                     return (
-                      <Pressable
+                      <ConversationInboxRow
                         key={th.id}
-                        accessibilityRole="button"
-                        accessibilityLabel={displayName(th)}
-                        onPress={async () => await open(th)}
-                        style={[s.conversation, th.projectId && s.projectConversation]}
-                      >
-                        {avatar(th)}
-                        <View style={s.copy}>
-                          <View style={s.inline}>
-                            <AppText numberOfLines={1} weight="bold" style={s.conversationName}>
-                              {displayName(th)}
-                            </AppText>
-                            {th.starredBy.includes(actorId) && (
-                              <Star size={11} color="#6c8156" fill="#6c8156" />
-                            )}
-                          </View>
-                          <AppText numberOfLines={1} style={s.preview}>
-                            {!preferences.messagePreviews
-                              ? t("Message preview hidden", "معاينة الرسائل مخفية")
-                              : last?.body ||
-                                last?.attachment?.name ||
-                                (th.memberIds.length === 1
-                                  ? t(
-                                      "Notes, links & things to keep",
-                                      "ملاحظات وروابط وأشياء للاحتفاظ بها",
-                                    )
-                                  : t(
-                                      "Say hello and start a conversation",
-                                      "قل مرحبًا وابدأ محادثة",
-                                    ))}
-                          </AppText>
-                        </View>
-                        <View style={s.meta}>
-                          <AppText style={s.time}>{last ? time(last.createdAt) : ""}</AppText>
-                          {count > 0 && (
-                            <View style={s.unread}>
-                              <AppText style={{ fontSize: 10, color: "white", fontWeight: "700" }}>
-                                {count}
-                              </AppText>
-                            </View>
-                          )}
-                        </View>
-                      </Pressable>
+                        name={displayName(th)}
+                        avatar={avatar(th)}
+                        starred={th.starredBy.includes(actorId)}
+                        unread={count}
+                        time={last ? time(last.createdAt) : ""}
+                        preview={
+                          !preferences.messagePreviews
+                            ? t("Message preview hidden", "معاينة الرسائل مخفية")
+                            : last?.body ||
+                              last?.attachment?.name ||
+                              (th.memberIds.length === 1
+                                ? t(
+                                    "Notes, links & things to keep",
+                                    "ملاحظات وروابط وأشياء للاحتفاظ بها",
+                                  )
+                                : t("Say hello and start a conversation", "قل مرحبًا وابدأ محادثة"))
+                        }
+                        onPress={() => {
+                          void open(th);
+                        }}
+                      />
                     );
                   })}
                 </ScrollView>
@@ -493,7 +507,7 @@ export function NativeMessages({
                     <AppText style={s.footerText}>
                       {t("A team, a question, an idea.", "فريق، سؤال، فكرة.")}
                     </AppText>
-                    <AppText style={[s.footerText, { fontSize: 11, marginTop: 4 }]}>
+                    <AppText style={[s.footerText, { marginTop: 4 }]}>
                       {t("Keep the conversation going.", "خلّي الحديث مستمر.")}
                     </AppText>
                   </View>
@@ -501,7 +515,7 @@ export function NativeMessages({
               </>
             ) : (
               <>
-                <View style={s.chatHeader}>
+                <ConversationHeader>
                   {icon(
                     t("Back to conversations", "العودة للمحادثات"),
                     () => {
@@ -531,7 +545,7 @@ export function NativeMessages({
                     () => setConversationMenu(true),
                     <MoreHorizontal size={22} color="#526443" />,
                   )}
-                </View>
+                </ConversationHeader>
                 <Modal
                   visible={conversationMenu}
                   transparent
@@ -625,6 +639,7 @@ export function NativeMessages({
                   automaticallyAdjustKeyboardInsets
                   keyboardDismissMode="on-drag"
                   ref={scroll}
+                  testID="message-history"
                   style={s.fill}
                   contentContainerStyle={[
                     s.thread,
@@ -632,9 +647,19 @@ export function NativeMessages({
                   ]}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
+                  onScroll={(event) => {
+                    if (initialScroll.current) return;
+                    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+                    nearBottom.current =
+                      contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
+                    if (nearBottom.current) setNewMessages(false);
+                  }}
+                  scrollEventThrottle={100}
                   onContentSizeChange={() => {
-                    if (!messageQuery && !highlight)
-                      scroll.current?.scrollToEnd({ animated: false });
+                    if (messageQuery || highlight) return;
+                    if (!initialScroll.current && nearBottom.current) {
+                      messageScroll()?.scrollToEnd({ animated: false });
+                    }
                   }}
                 >
                   {!messages.length ? (
@@ -678,7 +703,8 @@ export function NativeMessages({
                       )}
                     </AppText>
                   )}
-                  {visibleMessages.map((m) => {
+                  {visibleMessages.map((m, index) => {
+                    const grouped = index > 0 && visibleMessages[index - 1].senderId === m.senderId;
                     const mine = m.senderId === actorId,
                       quoted = state.messages.find((x) => x.id === m.replyTo);
                     return (
@@ -687,16 +713,21 @@ export function NativeMessages({
                         onLayout={(event) => {
                           positions.current[m.id] = event.nativeEvent.layout.y;
                         }}
-                        style={[s.messageRow, { justifyContent: mine ? "flex-end" : "flex-start" }]}
+                        style={[
+                          s.messageRow,
+                          {
+                            justifyContent: mine ? "flex-end" : "flex-start",
+                            marginTop: grouped ? -11 : 0,
+                          },
+                        ]}
                       >
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={`${name(m.senderId)}: ${m.body || m.attachment?.name}`}
-                          onLongPress={() => {
+                        <MessageBubble
+                          label={`${name(m.senderId)}: ${m.body || m.attachment?.name}`}
+                          hint={t("Open message actions", "فتح خيارات الرسالة")}
+                          onAction={() => {
                             setActionMessage(m);
                             setTool("actions");
                           }}
-                          onPress={() => setHighlight("")}
                           style={[
                             s.bubble,
                             mine ? s.outgoing : s.incoming,
@@ -715,7 +746,10 @@ export function NativeMessages({
                             <Pressable
                               accessibilityRole="button"
                               accessibilityLabel={t("View original message", "عرض الرسالة الأصلية")}
-                              onPress={() => jump(quoted)}
+                              onPress={(event) => {
+                                event.stopPropagation();
+                                jump(quoted);
+                              }}
                               style={s.replyQuote}
                             >
                               <AppText style={s.replyName}>{name(quoted.senderId)}</AppText>
@@ -724,19 +758,22 @@ export function NativeMessages({
                               </AppText>
                             </Pressable>
                           )}
-                          {thread.projectId && !mine && (
+                          {thread.projectId && !mine && !grouped && (
                             <AppText style={s.sender}>{name(m.senderId)}</AppText>
                           )}
-                          {!!m.body && <AppText style={s.messageText}>{m.body}</AppText>}
+                          {!!m.body && (
+                            <ConversationText style={s.messageText}>{m.body}</ConversationText>
+                          )}
                           {m.body.match(/https?:\/\/[^\s]+/g)?.map((url) => (
                             <Pressable
                               key={url}
                               accessibilityRole="link"
-                              onPress={() =>
+                              onPress={(event) => {
+                                event.stopPropagation();
                                 Linking.openURL(url).catch(() =>
                                   setError(t("Could not open the link.", "تعذر فتح الرابط.")),
-                                )
-                              }
+                                );
+                              }}
                             >
                               <AppText numberOfLines={2} style={s.link}>
                                 {url}
@@ -747,7 +784,10 @@ export function NativeMessages({
                             <Pressable
                               accessibilityRole="button"
                               accessibilityLabel={m.attachment.name}
-                              onPress={() => openFile(m.attachment!)}
+                              onPress={(event) => {
+                                event.stopPropagation();
+                                openFile(m.attachment!);
+                              }}
                               style={s.file}
                             >
                               {m.attachment.mime.startsWith("image/") ? (
@@ -769,25 +809,24 @@ export function NativeMessages({
                               <Star size={10} fill="#8b9d73" color="#8b9d73" />
                             )}
                             <AppText style={s.time}>{time(m.createdAt)}</AppText>
-                            {mine && <Check size={12} color="#899a75" />}
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={t("Message actions", "خيارات الرسالة")}
-                              onPress={() => {
-                                setActionMessage(m);
-                                setTool("actions");
-                              }}
-                              hitSlop={9}
-                            >
-                              <MoreHorizontal size={15} color="#899a75" />
-                            </Pressable>
                           </View>
-                        </Pressable>
+                        </MessageBubble>
                       </View>
                     );
                   })}
                 </ScrollView>
-                <View style={s.composer}>
+                {newMessages && (
+                  <Button
+                    title={t("New messages · Jump to latest", "رسائل جديدة · الانتقال للأحدث")}
+                    variant="soft"
+                    onPress={() => {
+                      nearBottom.current = true;
+                      setNewMessages(false);
+                      messageScroll()?.scrollToEnd({ animated: true });
+                    }}
+                  />
+                )}
+                <ConversationComposer>
                   {reply && (
                     <View style={s.replyDraft}>
                       <Reply size={18} color="#708756" />
@@ -824,7 +863,7 @@ export function NativeMessages({
                       {error}
                     </AppText>
                   )}
-                  <View style={s.composeRow}>
+                  <ConversationComposerRow>
                     {icon(
                       t("Attach a file", "إرفاق ملف"),
                       () => setTool("attach"),
@@ -844,7 +883,7 @@ export function NativeMessages({
                       maxLength={4000}
                       value={text}
                       onChangeText={setText}
-                      placeholderTextColor="#9bA18f"
+                      placeholderTextColor="#626b5b"
                       style={s.messageInput}
                     />
                     <Pressable
@@ -852,18 +891,18 @@ export function NativeMessages({
                       accessibilityLabel={
                         self ? t("Save message", "حفظ الرسالة") : t("Send message", "إرسال الرسالة")
                       }
-                      disabled={!text.trim() && !attachment}
+                      disabled={sendingMessage || (!text.trim() && !attachment)}
                       onPress={send}
                       style={[s.send, !text.trim() && !attachment && { opacity: 0.45 }]}
                     >
                       <Send size={20} color="white" />
                     </Pressable>
-                  </View>
-                </View>
+                  </ConversationComposerRow>
+                </ConversationComposer>
               </>
             )}
           </View>
-        </ImageBackground>
+        </View>
       </KeyboardAvoidingView>
       <Modal visible={newChat} animationType="slide" onRequestClose={() => setNewChat(false)}>
         <SafeAreaView style={s.modalRoot}>
@@ -949,7 +988,14 @@ export function NativeMessages({
                   <View style={s.copy}>
                     <AppText weight="bold">{u.name}</AppText>
                     <AppText numberOfLines={2} style={s.preview}>
-                      {u.bio} · {u.universityNumber ?? u.role}
+                      {u.bio} ·{" "}
+                      {u.universityNumber
+                        ? ltr(u.universityNumber)
+                        : u.role === "student"
+                          ? t("Student", "طالب")
+                          : u.role === "supervisor"
+                            ? t("Supervisor", "مشرف")
+                            : t("Workshop Manager", "مدير الورشة")}
                     </AppText>
                   </View>
                   <ChevronRight size={17} color="#91a07e" />
@@ -1326,23 +1372,22 @@ function Action({ icon, title, onPress }: { icon: ReactNode; title: string; onPr
   );
 }
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#f5f5ef", overflow: "hidden" },
+  root: { flex: 1, backgroundColor: "#f5f5ef" },
   fill: { flex: 1, minWidth: 0 },
   surface: { flex: 1, backgroundColor: "#f8f9f4db" },
-  listHeading: {
+  icon: { width: 48, height: 48, alignItems: "center", justifyContent: "center", borderRadius: 14 },
+  activeIcon: { backgroundColor: "#e3ecd4" },
+  inboxTools: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 12,
-    paddingTop: 14,
-    paddingBottom: 20,
+    marginHorizontal: 18,
+    marginTop: 14,
   },
-  title: { fontSize: 24, fontWeight: "700", flex: 1, color: "#101b2c" },
-  total: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 16, backgroundColor: "#e8eddf" },
-  icon: { width: 48, height: 48, alignItems: "center", justifyContent: "center", borderRadius: 14 },
-  activeIcon: { backgroundColor: "#e3ecd4" },
+  inboxSearch: { flex: 1, marginHorizontal: 0, marginTop: 0 },
   listSearch: {
     marginHorizontal: 18,
+    marginTop: 14,
     minHeight: 48,
     borderRadius: 16,
     borderWidth: 1,
@@ -1391,11 +1436,11 @@ const s = StyleSheet.create({
   projectConversation: { backgroundColor: "#e8efdf", borderColor: "#d2dfc6" },
   copy: { flex: 1, minWidth: 0 },
   conversationName: { fontSize: 14, color: "#111b2e", flexShrink: 1 },
-  preview: { fontSize: 12, color: "#8d9685", marginTop: 5, lineHeight: 18 },
+  preview: { fontSize: 13, color: "#596652", marginTop: 5, lineHeight: 18 },
   inline: { flexDirection: "row", alignItems: "center", gap: 5 },
   groupAvatar: { backgroundColor: "#dfebf7", alignItems: "center", justifyContent: "center" },
   meta: { alignItems: "flex-end", gap: 8 },
-  time: { fontSize: 10, color: "#97a08d" },
+  time: { fontSize: 12, color: "#58664f" },
   unread: {
     minWidth: 19,
     height: 19,
@@ -1403,7 +1448,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 5,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#7e9568",
+    backgroundColor: "#526942",
   },
   listFooter: {
     flexDirection: "row",
@@ -1412,7 +1457,7 @@ const s = StyleSheet.create({
     paddingVertical: 20,
     alignItems: "center",
   },
-  footerText: { fontSize: 12, color: "#8b9b7c" },
+  footerText: { fontSize: 12, color: "#536049" },
   chatHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1424,7 +1469,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#e5ebdd",
   },
-  headerDetail: { fontSize: 11, color: "#89947e", marginTop: 4 },
+  headerDetail: { fontSize: 12, color: "#536049", marginTop: 4 },
   tools: {
     flexDirection: "row",
     justifyContent: "flex-end",
@@ -1436,7 +1481,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#e5ebdd",
   },
-  chatLabel: { fontSize: 10, color: "#899a72", flex: 1 },
+  chatLabel: { fontSize: 12, color: "#536049", flex: 1 },
   inChatSearch: {
     margin: 10,
     paddingLeft: 12,
@@ -1449,10 +1494,10 @@ const s = StyleSheet.create({
     gap: 8,
   },
   thread: { paddingHorizontal: 14, paddingVertical: 18 },
-  dateLabel: { textAlign: "center", fontSize: 10, color: "#9aa58e", marginBottom: 24 },
+  dateLabel: { textAlign: "center", fontSize: 12, color: "#536049", marginBottom: 24 },
   messageRow: { flexDirection: "row", marginBottom: 16 },
   bubble: {
-    maxWidth: "88%",
+    maxWidth: "78%",
     paddingHorizontal: 14,
     paddingTop: 11,
     paddingBottom: 7,
@@ -1472,8 +1517,8 @@ const s = StyleSheet.create({
     borderRadius: 17,
     borderBottomRightRadius: 4,
   },
-  messageText: { fontSize: 16, lineHeight: 23, color: "#1e293b" },
-  sender: { fontSize: 11, color: "#6d8ba8", fontWeight: "600" },
+  messageText: { fontSize: 15, lineHeight: 23, color: "#1e293b" },
+  sender: { fontSize: 12, color: "#405c73", fontWeight: "600" },
   messageFooter: {
     flexDirection: "row",
     alignItems: "center",
@@ -1481,7 +1526,7 @@ const s = StyleSheet.create({
     gap: 5,
     marginTop: 2,
   },
-  forwarded: { fontSize: 10, color: "#91a080", fontStyle: "italic" },
+  forwarded: { fontSize: 12, color: "#536049", fontStyle: "italic" },
   replyQuote: {
     padding: 9,
     paddingLeft: 11,
@@ -1491,7 +1536,7 @@ const s = StyleSheet.create({
     backgroundColor: "#f5f8edb8",
   },
   replyName: { fontSize: 11, fontWeight: "600", color: "#677e51" },
-  replyText: { fontSize: 12, color: "#839174", marginTop: 4 },
+  replyText: { fontSize: 12, color: "#536049", marginTop: 4 },
   file: { padding: 7, gap: 7, borderRadius: 11, backgroundColor: "#ffffff70", overflow: "hidden" },
   messagePhoto: { width: 215, maxWidth: "100%", height: 165, borderRadius: 10 },
   fileName: { fontSize: 12, color: "#64839d" },
@@ -1548,7 +1593,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  noResults: { padding: 18, fontSize: 13, color: "#8a9680", textAlign: "center" },
+  noResults: { padding: 18, fontSize: 13, color: "#536049", textAlign: "center" },
   modalRoot: { flex: 1, backgroundColor: "#f7f6f0" },
   modalHeader: {
     flexDirection: "row",

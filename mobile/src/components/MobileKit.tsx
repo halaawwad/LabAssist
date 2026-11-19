@@ -3,8 +3,22 @@ import { TextField } from "./TextField";
 import { usePathname } from "expo-router";
 import { router } from "@/native/router";
 import { ArrowLeft, Bell, ChevronRight } from "lucide-react-native";
-import { createContext, useContext, type ReactNode } from "react";
-import { ScrollView, StyleSheet, View, Image, type TextInputProps } from "react-native";
+import {
+  createContext,
+  forwardRef,
+  useCallback,
+  useContext,
+  type ComponentRef,
+  type ReactNode,
+} from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  Image,
+  type TextInput,
+  type TextInputProps,
+} from "react-native";
 import { Circle, Svg } from "react-native-svg";
 import { useLanguage } from "@/i18n";
 import { useWorkspace } from "@/state/WorkspaceProvider";
@@ -12,10 +26,95 @@ import { colors } from "@/theme";
 import { AppText } from "./AppText";
 import { LanguageToggle } from "./LanguageToggle";
 import { ScreenContainer } from "./ScreenContainer";
+import { Chip } from "./Controls";
 
+// Shared controls live in their own modules; MobileKit is the single import point.
+export {
+  ActionSheet,
+  Chip,
+  FormSheet,
+  IconButton,
+  SearchField,
+  SegmentedControl,
+  SelectField,
+  SheetHeader,
+  ToggleSwitch,
+  pressedState,
+  type SheetAction,
+} from "./Controls";
+export { DateField, formatDayLabel, fromDay, toDay } from "./DateField";
+export { Greeting, StatCard, StatGrid, type StatItem, type StatTone } from "./HomeKit";
+
+/** Inline bilingual copy. Stable per language, so effects may depend on it. */
 export function useCopy() {
   const { language } = useLanguage();
-  return (en: string, ar: string) => (language === "ar" ? ar : en);
+  return useCallback((en: string, ar: string) => (language === "ar" ? ar : en), [language]);
+}
+/** Actionable text for workspace error codes; unknown messages are shown as they are. */
+export function errorText(t: ReturnType<typeof useCopy>, code: string) {
+  const errors: Record<string, string> = {
+    not_allowed: t(
+      "This action is not available for this account.",
+      "هذه العملية غير متاحة لهذا الحساب.",
+    ),
+    locked: t(
+      "This item is locked and can no longer be changed.",
+      "هذا العنصر مقفل ولا يمكن تعديله.",
+    ),
+    required_fields: t("Complete the required fields.", "يرجى إكمال الحقول المطلوبة."),
+    invalid_input: t("Check the entered values.", "تحقق من القيم المدخلة."),
+    capacity: t("This table is already full.", "هذه الطاولة ممتلئة."),
+    closed_day: t(
+      "Attendance is only recorded on working days.",
+      "يسجل الحضور في أيام الدوام فقط.",
+    ),
+    "Could not save on this device. Your input is preserved; try Save again.": t(
+      "Could not save on this device. Your input is preserved; try Save again.",
+      "تعذر الحفظ على هذا الجهاز. بياناتك محفوظة؛ حاول الحفظ مجددًا.",
+    ),
+    "Could not save changes on this device. Your input is preserved; try Save again.": t(
+      "Could not save changes on this device. Your input is preserved; try Save again.",
+      "تعذر حفظ التغييرات على هذا الجهاز. بياناتك محفوظة؛ حاول الحفظ مجددًا.",
+    ),
+    "Saved records could not be loaded. Existing data is preserved; allow storage and retry loading.":
+      t(
+        "Saved records could not be loaded. Existing data is preserved; allow storage and retry loading.",
+        "تعذر تحميل السجلات. البيانات الحالية محفوظة؛ اسمح بالتخزين وأعد التحميل.",
+      ),
+    "Saved records could not be loaded. Allow storage and retry loading; no data was overwritten.":
+      t(
+        "Saved records could not be loaded. Allow storage and retry loading; no data was overwritten.",
+        "تعذر تحميل السجلات. اسمح بالتخزين وأعد التحميل؛ لم تُستبدل أي بيانات.",
+      ),
+    "Could not load saved changes. Existing data is preserved; allow storage and retry loading.": t(
+      "Could not load saved changes. Existing data is preserved; allow storage and retry loading.",
+      "تعذر تحميل التغييرات. البيانات الحالية محفوظة؛ اسمح بالتخزين وأعد التحميل.",
+    ),
+    "Could not save prepared demo records. Existing stored data is preserved; retry loading.": t(
+      "Could not save prepared demo records. Existing stored data is preserved; retry loading.",
+      "تعذر حفظ السجلات التجريبية. البيانات الحالية محفوظة؛ أعد التحميل.",
+    ),
+    "Could not load saved records. Existing data is preserved. Retry loading.": t(
+      "Could not load saved records. Existing data is preserved. Retry loading.",
+      "تعذر تحميل السجلات المحفوظة. البيانات الحالية محفوظة. أعد التحميل.",
+    ),
+    "Could not save changes. Your input and existing records are preserved. Retry loading, then save again.":
+      t(
+        "Could not save changes. Your input and existing records are preserved. Retry loading, then save again.",
+        "تعذر حفظ التغييرات. بياناتك والسجلات الحالية محفوظة. أعد التحميل ثم حاول الحفظ مجددًا.",
+      ),
+  };
+  return errors[code] ?? code;
+}
+/** Error line for forms: announced, and the user's input stays in place. */
+export function FormError({ message }: { message?: string | null }) {
+  const t = useCopy();
+  if (!message) return null;
+  return (
+    <View style={kit.error} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+      <AppText tone="danger">{errorText(t, message)}</AppText>
+    </View>
+  );
 }
 export function Portrait({ userId, size = 48 }: { userId: string; size?: number }) {
   const { state } = useWorkspace();
@@ -67,20 +166,6 @@ export function Page({
   const role = state.users.find((user) => user.id === actorId)?.role ?? "student";
   const unread = state.alerts.filter((alert) => alert.userId === actorId && !alert.read).length;
   const t = useCopy();
-  const errors: Record<string, string> = {
-    not_allowed: t(
-      "This action is not available for this account.",
-      "هذه العملية غير متاحة لهذا الحساب.",
-    ),
-    locked: t("This item is locked.", "هذا العنصر مقفل."),
-    required_fields: t("Complete the required fields.", "يرجى إكمال الحقول المطلوبة."),
-    invalid_input: t("Check the entered values.", "تحقق من القيم المدخلة."),
-    capacity: t("This table is already full.", "هذه الطاولة ممتلئة."),
-    closed_day: t(
-      "Attendance is only recorded on working days.",
-      "يسجل الحضور في أيام الدوام فقط.",
-    ),
-  };
   return (
     <ScreenContainer scroll edges={["top"]}>
       {!embedded && (
@@ -158,7 +243,7 @@ export function Page({
       {!!error && (
         <Pressable onPress={clearError} style={kit.error}>
           <AppText tone="danger" accessibilityLiveRegion="assertive">
-            {errors[error] ?? error}
+            {errorText(t, error)}
           </AppText>
         </Pressable>
       )}
@@ -212,37 +297,40 @@ export function Panel({
     </PanelDepth.Provider>
   );
 }
-export function Field({ label, ...props }: TextInputProps & { label: string }) {
-  return <TextField label={label} {...props} />;
-}
+export const Field = forwardRef<
+  ComponentRef<typeof TextInput>,
+  TextInputProps & { label: string; error?: string; hint?: string }
+>(function Field({ label, ...props }, ref) {
+  return <TextField ref={ref} label={label} {...props} />;
+});
+/** Horizontally scrolling filter chips (intentional horizontal scroll). */
 export function Chips({
   options,
   value,
   onChange,
+  accessibilityLabel,
 }: {
-  options: { id: string; label: string }[];
+  options: { id: string; label: string; count?: number }[];
   value: string;
   onChange: (value: string) => void;
+  accessibilityLabel?: string;
 }) {
   return (
     <ScrollView
       style={{ flexGrow: 0, flexShrink: 0 }}
       horizontal
       showsHorizontalScrollIndicator={false}
+      accessibilityLabel={accessibilityLabel}
       contentContainerStyle={kit.filters}
     >
       {options.map((o) => (
-        <Pressable
+        <Chip
           key={o.id}
-          accessibilityRole="button"
-          accessibilityState={{ selected: o.id === value }}
+          label={o.label}
+          count={o.count}
+          selected={o.id === value}
           onPress={() => onChange(o.id)}
-          style={[kit.chip, o.id === value && kit.chipActive]}
-        >
-          <AppText variant="caption" tone={o.id === value ? "inverse" : "default"}>
-            {o.label}
-          </AppText>
-        </Pressable>
+        />
       ))}
     </ScrollView>
   );
@@ -308,7 +396,7 @@ export function Ring({ value, color = colors.primary }: { value: number; color?:
 }
 export const kit = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap", minWidth: 0 },
-  filters: { gap: 8, paddingVertical: 3, alignItems: "center" },
+  filters: { gap: 6, alignItems: "center" },
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center", minWidth: 0 },
   grow: { flex: 1, minWidth: 0, gap: 4 },
   panel: {
@@ -350,6 +438,14 @@ export const kit = StyleSheet.create({
     backgroundColor: colors.panelStrong,
     alignItems: "center",
     justifyContent: "center",
+  },
+  // Container for compact list rows (accounts, attendance, settings-style lists).
+  list: {
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: colors.panelStrong,
+    borderWidth: 1,
+    borderColor: colors.stroke,
   },
   menuRow: {
     minHeight: 56,

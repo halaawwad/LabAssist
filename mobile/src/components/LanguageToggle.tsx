@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   },
   option: {
     flex: 1,
-    minHeight: 38,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 14,
@@ -74,8 +74,8 @@ const styles = StyleSheet.create({
   },
   compactOption: {
     flex: 0,
-    minWidth: 40,
-    minHeight: 32,
+    minWidth: 44,
+    minHeight: 44,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
   },

@@ -41,8 +41,7 @@ export function Disclosure({
         }}
         style={{
           minHeight: 48,
-          direction: "ltr",
-          flexDirection: isRTL ? "row-reverse" : "row",
+          flexDirection: "row",
           alignItems: "center",
           gap: 12,
           borderBottomWidth: 1,

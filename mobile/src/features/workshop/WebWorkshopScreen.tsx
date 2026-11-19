@@ -1,18 +1,28 @@
-import { MapGroup } from "./MapGroup";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { TouchTarget as Pressable } from "@/components/TouchTarget";
-import { MobileModal as Modal } from "@/components/MobileModal";
 import { recordHandover } from "../../../../shared/web/handover";
 import { assignWorkshopTeam, removeWorkshopTeam } from "@/domain/workshopAllocation";
 import { useState } from "react";
-import { Image, ScrollView, View, StyleSheet, useWindowDimensions } from "react-native";
-import Svg, { Rect, Ellipse, Text as SvgText } from "react-native-svg";
+import { ScrollView, View, StyleSheet } from "react-native";
+import { ArrowLeftRight, LayoutGrid, UserCheck, UserX } from "lucide-react-native";
+import { useLanguage } from "@/i18n";
 import { AppText, Button } from "@/components";
-import { Chips, Field, Panel, kit } from "@/components/MobileKit";
+import {
+  Chips,
+  Field,
+  FormError,
+  FormSheet,
+  Panel,
+  kit,
+  SearchField,
+  useCopy,
+  Greeting,
+  StatGrid,
+  MenuRow,
+} from "@/components/MobileKit";
+import { WorkshopMap } from "./WorkshopMap";
 import { useLocalPreview } from "@/lib/useLocalPreview";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { calendarDay } from "@/domain/workspace";
-import { workshopTables, tableStatus, floorSize } from "@/domain/webWorkshop/workshopTables";
+import { workshopTables, tableStatus } from "@/domain/webWorkshop/workshopTables";
 import { teams, students, supervisors, teamById } from "@/domain/webWorkshop/teams";
 import { handoverSeed, type HandoverRecord } from "@/domain/webWorkshop/handover";
 import {
@@ -27,21 +37,75 @@ import {
 import { AttendancePanel } from "./WorkshopScreen";
 import { router } from "@/native/router";
 type Duty = { status: "onDuty" | "away" | "absent"; from: string; until: string; reason: string };
-const noticeText = (n: Notice) =>
+type Copy = (en: string, ar: string) => string;
+const noticeText = (n: Notice, tr: Copy) =>
   n.message ??
   {
-    returnItems: "Please return the issued tools and components to the workshop for checking.",
-    general: "Please contact the workshop manager about your project workbench.",
-    schedule: "Check the workshop schedule before your next visit.",
-    closed: "The workshop is closed today.",
-    fullDay: "The workshop manager is absent today.",
-    unavailable: `The workshop manager is temporarily away ${n.params?.from ?? ""}–${n.params?.until ?? ""}.`,
+    returnItems: tr(
+      "Please return the issued tools and components to the workshop for checking.",
+      "يرجى إرجاع الأدوات والقطع المستلمة إلى الورشة لفحصها.",
+    ),
+    general: tr(
+      "Please contact the workshop manager about your project workbench.",
+      "يرجى التواصل مع مسؤول الورشة بخصوص طاولة مشروعك.",
+    ),
+    schedule: tr(
+      "Check the workshop schedule before your next visit.",
+      "راجع جدول الورشة قبل زيارتك القادمة.",
+    ),
+    closed: tr("The workshop is closed today.", "الورشة مغلقة اليوم."),
+    fullDay: tr("The workshop manager is absent today.", "مسؤول الورشة غائب اليوم."),
+    unavailable: tr(
+      `The workshop manager is temporarily away ${n.params?.from ?? ""}–${n.params?.until ?? ""}.`,
+      `مسؤول الورشة غائب مؤقتًا ${n.params?.from ?? ""}–${n.params?.until ?? ""}.`,
+    ),
   }[n.kind];
+/** Display labels for stored enum values (the stored values themselves never change). */
+const observationTypeLabels: Record<string, [string, string]> = {
+  repeatedAbsence: ["Repeated absence", "غياب متكرر"],
+  notWorking: ["Not working on the project", "لا يعمل على المشروع"],
+  readyMade: ["Ready-made project", "مشروع جاهز"],
+  misuse: ["Equipment misuse", "سوء استخدام المعدات"],
+  unsafe: ["Unsafe practice", "ممارسة غير آمنة"],
+  general: ["General note", "ملاحظة عامة"],
+  positive: ["Positive note", "ملاحظة إيجابية"],
+};
+const observationStatusLabels: Record<string, [string, string]> = {
+  sent: ["Sent", "مُرسلة"],
+  seen: ["Seen", "تمت المشاهدة"],
+  followUp: ["Follow-up", "متابعة"],
+};
+const noticeKindLabels: Record<string, [string, string]> = {
+  general: ["General", "عام"],
+  closed: ["Workshop closed", "الورشة مغلقة"],
+  schedule: ["Schedule", "الجدول"],
+  returnItems: ["Return items", "إرجاع القطع"],
+  unavailable: ["Temporarily away", "غياب مؤقت"],
+  fullDay: ["Full-day absence", "غياب يوم كامل"],
+};
+const conditionLabels: Record<string, [string, string]> = {
+  good: ["Good", "سليمة"],
+  damaged: ["Damaged", "تالفة"],
+  missing: ["Missing", "مفقودة"],
+};
+const paramLabels: Record<string, [string, string]> = {
+  time: ["Time", "الوقت"],
+  supervisor: ["Supervisor", "المشرف"],
+  team: ["Team", "الفريق"],
+  count: ["Count", "العدد"],
+  from: ["From", "من"],
+  until: ["Until", "حتى"],
+  date: ["Date", "التاريخ"],
+};
 const route = (page: string) =>
   router.push(`/native/workshop/${page}` as import("expo-router").Href);
 export function WebWorkshopScreen({ page }: { page: string }) {
-  const { width } = useWindowDimensions();
-  const mapWidth = Math.max(220, Math.min(600, width - 64));
+  const tr = useCopy();
+  const { formatDateTime, formatLongDate, isolate, ltr } = useLanguage();
+  const label = (map: Record<string, [string, string]>, value: string) =>
+    map[value] ? tr(map[value][0], map[value][1]) : value;
+  const { state: workspaceState, actorId } = useWorkspace();
+  const userName = workspaceState.users.find((user) => user.id === actorId)?.name ?? "";
   const { state, act, error: saveError } = useWorkspace();
   const {
     value: tables,
@@ -51,8 +115,7 @@ export function WebWorkshopScreen({ page }: { page: string }) {
   } = useLocalPreview("labassist.mobile.workshop.table-allocations.v1", workshopTables);
   const [assignTeam, setAssignTeam] = useState(""),
     [teamQuery, setTeamQuery] = useState(""),
-    [allocationError, setAllocationError] = useState(""),
-    [zoom, setZoom] = useState(1);
+    [allocationError, setAllocationError] = useState("");
   const tableOfTeam = (id: string) => tables.find((t) => t.teamIds.includes(id));
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
@@ -81,6 +144,17 @@ export function WebWorkshopScreen({ page }: { page: string }) {
     "labassist.mobile.workshop.duty.web",
     { status: "onDuty", from: "11:00", until: "12:00", reason: "" },
   );
+  // One submission at a time from the form sheet.
+  const [submitting, setSubmitting] = useState(false);
+  const once = async (save: () => Promise<unknown>) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await save();
+    } finally {
+      setSubmitting(false);
+    }
+  };
   const [sheet, setSheet] = useState<
       "table" | "return" | "notice" | "away" | "absence" | "observation" | null
     >(null),
@@ -112,20 +186,23 @@ export function WebWorkshopScreen({ page }: { page: string }) {
           audience,
           message:
             message ||
-            noticeText({
-              id: "",
-              kind,
-              audience,
-              sentAt: "",
-              params: { from: duty.from, until: duty.until },
-            }),
+            noticeText(
+              {
+                id: "",
+                kind,
+                audience,
+                sentAt: "",
+                params: { from: duty.from, until: duty.until },
+              },
+              tr,
+            ),
           sentAt: new Date().toISOString(),
         },
         ...notices,
       ])) === false
     )
       return false;
-    setFeedback("Notice saved in the local preview.");
+    setFeedback(tr("Notice saved in the local preview.", "تم حفظ الإعلان في المعاينة المحلية."));
     setSheet(null);
   }
   function compose(k: Notice["kind"], target = "all") {
@@ -136,27 +213,42 @@ export function WebWorkshopScreen({ page }: { page: string }) {
     setSheet("notice");
   }
   const summary = (
-    <View style={kit.wrap}>
-      {[
-        [present, "Present today"],
-        [absent, "Absent today"],
-        [
-          `${tables.filter((t) => tableStatus(t) !== "free").length}/${tables.length}`,
-          "Occupied tables",
-        ],
-        [handover.length - checked, "Pending handovers"],
-      ].map(([n, label], i) => (
-        <View
-          key={label}
-          style={[s.stat, { backgroundColor: ["#e8f0df", "#f3e6e9", "#e6eef7", "#eee7f4"][i] }]}
-        >
-          <AppText variant="title">{n}</AppText>
-          <AppText variant="caption" tone="muted">
-            {label}
-          </AppText>
-        </View>
-      ))}
-    </View>
+    <StatGrid
+      items={[
+        {
+          id: "present",
+          icon: UserCheck,
+          tone: "olive",
+          value: present,
+          label: tr("Present today", "الحاضرون اليوم"),
+          onPress: () => route("attendance"),
+        },
+        {
+          id: "absent",
+          icon: UserX,
+          tone: "red",
+          value: absent,
+          label: tr("Absent today", "الغائبون اليوم"),
+          onPress: () => route("attendance"),
+        },
+        {
+          id: "tables",
+          icon: LayoutGrid,
+          tone: "blue",
+          value: ltr(`${tables.filter((t) => tableStatus(t) !== "free").length}/${tables.length}`),
+          label: tr("Occupied tables", "الطاولات المشغولة"),
+          onPress: () => route("map"),
+        },
+        {
+          id: "handovers",
+          icon: ArrowLeftRight,
+          tone: "violet",
+          value: handover.length - checked,
+          label: tr("Pending handovers", "تسليمات معلقة"),
+          onPress: () => route("handover"),
+        },
+      ]}
+    />
   );
   const selectTable = (code: string) => {
     setSelected(code);
@@ -164,117 +256,26 @@ export function WebWorkshopScreen({ page }: { page: string }) {
     setAllocationError("");
     setSheet("table");
   };
-  const map = (
-    <Panel title="Workshop map">
-      <AppText variant="caption">
-        {tables.length} tables · Rectangular: one team · Round: two teams
-      </AppText>
-      <View style={kit.wrap}>
-        <Button
-          title="Zoom out"
-          size="sm"
-          variant="soft"
-          onPress={() => setZoom(Math.max(0.7, zoom - 0.2))}
-        />
-        <AppText variant="caption">{Math.round(zoom * 100)}%</AppText>
-        <Button
-          title="Zoom in"
-          size="sm"
-          variant="soft"
-          onPress={() => setZoom(Math.min(2, zoom + 0.2))}
-        />
-      </View>
-      <ScrollView horizontal>
-        <View
-          style={{
-            width: mapWidth * zoom,
-            height: (mapWidth * zoom * floorSize.height) / floorSize.width,
-          }}
-        >
-          <Svg
-            width={mapWidth * zoom}
-            height={(mapWidth * zoom * floorSize.height) / floorSize.width}
-            viewBox={`0 0 ${floorSize.width} ${floorSize.height}`}
-          >
-            <Rect
-              x={20}
-              y={20}
-              width={floorSize.width - 40}
-              height={floorSize.height - 40}
-              rx={30}
-              fill="#f8f6f0"
-              stroke="#aebaa4"
-              strokeWidth={5}
-            />
-            {matchingTables.map((table) => (
-              <MapGroup
-                key={table.code}
-                label={`Table ${table.code}`}
-                onPress={() => selectTable(table.code)}
-              >
-                {table.shape === "round" ? (
-                  <Ellipse
-                    cx={table.cx}
-                    cy={table.cy}
-                    rx={table.w / 2}
-                    ry={table.h / 2}
-                    fill={selected === table.code ? "#526443" : "#dfe8d9"}
-                    stroke="#728a5d"
-                    strokeWidth={3}
-                  />
-                ) : (
-                  <Rect
-                    x={table.cx - table.w / 2}
-                    y={table.cy - table.h / 2}
-                    width={table.w}
-                    height={table.h}
-                    rx={8}
-                    fill={
-                      selected === table.code
-                        ? "#526443"
-                        : table.teamIds.length
-                          ? "#dfe8d9"
-                          : "#deebf8"
-                    }
-                    stroke="#728a5d"
-                    strokeWidth={3}
-                  />
-                )}
-                <SvgText
-                  x={table.cx}
-                  y={table.cy + 6}
-                  textAnchor="middle"
-                  fill={selected === table.code ? "#fff" : "#26352c"}
-                  fontWeight="bold"
-                  fontSize={27}
-                >
-                  {table.code}
-                </SvgText>
-              </MapGroup>
-            ))}
-          </Svg>
-        </View>
-      </ScrollView>
-      <View style={kit.wrap}>
-        {["assigned", "free", "shared"].map((value) => (
-          <AppText variant="caption" key={value}>
-            ● {value}
-          </AppText>
-        ))}
-      </View>
-    </Panel>
+  const mapView = (
+    <WorkshopMap
+      tables={matchingTables}
+      total={tables.length}
+      selected={selected}
+      onSelect={selectTable}
+      teamLabel={(id) => teamById.get(id)?.project ?? id}
+    />
   );
   const availability = (
-    <Panel title="Manager availability">
+    <Panel title={tr("Manager availability", "توفر مسؤول الورشة")}>
       <AppText weight="bold">
         {duty.status === "onDuty"
-          ? "On duty"
+          ? tr("On duty", "على رأس العمل")
           : duty.status === "away"
-            ? "Temporarily away"
-            : "Absent today"}
+            ? tr("Temporarily away", "غائب مؤقتًا")
+            : tr("Absent today", "غائب اليوم")}
       </AppText>
       <AppText>
-        Working hours {workingHours.start} – {workingHours.end}
+        {tr("Working hours", "ساعات العمل")} {ltr(`${workingHours.start} – ${workingHours.end}`)}
       </AppText>
       {duty.status === "away" && (
         <AppText>
@@ -283,20 +284,20 @@ export function WebWorkshopScreen({ page }: { page: string }) {
       )}
       <View style={kit.wrap}>
         <Button
-          title="Notify temporary absence"
+          title={tr("Notify temporary absence", "الإبلاغ عن غياب مؤقت")}
           size="sm"
           variant="soft"
           onPress={() => setSheet("away")}
         />
         <Button
-          title="Notify full-day absence"
+          title={tr("Notify full-day absence", "الإبلاغ عن غياب يوم كامل")}
           size="sm"
           variant="ghost"
           onPress={() => setSheet("absence")}
         />
         {duty.status !== "onDuty" && (
           <Button
-            title="Back on duty"
+            title={tr("Back on duty", "العودة إلى العمل")}
             size="sm"
             onPress={async () => {
               if ((await setDuty({ ...duty, status: "onDuty" })) === false) return false;
@@ -307,6 +308,113 @@ export function WebWorkshopScreen({ page }: { page: string }) {
       </View>
     </Panel>
   );
+  const sheetTitle =
+    sheet === "table"
+      ? `${tr("Table", "طاولة")} ${activeTable?.code ?? ""}`
+      : sheet === "return"
+        ? `${tr("Check return", "فحص الإرجاع")} · ${activeHandover?.teamId ?? ""}`
+        : sheet === "notice"
+          ? tr("Compose notice", "كتابة إعلان")
+          : sheet === "observation"
+            ? tr("Report to supervisor", "إبلاغ المشرف")
+            : sheet === "away"
+              ? tr("Temporary absence", "غياب مؤقت")
+              : tr("Full-day absence", "غياب يوم كامل");
+  const sheetFooter =
+    sheet === "return" && activeHandover ? (
+      <Button
+        title={tr("Save return check", "حفظ فحص الإرجاع")}
+        disabled={condition !== "good" && !note.trim()}
+        loading={submitting}
+        onPress={() =>
+          once(async () => {
+            if (
+              (await setHandover(
+                handover.map((h) =>
+                  h.teamId === selected
+                    ? {
+                        ...h,
+                        checked: true,
+                        checkedOn: calendarDay(),
+                        condition,
+                        note,
+                        history: [...(h.history ?? []), { ...h, history: undefined }],
+                      }
+                    : h,
+                ),
+              )) === false
+            )
+              return false;
+            setSheet(null);
+            setFeedback(tr("Return inspection recorded.", "تم تسجيل فحص الإرجاع."));
+          })
+        }
+      />
+    ) : sheet === "notice" || sheet === "observation" ? (
+      <Button
+        title={tr("Save notice", "حفظ الإعلان")}
+        disabled={!body.trim()}
+        loading={submitting}
+        onPress={() =>
+          once(async () => {
+            if (sheet === "observation") {
+              if (
+                (await setObservations([
+                  {
+                    id: `ob-${Date.now()}`,
+                    teamId: audience,
+                    supervisorId: teamById.get(audience)?.supervisorId ?? "",
+                    type: observationType,
+                    note: body,
+                    date: calendarDay(),
+                    status: "sent",
+                  },
+                  ...observations,
+                ])) === false
+              )
+                return false;
+              setSheet(null);
+            } else if (selected && notices.some((n) => n.id === selected)) {
+              if (
+                (await setNotices(
+                  notices.map((n) =>
+                    n.id === selected ? { ...n, message: body, audience, kind } : n,
+                  ),
+                )) === false
+              )
+                return false;
+              setSelected("");
+              setSheet(null);
+            } else if ((await notify(kind, audience, body)) === false) return false;
+          })
+        }
+      />
+    ) : sheet === "away" || sheet === "absence" ? (
+      <Button
+        title={tr("Save availability & notice", "حفظ التوفر والإعلان")}
+        loading={submitting}
+        onPress={() =>
+          once(async () => {
+            if (
+              sheet === "away" &&
+              (!/^([01]\d|2[0-3]):[0-5]\d$/.test(duty.from) ||
+                !/^([01]\d|2[0-3]):[0-5]\d$/.test(duty.until) ||
+                duty.until <= duty.from)
+            ) {
+              setFeedback(tr("Choose a valid absence time range.", "اختر فترة غياب صحيحة."));
+              return;
+            }
+            if (
+              (await setDuty({ ...duty, status: sheet === "away" ? "away" : "absent" })) === false
+            )
+              return false;
+            await act({ type: "availability.set", value: "closed" });
+            if ((await notify(sheet === "away" ? "unavailable" : "fullDay")) === false)
+              return false;
+          })
+        }
+      />
+    ) : undefined;
   return (
     <ScrollView
       automaticallyAdjustKeyboardInsets
@@ -321,31 +429,59 @@ export function WebWorkshopScreen({ page }: { page: string }) {
       )}
       {page === "dashboard" && (
         <>
-          <Image
-            source={require("../../../assets/web/workshop-header-scene.webp")}
-            style={{ width: "100%", height: 110, borderRadius: 22 }}
-          />
+          <Greeting name={userName} />
           {summary}
-          <Field label="Search table, team or project" value={query} onChangeText={setQuery} />
-          {map}
-          <Panel title="Attendance today">
+          <Panel title={tr("Workshop map", "خريطة الورشة")}>
+            {tables.slice(0, 3).map((table) => (
+              <MenuRow
+                key={table.code}
+                title={
+                  table.teamIds.length
+                    ? table.teamIds.map((id) => isolate(teamById.get(id)?.project ?? id)).join(" · ")
+                    : `${tr("Table", "طاولة")} ${ltr(table.code)}`
+                }
+                subtitle={
+                  tableStatus(table) === "free"
+                    ? tr("Free", "متاحة")
+                    : `${tr("Table", "طاولة")} ${ltr(table.code)} · ${
+                        tableStatus(table) === "shared"
+                          ? tr("Shared", "مشتركة")
+                          : tr("Assigned", "مخصصة")
+                      }`
+                }
+                onPress={() => selectTable(table.code)}
+              />
+            ))}
+            <MenuRow title={tr("View all", "عرض الكل")} onPress={() => route("map")} />
+          </Panel>
+          <Panel title={tr("Attendance today", "حضور اليوم")}>
             <AppText>
-              {present} present · {absent} absent · Actual working days only
+              {present} {tr("present", "حاضر")} · {absent} {tr("absent", "غائب")} ·{" "}
+              {tr("Actual working days only", "أيام الدوام الفعلية فقط")}
             </AppText>
-            <Button title="Record attendance" variant="soft" onPress={() => route("attendance")} />
+            <Button
+              title={tr("Record attendance", "تسجيل الحضور")}
+              variant="soft"
+              onPress={() => route("attendance")}
+            />
           </Panel>
           {availability}
-          <Panel title="Team handovers">
+          <Panel title={tr("Team handovers", "تسليمات الفرق")}>
             <AppText>
-              {checked} checked · {handover.length - checked} pending
+              {checked} {tr("checked", "تم فحصها")} · {handover.length - checked}{" "}
+              {tr("pending", "معلقة")}
             </AppText>
-            <Button title="Check returned items" variant="soft" onPress={() => route("handover")} />
+            <Button
+              title={tr("Check returned items", "فحص القطع المرجعة")}
+              variant="soft"
+              onPress={() => route("handover")}
+            />
           </Panel>
-          <Panel title="Report to supervisors">
+          <Panel title={tr("Report to supervisors", "إبلاغ المشرفين")}>
             <View style={kit.wrap}>
               {["repeatedAbsence", "readyMade", "general"].map((v) => (
                 <Button
-                  title={v.replace(/([A-Z])/g, " $1")}
+                  title={label(observationTypeLabels, v)}
                   key={v}
                   size="sm"
                   variant="soft"
@@ -363,52 +499,53 @@ export function WebWorkshopScreen({ page }: { page: string }) {
       )}
       {page === "map" && (
         <>
-          <Field label="Search table, team or project" value={query} onChangeText={setQuery} />
+          <SearchField
+            label={tr("Search table, team or project", "ابحث بالطاولة أو الفريق أو المشروع")}
+            placeholder={tr(
+              "Search table, team or project…",
+              "ابحث بالطاولة أو الفريق أو المشروع…",
+            )}
+            value={query}
+            onChangeText={setQuery}
+          />
           <Chips
             value={filter}
             onChange={setFilter}
-            options={["all", "assigned", "free", "shared"].map((id) => ({ id, label: id }))}
+            accessibilityLabel={tr("Filter tables", "تصفية الطاولات")}
+            options={[
+              { id: "all", label: tr("All", "الكل") },
+              { id: "assigned", label: tr("Assigned", "مخصصة") },
+              { id: "free", label: tr("Free", "متاحة") },
+              { id: "shared", label: tr("Shared", "مشتركة") },
+            ]}
           />
-          {map}
-          {matchingTables.map((table) => (
-            <Pressable
-              accessibilityRole="button"
-              key={table.code}
-              onPress={() => {
-                setSelected(table.code);
-                setSheet("table");
-              }}
-            >
-              <Panel title={table.code}>
-                <AppText>
-                  {table.teamIds.map((id) => teamById.get(id)?.project).join(" · ") || "Free table"}
-                </AppText>
-                <AppText variant="caption">
-                  {table.shape} · Capacity {table.shape === "rect" ? 1 : 2} · {tableStatus(table)}
-                </AppText>
-              </Panel>
-            </Pressable>
-          ))}
+          {mapView}
         </>
       )}
       {page === "attendance" && <AttendancePanel />}
       {page === "handover" && (
         <>
-          <Button title="Record handover" onPress={() => setHandoverForm(!handoverForm)} />
+          <Button
+            title={tr("Record handover", "تسجيل تسليم")}
+            onPress={() => setHandoverForm(!handoverForm)}
+          />
           {handoverForm && (
-            <Panel title="New handover">
+            <Panel title={tr("New handover", "تسليم جديد")}>
               <Chips
                 value={handoverTeam}
                 onChange={setHandoverTeam}
                 options={teams.map((team) => ({ id: team.id, label: team.id }))}
               />
               <Field
-                label="Item names (one of each, separated by commas)"
+                label={tr(
+                  "Item names (one of each, separated by commas)",
+                  "أسماء القطع (واحدة من كل نوع، مفصولة بفواصل)",
+                )}
                 value={handoverItems}
                 onChangeText={setHandoverItems}
               />
               <Button
-                title="Save handover"
+                title={tr("Save handover", "حفظ التسليم")}
                 disabled={!handoverItems.trim()}
                 onPress={async () => {
                   try {
@@ -420,11 +557,15 @@ export function WebWorkshopScreen({ page }: { page: string }) {
                     if (await setHandover(next)) {
                       setHandoverForm(false);
                       setHandoverItems("");
-                      setFeedback("Handover saved on this device.");
+                      setFeedback(
+                        tr("Handover saved on this device.", "تم حفظ التسليم على هذا الجهاز."),
+                      );
                     }
                   } catch (cause) {
                     setFeedback(
-                      cause instanceof Error ? cause.message : "Could not save handover.",
+                      cause instanceof Error
+                        ? cause.message
+                        : tr("Could not save handover.", "تعذر حفظ التسليم."),
                     );
                   }
                 }}
@@ -451,7 +592,8 @@ export function WebWorkshopScreen({ page }: { page: string }) {
             .map((h) => (
               <Panel key={h.teamId} title={`${h.teamId} · ${teamById.get(h.teamId)?.project}`}>
                 <AppText variant="caption" tone="muted">
-                  {tableOfTeam(h.teamId)?.code} · Given {h.dateGiven}
+                  {tableOfTeam(h.teamId)?.code} · {tr("Given", "سُلّمت")}{" "}
+                  {formatLongDate(h.dateGiven)}
                 </AppText>
                 <View style={kit.wrap}>
                   {h.items.map((item) => (
@@ -461,21 +603,23 @@ export function WebWorkshopScreen({ page }: { page: string }) {
                   ))}
                 </View>
                 <AppText tone="primary">
-                  {h.checked ? `Return checked · ${h.checkedOn ?? ""}` : "Pending return check"}
+                  {h.checked
+                    ? `${tr("Return checked", "تم فحص الإرجاع")} · ${h.checkedOn ? formatLongDate(h.checkedOn) : ""}`
+                    : tr("Pending return check", "بانتظار فحص الإرجاع")}
                 </AppText>
-                {h.condition && <AppText>{h.condition}</AppText>}
+                {h.condition && <AppText>{label(conditionLabels, h.condition)}</AppText>}
                 {h.note && <AppText variant="caption">{h.note}</AppText>}
                 <View style={kit.wrap}>
                   {!h.checked && (
                     <Button
-                      title="Remind team"
+                      title={tr("Remind team", "تذكير الفريق")}
                       size="sm"
                       variant="ghost"
                       onPress={() => compose("returnItems", h.teamId)}
                     />
                   )}
                   <Button
-                    title="Check return"
+                    title={tr("Check return", "فحص الإرجاع")}
                     size="sm"
                     variant="soft"
                     onPress={() => {
@@ -492,17 +636,17 @@ export function WebWorkshopScreen({ page }: { page: string }) {
       )}
       {page === "notices" && (
         <>
-          <Button title="New notice" onPress={() => compose("general")} />
-          <Panel title="Quick notices">
+          <Button title={tr("New notice", "إعلان جديد")} onPress={() => compose("general")} />
+          <Panel title={tr("Quick notices", "إعلانات سريعة")}>
             <View style={kit.wrap}>
               <Button
-                title="Temporary absence"
+                title={tr("Temporary absence", "غياب مؤقت")}
                 size="sm"
                 variant="soft"
                 onPress={() => setSheet("away")}
               />
               <Button
-                title="Full-day absence"
+                title={tr("Full-day absence", "غياب يوم كامل")}
                 size="sm"
                 variant="soft"
                 onPress={() => setSheet("absence")}
@@ -510,7 +654,7 @@ export function WebWorkshopScreen({ page }: { page: string }) {
               {["closed", "schedule", "returnItems", "general"].map((kind) => (
                 <Button
                   key={kind}
-                  title={kind.replace(/([A-Z])/g, " $1")}
+                  title={label(noticeKindLabels, kind)}
                   size="sm"
                   variant="ghost"
                   onPress={() => compose(kind as Notice["kind"])}
@@ -521,23 +665,23 @@ export function WebWorkshopScreen({ page }: { page: string }) {
           {notices.map((n) => (
             <Panel key={n.id}>
               <AppText weight="bold">
-                {n.kind} ·{" "}
+                {label(noticeKindLabels, n.kind)} ·{" "}
                 {n.audience === "all"
-                  ? "All students"
+                  ? tr("All students", "جميع الطلاب")
                   : `${n.audience} · ${teamById.get(n.audience)?.project}`}
               </AppText>
-              <AppText>{noticeText(n)}</AppText>
+              <AppText>{noticeText(n, tr)}</AppText>
               <AppText variant="caption" tone="muted">
-                {new Date(n.sentAt).toLocaleString()}
+                {formatDateTime(n.sentAt)}
               </AppText>
               <View style={kit.wrap}>
                 <Button
-                  title="Edit notice"
+                  title={tr("Edit notice", "تعديل الإعلان")}
                   size="sm"
                   variant="ghost"
                   onPress={() => {
                     setSelected(n.id);
-                    setBody(noticeText(n));
+                    setBody(noticeText(n, tr));
                     setAudience(n.audience);
                     setKind(n.kind);
                     setSheet("notice");
@@ -551,7 +695,7 @@ export function WebWorkshopScreen({ page }: { page: string }) {
       {page === "observations" && (
         <>
           <Button
-            title="Add supervisor note"
+            title={tr("Add supervisor note", "إضافة ملاحظة للمشرف")}
             onPress={() => {
               setAudience(teams[0].id);
               setBody("");
@@ -562,10 +706,11 @@ export function WebWorkshopScreen({ page }: { page: string }) {
           {observations.map((o) => (
             <Panel key={o.id} title={`${o.teamId} · ${teamById.get(o.teamId)?.project}`}>
               <AppText variant="caption">
-                {supervisors.find((s) => s.id === o.supervisorId)?.name} · {o.type} · {o.date}
+                {supervisors.find((s) => s.id === o.supervisorId)?.name} ·{" "}
+                {label(observationTypeLabels, o.type)} · {formatLongDate(o.date)}
               </AppText>
               <AppText>{o.note}</AppText>
-              <AppText tone="primary">{o.status}</AppText>
+              <AppText tone="primary">{label(observationStatusLabels, o.status)}</AppText>
             </Panel>
           ))}
         </>
@@ -573,7 +718,7 @@ export function WebWorkshopScreen({ page }: { page: string }) {
       {page === "notifications" && (
         <>
           <Button
-            title="Mark all as read"
+            title={tr("Mark all as read", "تعليم الكل كمقروء")}
             disabled={notifications.every((n) => n.read)}
             variant="soft"
             onPress={async () =>
@@ -584,8 +729,8 @@ export function WebWorkshopScreen({ page }: { page: string }) {
             value={filter}
             onChange={setFilter}
             options={[
-              { id: "all", label: "All" },
-              { id: "unread", label: "Unread" },
+              { id: "all", label: tr("All", "الكل") },
+              { id: "unread", label: tr("Unread", "غير المقروءة") },
             ]}
           />
           {notifications
@@ -595,25 +740,28 @@ export function WebWorkshopScreen({ page }: { page: string }) {
                 <AppText weight="bold">
                   {
                     {
-                      attendance: "Record today’s attendance",
-                      supervisorReply: "New supervisor reply",
-                      returnReminder: "Teams have pending tool returns",
-                      managerAway: "Manager availability updated",
-                      notice: "Workshop notice",
+                      attendance: tr("Record today’s attendance", "سجّل حضور اليوم"),
+                      supervisorReply: tr("New supervisor reply", "رد جديد من المشرف"),
+                      returnReminder: tr(
+                        "Teams have pending tool returns",
+                        "فرق لديها أدوات لم تُرجع",
+                      ),
+                      managerAway: tr("Manager availability updated", "تم تحديث توفر المسؤول"),
+                      notice: tr("Workshop notice", "إعلان الورشة"),
                     }[n.kind]
                   }
                 </AppText>
                 <AppText>
                   {Object.entries(n.params)
-                    .map(([k, v]) => `${k}: ${v}`)
+                    .map(([k, v]) => `${label(paramLabels, k)}: ${ltr(String(v))}`)
                     .join(" · ")}
                 </AppText>
                 <AppText variant="caption" tone="muted">
-                  {new Date(n.at).toLocaleString()}
+                  {formatDateTime(n.at)}
                 </AppText>
                 <View style={kit.wrap}>
                   <Button
-                    title="Open notification"
+                    title={tr("Open notification", "فتح الإشعار")}
                     size="sm"
                     variant="soft"
                     onPress={async () => {
@@ -627,7 +775,7 @@ export function WebWorkshopScreen({ page }: { page: string }) {
                     }}
                   />
                   <Button
-                    title={n.read ? "Read" : "Mark as read"}
+                    title={n.read ? tr("Read", "مقروء") : tr("Mark as read", "تعليم كمقروء")}
                     size="sm"
                     disabled={n.read}
                     variant="ghost"
@@ -642,278 +790,191 @@ export function WebWorkshopScreen({ page }: { page: string }) {
             ))}
         </>
       )}
-      <Modal visible={!!sheet} animationType="slide" onRequestClose={() => setSheet(null)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-          {!!saveError && (
-            <AppText accessibilityRole="alert" tone="danger">
-              {saveError}
+      <FormSheet
+        visible={!!sheet}
+        title={sheetTitle}
+        busy={submitting}
+        onClose={() => setSheet(null)}
+        footer={sheetFooter}
+      >
+        <FormError message={saveError} />
+        {sheet === "table" && activeTable && (
+          <>
+            <AppText>
+              {activeTable.shape === "rect"
+                ? tr("Rectangular table · 1 team maximum", "طاولة مستطيلة · فريق واحد كحد أقصى")
+                : tr("Round table · 2 teams maximum", "طاولة دائرية · فريقان كحد أقصى")}{" "}
+              · {activeTable.teamIds.length} {tr("assigned", "مخصصة")}
             </AppText>
-          )}
-          <ScrollView
-            automaticallyAdjustKeyboardInsets
-            keyboardDismissMode="on-drag"
-            contentContainerStyle={{ padding: 16, gap: 16 }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Button title="Close" variant="ghost" onPress={() => setSheet(null)} />
-            {sheet === "table" && activeTable && (
-              <>
-                <AppText variant="title">Table {activeTable.code}</AppText>
-                <AppText>
-                  {activeTable.shape === "rect"
-                    ? "Rectangular table · 1 team maximum"
-                    : "Round table · 2 teams maximum"}{" "}
-                  · {activeTable.teamIds.length} assigned
-                </AppText>
-                {!!tableStorageError && <AppText tone="danger">{tableStorageError}</AppText>}
-                {!activeTable.teamIds.length && (
-                  <AppText tone="muted">This table is empty.</AppText>
-                )}
-                {activeTable.teamIds.map((id) => (
-                  <Panel key={id} title={`${id} · ${teamById.get(id)?.project}`}>
-                    <Button
-                      title={`Remove ${id} from table`}
-                      size="sm"
-                      variant="danger"
-                      disabled={!tablesReady}
-                      onPress={async () => {
-                        if (
-                          (await setTables(removeWorkshopTeam(tables, id, activeTable.code))) ===
-                          false
-                        )
-                          return false;
-                        setAllocationError("");
-                      }}
-                    />
-                    <AppText>
-                      {supervisors.find((s) => s.id === teamById.get(id)?.supervisorId)?.name}
-                    </AppText>
-                    {students
-                      .filter((s) => s.teamId === id)
-                      .map((s) => (
-                        <AppText key={s.id}>
-                          {s.name} · {s.id}
-                        </AppText>
-                      ))}
-                  </Panel>
-                ))}
-                <Panel title="Add or move a team">
-                  <Field
-                    label="Find team or project"
-                    value={teamQuery}
-                    onChangeText={setTeamQuery}
-                  />
-                  <Chips
-                    value={assignTeam}
-                    onChange={(v) => {
-                      setAssignTeam(v);
-                      setAllocationError("");
-                    }}
-                    options={teams
-                      .filter(
-                        (t) =>
-                          !activeTable.teamIds.includes(t.id) &&
-                          `${t.id} ${t.project}`.toLowerCase().includes(teamQuery.toLowerCase()),
-                      )
-                      .map((t) => ({ id: t.id, label: `${t.id} · ${t.project}` }))}
-                  />
-                  {!!assignTeam && (
-                    <AppText>
-                      {teamById.get(assignTeam)?.project} ·{" "}
-                      {tableOfTeam(assignTeam)
-                        ? `Move from ${tableOfTeam(assignTeam)!.code} to ${activeTable.code}`
-                        : `Assign to ${activeTable.code}`}
-                    </AppText>
-                  )}
-                  <Button
-                    title="Save table assignment"
-                    disabled={!assignTeam || !tablesReady}
-                    onPress={async () => {
-                      try {
-                        if (
-                          (await setTables(
-                            assignWorkshopTeam(tables, assignTeam, activeTable.code),
-                          )) === false
-                        )
-                          return false;
-                        setAssignTeam("");
-                        setAllocationError("");
-                        setFeedback("Table allocation saved.");
-                      } catch (e) {
-                        setAllocationError(
-                          e instanceof Error ? e.message : "Could not update the table.",
-                        );
-                      }
-                    }}
-                  />
-                  {!!allocationError && (
-                    <AppText tone="danger" accessibilityRole="alert">
-                      {allocationError}
-                    </AppText>
-                  )}
-                </Panel>
-              </>
+            {!!tableStorageError && <AppText tone="danger">{tableStorageError}</AppText>}
+            {!activeTable.teamIds.length && (
+              <AppText tone="muted">{tr("This table is empty.", "هذه الطاولة فارغة.")}</AppText>
             )}
-            {sheet === "return" && activeHandover && (
-              <>
-                <AppText variant="title">Check return · {activeHandover.teamId}</AppText>
-                {activeHandover.items.map((item) => (
-                  <AppText key={item}>• {item}</AppText>
-                ))}
-                <Chips
-                  value={condition ?? "good"}
-                  onChange={(v) => setCondition(v as HandoverRecord["condition"])}
-                  options={["good", "damaged", "missing"].map((id) => ({ id, label: id }))}
-                />
-                <Field label="Return / damage note" value={note} onChangeText={setNote} multiline />
+            {activeTable.teamIds.map((id) => (
+              <Panel key={id} title={`${id} · ${teamById.get(id)?.project}`}>
                 <Button
-                  title="Save return check"
-                  disabled={condition !== "good" && !note.trim()}
+                  title={tr(`Remove ${id} from table`, `إزالة ${id} من الطاولة`)}
+                  size="sm"
+                  variant="danger"
+                  disabled={!tablesReady}
                   onPress={async () => {
                     if (
-                      (await setHandover(
-                        handover.map((h) =>
-                          h.teamId === selected
-                            ? {
-                                ...h,
-                                checked: true,
-                                checkedOn: calendarDay(),
-                                condition,
-                                note,
-                                history: [...(h.history ?? []), { ...h, history: undefined }],
-                              }
-                            : h,
-                        ),
+                      (await setTables(removeWorkshopTeam(tables, id, activeTable.code))) === false
+                    )
+                      return false;
+                    setAllocationError("");
+                  }}
+                />
+                <AppText>
+                  {supervisors.find((s) => s.id === teamById.get(id)?.supervisorId)?.name}
+                </AppText>
+                {students
+                  .filter((s) => s.teamId === id)
+                  .map((s) => (
+                    <AppText key={s.id}>
+                      {s.name} · {s.id}
+                    </AppText>
+                  ))}
+              </Panel>
+            ))}
+            <Panel title={tr("Add or move a team", "إضافة فريق أو نقله")}>
+              <Field
+                label={tr("Find team or project", "ابحث عن فريق أو مشروع")}
+                value={teamQuery}
+                onChangeText={setTeamQuery}
+              />
+              <Chips
+                value={assignTeam}
+                onChange={(v) => {
+                  setAssignTeam(v);
+                  setAllocationError("");
+                }}
+                options={teams
+                  .filter(
+                    (t) =>
+                      !activeTable.teamIds.includes(t.id) &&
+                      `${t.id} ${t.project}`.toLowerCase().includes(teamQuery.toLowerCase()),
+                  )
+                  .map((t) => ({ id: t.id, label: `${t.id} · ${t.project}` }))}
+              />
+              {!!assignTeam && (
+                <AppText>
+                  {teamById.get(assignTeam)?.project} ·{" "}
+                  {tableOfTeam(assignTeam)
+                    ? `Move from ${tableOfTeam(assignTeam)!.code} to ${activeTable.code}`
+                    : `Assign to ${activeTable.code}`}
+                </AppText>
+              )}
+              <Button
+                title={tr("Save table assignment", "حفظ تخصيص الطاولة")}
+                disabled={!assignTeam || !tablesReady}
+                onPress={async () => {
+                  try {
+                    if (
+                      (await setTables(
+                        assignWorkshopTeam(tables, assignTeam, activeTable.code),
                       )) === false
                     )
                       return false;
-                    setSheet(null);
-                    setFeedback("Return inspection recorded.");
-                  }}
-                />
-              </>
-            )}
-            {(sheet === "notice" || sheet === "observation") && (
-              <>
-                <AppText variant="title">
-                  {sheet === "notice" ? "Compose notice" : "Report to supervisor"}
+                    setAssignTeam("");
+                    setAllocationError("");
+                    setFeedback(tr("Table allocation saved.", "تم حفظ تخصيص الطاولة."));
+                  } catch (e) {
+                    setAllocationError(
+                      e instanceof Error
+                        ? e.message
+                        : tr("Could not update the table.", "تعذر تحديث الطاولة."),
+                    );
+                  }
+                }}
+              />
+              {!!allocationError && (
+                <AppText tone="danger" accessibilityRole="alert">
+                  {allocationError}
                 </AppText>
-                <Chips
-                  value={audience}
-                  onChange={setAudience}
-                  options={[
-                    ...(sheet === "notice" ? [{ id: "all", label: "All students" }] : []),
-                    ...teams.map((team) => ({ id: team.id, label: team.id })),
-                  ]}
-                />
-                {sheet === "notice" ? (
-                  <Chips
-                    value={kind}
-                    onChange={(v) => setKind(v as Notice["kind"])}
-                    options={["general", "closed", "schedule", "returnItems", "unavailable"].map(
-                      (id) => ({ id, label: id }),
-                    )}
-                  />
-                ) : (
-                  <Chips
-                    value={observationType}
-                    onChange={(v) => setObservationType(v as Observation["type"])}
-                    options={observationTypes.map((id) => ({
-                      id,
-                      label: id.replace(/([A-Z])/g, " $1"),
-                    }))}
-                  />
+              )}
+            </Panel>
+          </>
+        )}
+        {sheet === "return" && activeHandover && (
+          <>
+            {activeHandover.items.map((item) => (
+              <AppText key={item}>• {item}</AppText>
+            ))}
+            <Chips
+              value={condition ?? "good"}
+              onChange={(v) => setCondition(v as HandoverRecord["condition"])}
+              options={["good", "damaged", "missing"].map((id) => ({
+                id,
+                label: label(conditionLabels, id),
+              }))}
+            />
+            <Field
+              label={tr("Return / damage note", "ملاحظة الإرجاع / التلف")}
+              value={note}
+              onChangeText={setNote}
+              multiline
+            />
+          </>
+        )}
+        {(sheet === "notice" || sheet === "observation") && (
+          <>
+            <Chips
+              value={audience}
+              onChange={setAudience}
+              options={[
+                ...(sheet === "notice"
+                  ? [{ id: "all", label: tr("All students", "جميع الطلاب") }]
+                  : []),
+                ...teams.map((team) => ({ id: team.id, label: team.id })),
+              ]}
+            />
+            {sheet === "notice" ? (
+              <Chips
+                value={kind}
+                onChange={(v) => setKind(v as Notice["kind"])}
+                options={["general", "closed", "schedule", "returnItems", "unavailable"].map(
+                  (id) => ({ id, label: label(noticeKindLabels, id) }),
                 )}
-                <Field label="Message" value={body} onChangeText={setBody} multiline />
-                <Button
-                  title="Save notice"
-                  disabled={!body.trim()}
-                  onPress={async () => {
-                    if (sheet === "observation") {
-                      if (
-                        (await setObservations([
-                          {
-                            id: `ob-${Date.now()}`,
-                            teamId: audience,
-                            supervisorId: teamById.get(audience)?.supervisorId ?? "",
-                            type: observationType,
-                            note: body,
-                            date: calendarDay(),
-                            status: "sent",
-                          },
-                          ...observations,
-                        ])) === false
-                      )
-                        return false;
-                      setSheet(null);
-                    } else if (selected && notices.some((n) => n.id === selected)) {
-                      if (
-                        (await setNotices(
-                          notices.map((n) =>
-                            n.id === selected ? { ...n, message: body, audience, kind } : n,
-                          ),
-                        )) === false
-                      )
-                        return false;
-                      setSelected("");
-                      setSheet(null);
-                    } else if ((await notify(kind, audience, body)) === false) return false;
-                  }}
-                />
-              </>
+              />
+            ) : (
+              <Chips
+                value={observationType}
+                onChange={(v) => setObservationType(v as Observation["type"])}
+                options={observationTypes.map((id) => ({
+                  id,
+                  label: label(observationTypeLabels, id),
+                }))}
+              />
             )}
-            {(sheet === "away" || sheet === "absence") && (
+            <Field label={tr("Message", "الرسالة")} value={body} onChangeText={setBody} multiline />
+          </>
+        )}
+        {(sheet === "away" || sheet === "absence") && (
+          <>
+            {sheet === "away" && (
               <>
-                <AppText variant="title">
-                  {sheet === "away" ? "Temporary absence" : "Full-day absence"}
-                </AppText>
-                {sheet === "away" && (
-                  <>
-                    <Field
-                      label="From (HH:mm)"
-                      value={duty.from}
-                      onChangeText={async (from) => await setDuty({ ...duty, from })}
-                    />
-                    <Field
-                      label="Until (HH:mm)"
-                      value={duty.until}
-                      onChangeText={async (until) => await setDuty({ ...duty, until })}
-                    />
-                  </>
-                )}
                 <Field
-                  label="Reason / note"
-                  value={duty.reason}
-                  onChangeText={async (reason) => await setDuty({ ...duty, reason })}
-                  multiline
+                  label={tr("From (HH:mm)", "من (HH:mm)")}
+                  value={duty.from}
+                  onChangeText={async (from) => await setDuty({ ...duty, from })}
                 />
-                <Button
-                  title="Save availability & notice"
-                  onPress={async () => {
-                    if (
-                      sheet === "away" &&
-                      (!/^([01]\d|2[0-3]):[0-5]\d$/.test(duty.from) ||
-                        !/^([01]\d|2[0-3]):[0-5]\d$/.test(duty.until) ||
-                        duty.until <= duty.from)
-                    ) {
-                      setFeedback("Choose a valid absence time range.");
-                      return;
-                    }
-                    if (
-                      (await setDuty({ ...duty, status: sheet === "away" ? "away" : "absent" })) ===
-                      false
-                    )
-                      return false;
-                    await act({ type: "availability.set", value: "closed" });
-                    if ((await notify(sheet === "away" ? "unavailable" : "fullDay")) === false)
-                      return false;
-                  }}
+                <Field
+                  label={tr("Until (HH:mm)", "حتى (HH:mm)")}
+                  value={duty.until}
+                  onChangeText={async (until) => await setDuty({ ...duty, until })}
                 />
               </>
             )}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+            <Field
+              label={tr("Reason / note", "السبب / ملاحظة")}
+              value={duty.reason}
+              onChangeText={async (reason) => await setDuty({ ...duty, reason })}
+              multiline
+            />
+          </>
+        )}
+      </FormSheet>
     </ScrollView>
   );
 }

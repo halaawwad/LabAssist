@@ -25,6 +25,7 @@ import * as ImagePicker from "expo-image-picker";
 import { AppText, Button } from "@/components";
 import { Chips, Field, Panel, kit, useCopy } from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
+import { useStatusLabel } from "@/features/shared/reportLabels";
 import {
   checkFinal,
   disclaimerText,
@@ -42,6 +43,49 @@ import { sharePDF, storePDF } from "./pdfFiles";
 
 const stationery = require("../../../assets/web/report-page-background.jpg");
 const uid = () => `block-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+const arabicGuidance: Record<string, string> = {
+  nomenclature: "عرّف الرموز والوحدات ورتّب الحروف اللاتينية واليونانية والمؤشرات كما في نموذج Word.",
+  acknowledgment: "اشكر الأشخاص أو الشركات أو المنح التي ساهمت في مشروعك.",
+  abstract:
+    "لخّص العمل وطريقته ونتائجه في صفحة PDF واحدة كحد أقصى، دون إحالات إلى المراجع أو الأشكال أو الجداول أو الفصول.",
+  introduction: "الخلفية والأهداف والأهمية وتنظيم التقرير.",
+  background: "النظرية ذات الصلة والأعمال السابقة والمراجع والفجوة التي يعالجها عملك.",
+  methodology:
+    "اشرح الطرق القابلة للتكرار والمعايير والمواصفات وبدائل التصميم والقيود واحتياطات السلامة. ناقش القيود الاقتصادية والبيئية والاجتماعية والسياسية والأخلاقية والصحية والتصنيعية والاستدامة بحسب برنامجك الهندسي.",
+  results: "البيانات والوحدات والتحليل وأخطاء القياس والأدلة الداعمة للاستنتاجات.",
+  discussion: "فسّر النتائج وقارنها وناقش الحدود والمساهمات والآثار.",
+  conclusions: "لخّص النتائج والتوصيات العملية والعمل المستقبلي والمشكلات المفتوحة.",
+  references:
+    "استخدم أسلوب المراجع المعتمد في برنامجك؛ يعرض نموذج Word أمثلة APA ويسمح بالأسلوب الرقمي. اتفق مع مشرفك على الاختيار.",
+  abbreviations: "عرّف الاختصارات المستخدمة، واكتب كل اختصار ومعناه في سطر.",
+  appendices: "الحسابات والبيانات الخام أو الاشتقاقات الداعمة التي لا تنتمي إلى المتن.",
+};
+const checkTitles: Record<string, string> = {
+  cover: "معلومات الغلاف",
+  disclaimer: "إقرار الجامعة",
+  standards: "المعايير والمواصفات",
+  constraints: "قيود التصميم الهندسي",
+  "abstract-style": "فحص مراجع الملخص",
+  captions: "أوصاف الأشكال والجداول",
+};
+const checkDetails: Record<string, string> = {
+  "Title, specialization, department, students, IDs, supervisor and date.":
+    "العنوان والتخصص والقسم والطلاب وأرقامهم والمشرف والتاريخ.",
+  "Content is present; quality and completeness still need review.":
+    "المحتوى موجود؛ ما زالت جودته واكتماله بحاجة إلى مراجعة.",
+  "Add your own content to this required section.": "أضف محتواك إلى هذا القسم المطلوب.",
+  "Generated from the statement in your supplied Word form.":
+    "مولّد من الإقرار في نموذج Word المقدم.",
+  "Set your engineering department in the cover details.": "حدد القسم الهندسي في بيانات الغلاف.",
+  "Relevant terms found. Explain how they apply and provide evidence; this is not a compliance judgment.":
+    "وُجدت مصطلحات ذات صلة. اشرح انطباقها وقدم الأدلة؛ هذا ليس حكمًا على الالتزام.",
+  "Document applicable standards and project-specific constraints in Methodology.":
+    "وثّق المعايير المطبقة وقيود المشروع في المنهجية.",
+  "Check for reference, figure or table citations, undefined symbols and writing style. Its one-page limit is checked after PDF layout.":
+    "تحقق من إحالات المراجع والأشكال والجداول والرموز غير المعرّفة والأسلوب. يُفحص حد الصفحة بعد تنسيق PDF.",
+  "Captions and lists update automatically when you add figures or tables.":
+    "تُحدّث الأوصاف والقوائم تلقائيًا عند إضافة أشكال أو جداول.",
+};
 export function FinalReportEditor({
   report,
   supervisor = false,
@@ -53,6 +97,7 @@ export function FinalReportEditor({
 }) {
   const { state, act } = useWorkspace();
   const t = useCopy();
+  const statusLabel = useStatusLabel();
   const project = state.projects.find((p) => p.id === report.projectId)!;
   const [document, setDocument] = useState<FinalDocument>(
     () =>
@@ -105,10 +150,15 @@ export function FinalReportEditor({
     if (!busy) return;
     const timeout = setTimeout(() => {
       setBusy(false);
-      setNotice("PDF generation took too long. Please retry; your report content is unchanged.");
+      setNotice(
+        t(
+          "PDF generation took too long. Please retry; your report content is unchanged.",
+          "استغرق إنشاء PDF وقتًا طويلًا. حاول مجددًا؛ محتوى التقرير لم يتغير.",
+        ),
+      );
     }, 90000);
     return () => clearTimeout(timeout);
-  }, [busy, request]);
+  }, [busy, request, t]);
   const editable = !supervisor && report.status === "draft" && project.finalOpen;
   const { meta, sections } = document;
   const section = sections.find((s) => s.id === selected);
@@ -219,16 +269,26 @@ export function FinalReportEditor({
       if (result.canceled) return;
       const asset = result.assets[0];
       if ((asset.fileSize ?? 0) > 5 * 1024 * 1024) {
-        setNotice("Choose a JPG, PNG or WebP under 5 MB.");
+        setNotice(
+          t(
+            "Choose a JPG, PNG or WebP under 5 MB.",
+            "اختر صورة JPG أو PNG أو WebP بحجم أقل من 5 MB.",
+          ),
+        );
         return;
       }
       if (!asset.base64) {
-        setNotice("Could not read this image.");
+        setNotice(t("Could not read this image.", "تعذرت قراءة هذه الصورة."));
         return;
       }
       const mime = asset.mimeType ?? "image/jpeg";
       if (!["image/jpeg", "image/png", "image/webp"].includes(mime)) {
-        setNotice("Choose a JPG, PNG or WebP under 5 MB.");
+        setNotice(
+          t(
+            "Choose a JPG, PNG or WebP under 5 MB.",
+            "اختر صورة JPG أو PNG أو WebP بحجم أقل من 5 MB.",
+          ),
+        );
         return;
       }
       add("image", `data:${mime};base64,${asset.base64}`);
@@ -278,13 +338,20 @@ export function FinalReportEditor({
     <Pressable
       key={label}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={label
+        .replace(/^Move block (\d+) up$/, (_, n) =>
+          t(`Move block ${n} up`, `نقل العنصر ${n} للأعلى`),
+        )
+        .replace(/^Move block (\d+) down$/, (_, n) =>
+          t(`Move block ${n} down`, `نقل العنصر ${n} للأسفل`),
+        )
+        .replace(/^Remove block (\d+)$/, (_, n) => t(`Remove block ${n}`, `إزالة العنصر ${n}`))}
       disabled={disabled}
       onPress={fn}
       style={[s.tool, disabled && { opacity: 0.35 }]}
     >
       {icon}
-      {!/^(Move block|Remove block|Close )/.test(label) && (
+      {!/^(Move block|Remove block|Close |إغلاق)/.test(label) && (
         <AppText style={s.toolText}>{label}</AppText>
       )}
     </Pressable>
@@ -340,7 +407,7 @@ export function FinalReportEditor({
           <AppText variant="heading" style={kit.grow}>
             {t("Final Report", "التقرير النهائي")}
           </AppText>
-          <AppText variant="caption">{report.status}</AppText>
+          <AppText variant="caption">{statusLabel(report.status)}</AppText>
         </View>
         <AppText tone="muted">
           {editable
@@ -403,32 +470,39 @@ export function FinalReportEditor({
         <>
           <ReportCoverPreview meta={meta} />
           <Panel>
-            {field("Project title", meta.title, (v) => setMeta({ ...meta, title: v }))}
+            {field(t("Project title", "عنوان المشروع"), meta.title, (v) =>
+              setMeta({ ...meta, title: v }),
+            )}
             {field(
-              "Specialization",
+              t("Specialization", "التخصص"),
               meta.specialization,
               (v) => setMeta({ ...meta, specialization: v }),
               100,
             )}
             {field(
-              "Engineering department",
+              t("Engineering department", "القسم الهندسي"),
               meta.department,
               (v) => setMeta({ ...meta, department: v }),
               100,
             )}
             {field(
-              "Supervisor name",
+              t("Supervisor name", "اسم المشرف"),
               meta.supervisor,
               (v) => setMeta({ ...meta, supervisor: v }),
               100,
             )}
-            {field("Report date (YYYY-MM-DD)", meta.date, (v) => setMeta({ ...meta, date: v }), 10)}
-            <Disclosure title="Student details">
+            {field(
+              t("Report date (YYYY-MM-DD)", "تاريخ التقرير (YYYY-MM-DD)"),
+              meta.date,
+              (v) => setMeta({ ...meta, date: v }),
+              10,
+            )}
+            <Disclosure title={t("Student details", "بيانات الطالب")}>
               {" "}
               {meta.students.map((student, index) => (
                 <View key={index} style={s.student}>
                   {field(
-                    `Student ${index + 1} name`,
+                    t(`Student ${index + 1} name`, `اسم الطالب ${index + 1}`),
                     student.name,
                     (v) =>
                       setMeta({
@@ -440,7 +514,7 @@ export function FinalReportEditor({
                     100,
                   )}
                   {field(
-                    `Student ${index + 1} number`,
+                    t(`Student ${index + 1} number`, `رقم الطالب ${index + 1}`),
                     student.number,
                     (v) =>
                       setMeta({
@@ -453,7 +527,7 @@ export function FinalReportEditor({
                   )}
                   {editable && meta.students.length > 2 && (
                     <Button
-                      title={`Remove student ${index + 1}`}
+                      title={t(`Remove student ${index + 1}`, `إزالة الطالب ${index + 1}`)}
                       variant="ghost"
                       onPress={() =>
                         setMeta({ ...meta, students: meta.students.filter((_, i) => i !== index) })
@@ -465,7 +539,7 @@ export function FinalReportEditor({
             </Disclosure>
             {editable && meta.students.length < 3 && (
               <Button
-                title="Add third student"
+                title={t("Add third student", "إضافة طالب ثالث")}
                 variant="soft"
                 onPress={() =>
                   setMeta({ ...meta, students: [...meta.students, { name: "", number: "" }] })
@@ -481,9 +555,9 @@ export function FinalReportEditor({
       ) : selected === "indexes" ? (
         <Panel>
           <AppText variant="caption" tone="primary">
-            Generated from your headings and captions
+            {t("Generated from your headings and captions", "مولّد من عناوينك وتعليقاتك")}
           </AppText>
-          <AppText variant="heading">Table of contents</AppText>
+          <AppText variant="heading">{t("Table of contents", "جدول المحتويات")}</AppText>
           {sections
             .filter((s) => !s.optional || s.blocks.length)
             .map((section) => (
@@ -523,28 +597,38 @@ export function FinalReportEditor({
               {list.blocks.map((b, i) => (
                 <View key={b.id} style={s.indexRow}>
                   <AppText style={kit.grow}>
-                    {i + 1}. {b.text || "Add a caption"}
+                    {i + 1}. {b.text || t("Add a caption", "أضف وصفًا")}
                   </AppText>
                   <AppText style={s.folio}>{folio(b.id)}</AppText>
                 </View>
               ))}
               {!list.blocks.length && (
                 <AppText tone="muted">
-                  Add images or tables with captions in your chapters to build this list.
+                  {t(
+                    "Add images or tables with captions in your chapters to build this list.",
+                    "أضف صورًا أو جداول مع تعليقات في فصولك لبناء هذه القائمة.",
+                  )}
                 </AppText>
               )}
             </View>
           ))}
           <AppText tone="muted">
-            Cover has no page number. Front matter uses Roman numerals; the main body starts at 1.
-            Page numbers update after PDF layout.
+            {t(
+              "Cover has no page number. Front matter uses Roman numerals; the main body starts at 1. Page numbers update after PDF layout.",
+              "لا يحمل الغلاف رقم صفحة. تستخدم الصفحات التمهيدية الأرقام الرومانية ويبدأ المتن من 1. تُحدّث أرقام الصفحات بعد تنسيق PDF.",
+            )}
           </AppText>
         </Panel>
       ) : (
         section && (
           <>
             <AppText style={s.guidance}>
-              {guidance[selected] || "Write your own report content. This section is optional."}
+              {guidance[selected]
+                ? t(guidance[selected], arabicGuidance[selected] ?? guidance[selected])
+                : t(
+                    "Write your own report content. This section is optional.",
+                    "اكتب محتوى تقريرك. هذا القسم اختياري.",
+                  )}
             </AppText>
             <ImageBackground
               source={editable ? undefined : stationery}
@@ -561,8 +645,10 @@ export function FinalReportEditor({
                   <>
                     <AppText style={s.paragraph}>{disclaimerText(meta.department)}</AppText>
                     <AppText variant="caption" tone="muted">
-                      This statement is generated from your Word form. Set the department in Cover
-                      details.
+                      {t(
+                        "This statement is generated from your Word form. Set the department in Cover details.",
+                        "هذا الإقرار مولّد من نموذج Word الخاص بك. حدّد القسم في بيانات الغلاف.",
+                      )}
                     </AppText>
                   </>
                 ) : (
@@ -571,7 +657,15 @@ export function FinalReportEditor({
                       <View key={b.id} style={s.block}>
                         {editable && (
                           <View style={s.blockTools}>
-                            <AppText style={[s.folio, kit.grow]}>{b.kind}</AppText>
+                            <AppText style={[s.folio, kit.grow]}>
+                              {b.kind === "paragraph"
+                                ? t("Paragraph", "فقرة")
+                                : b.kind === "heading"
+                                  ? t("Heading", "عنوان")
+                                  : b.kind === "image"
+                                    ? t("Image", "صورة")
+                                    : t("Table", "جدول")}
+                            </AppText>
                             {button(
                               `Move block ${index + 1} up`,
                               () => move(b.id, -1),
@@ -601,8 +695,11 @@ export function FinalReportEditor({
                         )}
                         {b.kind === "paragraph" ? (
                           <TextInput
-                            accessibilityLabel={`Paragraph ${index + 1}`}
-                            placeholder="Write your report in your own words…"
+                            accessibilityLabel={t(`Paragraph ${index + 1}`, `الفقرة ${index + 1}`)}
+                            placeholder={t(
+                              "Write your report in your own words…",
+                              "اكتب تقريرك بكلماتك…",
+                            )}
                             multiline
                             textAlignVertical="top"
                             editable={editable}
@@ -622,8 +719,11 @@ export function FinalReportEditor({
                               }
                             </AppText>
                             <TextInput
-                              accessibilityLabel={`Subsection heading ${index + 1}`}
-                              placeholder="Subsection title"
+                              accessibilityLabel={t(
+                                `Subsection heading ${index + 1}`,
+                                `عنوان القسم الفرعي ${index + 1}`,
+                              )}
+                              placeholder={t("Subsection title", "عنوان القسم الفرعي")}
                               editable={editable}
                               value={b.text}
                               maxLength={160}
@@ -645,7 +745,10 @@ export function FinalReportEditor({
                               />
                             )}
                             {field(
-                              `Figure caption ${figures.findIndex((x) => x.id === b.id) + 1}`,
+                              t(
+                                `Figure caption ${figures.findIndex((x) => x.id === b.id) + 1}`,
+                                `وصف الشكل ${figures.findIndex((x) => x.id === b.id) + 1}`,
+                              ),
                               b.text,
                               (v) => update(b.id, { text: v }),
                               300,
@@ -654,7 +757,12 @@ export function FinalReportEditor({
                               value={b.size ?? "medium"}
                               options={["small", "medium", "large"].map((id) => ({
                                 id,
-                                label: id,
+                                label:
+                                  id === "small"
+                                    ? t("Small", "صغير")
+                                    : id === "medium"
+                                      ? t("Medium", "متوسط")
+                                      : t("Large", "كبير"),
                               }))}
                               onChange={(v) =>
                                 editable && update(b.id, { size: v as ReportBlock["size"] })
@@ -670,7 +778,10 @@ export function FinalReportEditor({
                                     {row.map((cell, ci) => (
                                       <TextInput
                                         key={ci}
-                                        accessibilityLabel={`Table cell ${ri + 1}-${ci + 1}`}
+                                        accessibilityLabel={t(
+                                          `Table cell ${ri + 1}-${ci + 1}`,
+                                          `خلية الجدول ${ri + 1}-${ci + 1}`,
+                                        )}
                                         value={cell}
                                         editable={editable}
                                         maxLength={300}
@@ -698,7 +809,7 @@ export function FinalReportEditor({
                             {editable && (
                               <View style={kit.wrap}>
                                 <Button
-                                  title="+ Row"
+                                  title={t("+ Row", "+ صف")}
                                   variant="ghost"
                                   disabled={(b.rows?.length ?? 0) >= 30}
                                   onPress={() =>
@@ -706,7 +817,7 @@ export function FinalReportEditor({
                                   }
                                 />
                                 <Button
-                                  title="+ Column"
+                                  title={t("+ Column", "+ عمود")}
                                   variant="ghost"
                                   disabled={(b.rows?.[0]?.length ?? 0) >= 6}
                                   onPress={() =>
@@ -715,14 +826,14 @@ export function FinalReportEditor({
                                 />
                                 {(b.rows?.length ?? 0) > 2 && (
                                   <Button
-                                    title="− Row"
+                                    title={t("− Row", "− صف")}
                                     variant="ghost"
                                     onPress={() => update(b.id, { rows: b.rows!.slice(0, -1) })}
                                   />
                                 )}{" "}
                                 {(b.rows?.[0]?.length ?? 0) > 2 && (
                                   <Button
-                                    title="− Column"
+                                    title={t("− Column", "− عمود")}
                                     variant="ghost"
                                     onPress={() =>
                                       update(b.id, { rows: b.rows!.map((r) => r.slice(0, -1)) })
@@ -732,7 +843,10 @@ export function FinalReportEditor({
                               </View>
                             )}
                             {field(
-                              `Table caption ${tables.findIndex((x) => x.id === b.id) + 1}`,
+                              t(
+                                `Table caption ${tables.findIndex((x) => x.id === b.id) + 1}`,
+                                `وصف الجدول ${tables.findIndex((x) => x.id === b.id) + 1}`,
+                              ),
                               b.text,
                               (v) => update(b.id, { text: v }),
                               300,
@@ -744,10 +858,15 @@ export function FinalReportEditor({
                     {!section.blocks.length && (
                       <View style={s.empty}>
                         <FileText size={32} color="#9aac85" />
-                        <AppText tone="muted">Start this section with your own writing.</AppText>
+                        <AppText tone="muted">
+                          {t(
+                            "Start this section with your own writing.",
+                            "ابدأ هذا القسم بكتابتك.",
+                          )}
+                        </AppText>
                         {editable && (
                           <Button
-                            title="Add first paragraph"
+                            title={t("Add first paragraph", "إضافة الفقرة الأولى")}
                             variant="soft"
                             onPress={() => add("paragraph")}
                           />
@@ -760,8 +879,10 @@ export function FinalReportEditor({
               </View>
             </ImageBackground>
             <AppText variant="caption" tone="muted">
-              Section editor · Long sections flow onto additional A4 pages in the PDF. Use Preview
-              PDF to see exact page breaks.
+              {t(
+                "Section editor · Long sections flow onto additional A4 pages in the PDF. Use Preview PDF to see exact page breaks.",
+                "محرر القسم · تمتد الأقسام الطويلة إلى صفحات A4 إضافية في ملف PDF. استخدم معاينة PDF لرؤية فواصل الصفحات بدقة.",
+              )}
             </AppText>
           </>
         )
@@ -789,11 +910,16 @@ export function FinalReportEditor({
       {supervisor && (
         <Panel title={t("Supervisor feedback", "ملاحظات المشرف")}>
           <Field
-            label="Section / page (optional)"
+            label={t("Section / page (optional)", "القسم / الصفحة (اختياري)")}
             value={feedbackSection}
             onChangeText={setFeedbackSection}
           />
-          <Field label="Your feedback" value={feedback} multiline onChangeText={setFeedback} />
+          <Field
+            label={t("Your feedback", "ملاحظاتك")}
+            value={feedback}
+            multiline
+            onChangeText={setFeedback}
+          />
           <View style={kit.wrap}>
             {(["reviewed", "changes"] as const).map((status) => (
               <Button
@@ -816,7 +942,7 @@ export function FinalReportEditor({
               />
             ))}
             <Button
-              title="Reopen for this team"
+              title={t("Reopen for this team", "إعادة الفتح لهذا الفريق")}
               variant="soft"
               onPress={async () => await act({ type: "report.reopen", id: report.id })}
             />
@@ -830,7 +956,11 @@ export function FinalReportEditor({
             <AppText variant="heading" style={kit.grow}>
               {drawer === "outline" ? "Report structure" : "Requirement Review"}
             </AppText>
-            {button("Close report panel", () => setDrawer(null), <X color="#526443" />)}
+            {button(
+              t("Close report panel", "إغلاق لوحة التقرير"),
+              () => setDrawer(null),
+              <X color="#526443" />,
+            )}
           </View>
           <ScrollView
             automaticallyAdjustKeyboardInsets
@@ -840,11 +970,15 @@ export function FinalReportEditor({
             {drawer === "outline" ? (
               <>
                 {[
-                  { id: "cover", title: "Cover page", optional: false },
+                  { id: "cover", title: t("Cover page", "صفحة الغلاف"), optional: false },
                   { ...sections[0] },
                   { ...sections[1] },
                   { ...sections[2] },
-                  { id: "indexes", title: "Contents, figures & tables", optional: false },
+                  {
+                    id: "indexes",
+                    title: t("Contents, figures & tables", "المحتويات والأشكال والجداول"),
+                    optional: false,
+                  },
                   ...sections.slice(3),
                 ].map((item) => (
                   <Pressable
@@ -858,12 +992,12 @@ export function FinalReportEditor({
                       <AppText weight="semibold">{item.title}</AppText>
                       {item.optional && (
                         <AppText variant="caption" tone="muted">
-                          Optional
+                          {t("Optional", "اختياري")}
                         </AppText>
                       )}
                       {item.id === "indexes" && (
                         <AppText variant="caption" tone="muted">
-                          Generated automatically
+                          {t("Generated automatically", "مولّد تلقائيًا")}
                         </AppText>
                       )}
                     </View>
@@ -873,14 +1007,21 @@ export function FinalReportEditor({
               </>
             ) : (
               <>
-                <AppText tone="muted">Based on your supplied university Word form.</AppText>
+                <AppText tone="muted">
+                  {t(
+                    "Based on your supplied university Word form.",
+                    "مبني على نموذج Word الجامعي الذي قدمته.",
+                  )}
+                </AppText>
                 <AppText variant="title">
                   {started}/{required.length}
                 </AppText>
-                <AppText>Required sections started</AppText>
+                <AppText>{t("Required sections started", "الأقسام المطلوبة التي بدأت")}</AppText>
                 <AppText style={s.guidance}>
-                  Local structure checks only. AI content review is not connected; finding a keyword
-                  is not evidence of compliance or ABET approval.
+                  {t(
+                    "Local structure checks only. AI content review is not connected; finding a keyword is not evidence of compliance or ABET approval.",
+                    "هذه فحوص محلية للبنية فقط. مراجعة المحتوى بالذكاء الاصطناعي غير متصلة؛ وجود كلمة مفتاحية ليس دليلًا على الالتزام أو اعتماد ABET.",
+                  )}
                 </AppText>
                 {checks.map((check) => (
                   <Pressable
@@ -900,15 +1041,26 @@ export function FinalReportEditor({
                       }
                     />
                     <View style={kit.grow}>
-                      <AppText weight="bold">{check.title}</AppText>
+                      <AppText weight="bold">
+                        {t(check.title, checkTitles[check.id] ?? check.title)}
+                      </AppText>
                       <AppText variant="caption" style={{ color: "#698158" }}>
                         {check.state === "present"
-                          ? "Format check passed"
+                          ? t("Format check passed", "اجتاز فحص التنسيق")
                           : check.state === "review"
-                            ? "Needs content review"
-                            : "Missing"}
+                            ? t("Needs content review", "يحتاج مراجعة المحتوى")
+                            : t("Missing", "ناقص")}
                       </AppText>
-                      <AppText tone="muted">{check.detail}</AppText>
+                      <AppText tone="muted">
+                        {t(
+                          check.detail,
+                          checkDetails[check.detail] ??
+                            check.detail.replace(
+                              /^(\d+) figures\/tables; all need a descriptive caption\.$/,
+                              "$1 شكل/جدول؛ يحتاج كل منها إلى وصف.",
+                            ),
+                        )}
+                      </AppText>
                     </View>
                   </Pressable>
                 ))}
@@ -927,20 +1079,24 @@ export function FinalReportEditor({
           <View style={s.modalHeader}>
             <Eye color="#526443" />
             <AppText variant="heading" style={kit.grow}>
-              Final report PDF preview
+              {t("Final report PDF preview", "معاينة PDF للتقرير النهائي")}
             </AppText>
-            {button("Close PDF preview", () => setPreview(false), <X color="#526443" />)}
+            {button(
+              t("Close PDF preview", "إغلاق معاينة PDF"),
+              () => setPreview(false),
+              <X color="#526443" />,
+            )}
           </View>
           {!!pdfURI && <PdfDocument uri={pdfURI} />}
           <View style={s.previewFooter}>
             <Button
-              title="Download this PDF"
+              title={t("Download this PDF", "تنزيل ملف PDF هذا")}
               variant="soft"
               onPress={() => sharePDF(pdfURI).catch((e) => setNotice(String(e)))}
             />
             {exportMode === "submit" && editable && (
               <Button
-                title="Confirm submission"
+                title={t("Confirm submission", "تأكيد التسليم")}
                 onPress={async () => {
                   if (await act({ type: "report.submit", id: report.id })) setPreview(false);
                 }}

@@ -2,8 +2,18 @@ import { MobileInput as TextInput } from "@/components/MobileInput";
 import { Disclosure } from "@/components/Disclosure";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { MobileModal as Modal } from "@/components/MobileModal";
-import { useEffect, useState } from "react";
-import { Linking, ScrollView, StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
+import {
+  AccessibilityInfo,
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+  findNodeHandle,
+  type LayoutChangeEvent,
+} from "react-native";
+import { useLanguage } from "@/i18n";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   CalendarDays,
@@ -18,7 +28,7 @@ import {
   X,
 } from "lucide-react-native";
 import { AppText, Button } from "@/components";
-import { Chips, Field, useCopy } from "@/components/MobileKit";
+import { Chips, Field, useCopy, SearchField } from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { type Meeting } from "@/domain/workspace";
 import { meetingDay, meetingInstant, meetingZone } from "@/domain/meetingTime";
@@ -28,26 +38,46 @@ import { MeetingCalendar, MeetingClock } from "./MeetingCalendar";
 function start(m: Meeting) {
   return meetingInstant(m.date, m.time);
 }
-function labelDate(m: Meeting) {
-  return new Date(start(m)).toLocaleDateString("en-US", {
+const meetingLocale = (language: string) => (language === "ar" ? "ar-u-nu-latn" : "en-US");
+function labelDate(m: Meeting, language: string) {
+  return new Date(start(m)).toLocaleDateString(meetingLocale(language), {
     timeZone: meetingZone,
     weekday: "short",
     month: "short",
     day: "numeric",
   });
 }
-function labelTime(m: Meeting) {
-  return new Date(start(m)).toLocaleTimeString("en-US", {
+function labelTime(m: Meeting, language: string) {
+  return new Date(start(m)).toLocaleTimeString(meetingLocale(language), {
     timeZone: meetingZone,
     hour: "numeric",
     minute: "2-digit",
   });
 }
-const getStatus = (m: Meeting) =>
-  m.cancelled ? "Cancelled" : m.completed ? "Completed" : "Scheduled";
+type FieldKey = "title" | "date" | "time" | "duration" | "person" | "location";
+const fieldOrder: FieldKey[] = ["title", "date", "time", "duration", "person", "location"];
 export function StudentMeetingsPanel() {
   const { state, actorId, act } = useWorkspace();
   const t = useCopy();
+  const { formatLongDate, language } = useLanguage();
+  const statusText = (m: Meeting) =>
+    m.cancelled
+      ? t("Cancelled", "ملغى")
+      : m.completed
+        ? t("Completed", "مكتمل")
+        : t("Scheduled", "مجدول");
+  const filterText: Record<string, string> = {
+    Upcoming: t("Upcoming", "القادمة"),
+    Past: t("Past", "السابقة"),
+    All: t("All", "الكل"),
+    Cancelled: t("Cancelled", "الملغاة"),
+  };
+  const responseText = (value: string) =>
+    ({
+      accepted: t("Accepted", "مقبولة"),
+      declined: t("Declined", "مرفوضة"),
+      pending: t("Pending invitation", "دعوة معلقة"),
+    })[value] ?? value;
   const me = state.users.find((u) => u.id === actorId)!;
   const project = state.projects.find((p) => p.studentIds.includes(actorId));
   const today = meetingDay(new Date());
@@ -73,6 +103,52 @@ export function StudentMeetingsPanel() {
     [dateMonth, setDateMonth] = useState(today.slice(0, 7));
   const [notice, setNotice] = useState(""),
     [error, setError] = useState("");
+  // Field validation is shown inline and summarised beside Save; a failed save (storage or
+  // a refused change) is reported separately and never marks valid fields invalid.
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const [saveError, setSaveError] = useState("");
+  const formScroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const fieldY = useRef<Partial<Record<FieldKey, number>>>({});
+  const titleRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const timeRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const locationRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const dateRef = useRef<ComponentRef<typeof Pressable>>(null);
+  const personRef = useRef<ComponentRef<typeof Pressable>>(null);
+  const recordY = (key: FieldKey, event: LayoutChangeEvent) => {
+    fieldY.current[key] = event.nativeEvent.layout.y;
+  };
+  const clearField = (key: FieldKey) => {
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+    setError("");
+  };
+  const focusField = (key: FieldKey) => {
+    if (Platform.OS === "web") {
+      const field = document.querySelector(`[data-testid="meeting-field-${key}"]`);
+      const control = field?.querySelector<HTMLElement>("input, textarea, button, [tabindex='0']");
+      (control ?? field)?.scrollIntoView({ block: "nearest" });
+      control?.focus();
+      return;
+    }
+    const refs = {
+      title: titleRef,
+      time: timeRef,
+      location: locationRef,
+      date: dateRef,
+      person: personRef,
+    };
+    const target = (key === "duration" ? null : refs[key].current) as
+      { focus?: () => void } | null | undefined;
+    target?.focus?.();
+    if (target) {
+      const node = findNodeHandle(target as never);
+      if (node) AccessibilityInfo.setAccessibilityFocus(node);
+    }
+  };
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(timer);
@@ -124,26 +200,79 @@ export function StudentMeetingsPanel() {
       m && meetingType(m) === "individual" ? (m.inviteeIds.find((id) => id !== actorId) ?? "") : "",
     );
     setError("");
+    setFieldErrors({});
+    setSaveError("");
     setPersonQuery("");
     setSheet("form");
   }
+  // One save at a time; on a refused save the form keeps everything entered.
+  const [savingMeeting, setSavingMeeting] = useState(false);
+  const meetingSavePending = useRef(false);
+  async function submit() {
+    if (meetingSavePending.current) return;
+    meetingSavePending.current = true;
+    setSavingMeeting(true);
+    try {
+      await save();
+    } finally {
+      meetingSavePending.current = false;
+      setSavingMeeting(false);
+    }
+  }
   async function save() {
-    const missing = [
-      !title.trim() ? "meeting title" : "",
-      !date ? "date and time" : "",
-      type === "individual" && !person ? "a person to meet" : "",
-      !location.trim() ? "location or meeting link" : "",
-    ].filter(Boolean);
-    if (missing.length) return setError(`Please add: ${missing.join(", ")}.`);
-    const at = meetingInstant(date, time),
-      minutes = Number(duration);
-    if (!Number.isFinite(at)) return setError("Choose a valid date and time.");
-    if (at <= now) return setError("Choose a future meeting time.");
+    const errors: Partial<Record<FieldKey, string>> = {};
+    if (!title.trim()) errors.title = t("Add a meeting title.", "أضف عنوانًا للاجتماع.");
+    if (!date) errors.date = t("Choose a date.", "اختر تاريخًا.");
+    const validTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(time);
+    if (!validTime) errors.time = t("Use HH:mm, for example 13:30.", "استخدم HH:mm، مثل 13:30.");
+    const minutes = Number(duration);
     if (!Number.isInteger(minutes) || minutes < 15 || minutes > 240)
-      return setError("Choose a duration between 15 and 240 minutes.");
+      errors.duration = t("Choose between 15 and 240 minutes.", "اختر مدة بين 15 و240 دقيقة.");
     const inviteeIds =
-      type === "team" ? (project?.studentIds.filter((id) => id !== actorId) ?? []) : [person];
-    if (!inviteeIds.length) return setError("Choose someone to meet.");
+      type === "team"
+        ? (project?.studentIds.filter((id) => id !== actorId) ?? [])
+        : person
+          ? [person]
+          : [];
+    if (!inviteeIds.length)
+      errors.person =
+        type === "team"
+          ? t("Your project has no teammates to invite.", "لا يوجد زملاء في مشروعك لدعوتهم.")
+          : t("Choose someone to meet.", "اختر شخصًا للقاء.");
+    if (!location.trim())
+      errors.location = t("Add a location or meeting link.", "أضف مكانًا أو رابط اجتماع.");
+    if (date && validTime) {
+      const instant = meetingInstant(date, time);
+      if (!Number.isFinite(instant))
+        errors.date = t("Choose a valid date and time.", "اختر تاريخًا ووقتًا صحيحين.");
+      else if (instant <= now)
+        errors.date = t("Choose a future date and time.", "اختر تاريخًا ووقتًا في المستقبل.");
+    }
+    const invalid = fieldOrder.filter((key) => errors[key]);
+    setFieldErrors(errors);
+    setSaveError("");
+    if (invalid.length) {
+      setError(
+        invalid.length === 1
+          ? errors[invalid[0]]!
+          : t(
+              `${invalid.length} fields need attention.`,
+              `${invalid.length} حقول تحتاج إلى مراجعة.`,
+            ),
+      );
+      const first = invalid[0];
+      if (Platform.OS === "web") {
+        requestAnimationFrame(() => focusField(first));
+      } else {
+        formScroll.current?.scrollTo({
+          y: Math.max(0, (fieldY.current[first] ?? 0) - 16),
+          animated: true,
+        });
+        setTimeout(() => focusField(first), 300);
+      }
+      return;
+    }
+    setError("");
     const details = {
       title: title.trim(),
       inviteeIds,
@@ -162,12 +291,26 @@ export function StudentMeetingsPanel() {
           : { type: "meeting.create", ...details },
       )
     ) {
+      // Keep the saving sheet in place through a rapid second tap, so that tap cannot
+      // land on the navigation underneath after a fast local save.
+      await new Promise((resolve) => setTimeout(resolve, 350));
       setSheet(null);
-      setNotice(editing ? "Meeting updated." : "Meeting scheduled.");
+      setNotice(
+        editing
+          ? t("Meeting updated.", "تم تحديث الاجتماع.")
+          : t("Meeting scheduled.", "تمت جدولة الاجتماع."),
+      );
       setFilter("Upcoming");
       setSelectedDay("");
       setQuery("");
-    } else setError("Could not save this meeting. Check the selected participants and time.");
+    } else
+      // Everything entered stays in the form; no field is marked invalid for a failed save.
+      setSaveError(
+        t(
+          "Could not save this meeting. Everything you entered is kept — check storage access, then try Save again.",
+          "تعذر حفظ الاجتماع. كل ما أدخلته محفوظ — تحقق من إذن التخزين ثم أعد الحفظ.",
+        ),
+      );
   }
   async function openChat(m?: Meeting) {
     const ids = m ? [m.creatorId, ...m.inviteeIds] : (project?.studentIds ?? []);
@@ -187,28 +330,35 @@ export function StudentMeetingsPanel() {
       const other = ids.find((id) => id !== actorId);
       if (other && (await act({ type: "thread.create", userId: other }))) id = `person:${other}`;
     }
-    if (!id) return setNotice("A conversation is not available for these participants.");
+    if (!id)
+      return setNotice(
+        t(
+          "A conversation is not available for these participants.",
+          "لا تتوفر محادثة لهؤلاء المشاركين.",
+        ),
+      );
     setSheet(null);
     router.push(
       `/native/student/messages?chat=${encodeURIComponent(id)}` as import("expo-router").Href,
     );
   }
   function openLink(url: string) {
-    Linking.openURL(url).catch(() => setNotice("Could not open the meeting link."));
+    Linking.openURL(url).catch(() =>
+      setNotice(t("Could not open the meeting link.", "تعذر فتح رابط الاجتماع.")),
+    );
   }
   const next = upcoming[0];
   return (
     <View style={s.page}>
       <View style={s.top}>
         <View style={s.flex}>
-          <AppText style={s.eyebrow}>
-            {t("YOUR WORKSPACE / MAKE TIME TOGETHER", "مساحتك / وقت نلتقي فيه")}
+          <AppText variant="caption" tone="muted">
+            {t("Plan time with your team and supervisor.", "خطط لوقت مع فريقك ومشرفك.")}
           </AppText>
-          <AppText style={s.title}>{t("Meetings", "الاجتماعات")}</AppText>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Schedule Meeting"
+          accessibilityLabel={t("Schedule Meeting", "جدولة اجتماع")}
           style={s.add}
           onPress={() => openForm()}
         >
@@ -224,18 +374,23 @@ export function StudentMeetingsPanel() {
         <View style={s.hero}>
           <View style={s.projectLabel}>
             <Users size={14} color="#667e54" />
-            <AppText style={s.projectName}>{project?.title ?? "Your project"}</AppText>
+            <AppText style={s.projectName}>{project?.title ?? t("Your project", "مشروعك")}</AppText>
           </View>
-          <AppText style={s.heroTitle}>A shared moment.</AppText>
-          <AppText style={[s.heroTitle, s.accent]}>A clearer next step.</AppText>
+          <AppText style={s.heroTitle}>{t("A shared moment.", "لحظة مشتركة.")}</AppText>
+          <AppText style={[s.heroTitle, s.accent]}>
+            {t("A clearer next step.", "خطوة تالية أوضح.")}
+          </AppText>
           <AppText style={s.copy}>
-            Bring your questions, review the progress, and leave with a plan.
+            {t(
+              "Bring your questions, review the progress, and leave with a plan.",
+              "أحضر أسئلتك، راجع التقدم، واخرج بخطة.",
+            )}
           </AppText>
           <View style={s.stats}>
             {[
-              [upcoming.length, "Upcoming"],
-              [meetings.filter((m) => m.completed).length, "Completed"],
-              [project?.studentIds.length ?? 1, "Teammates"],
+              [upcoming.length, t("Upcoming", "القادمة")],
+              [meetings.filter((m) => m.completed).length, t("Completed", "المكتملة")],
+              [project?.studentIds.length ?? 1, t("Teammates", "الزملاء")],
             ].map(([n, label], i) => (
               <View style={s.stat} key={label}>
                 <AppText style={[s.statValue, { color: ["#6b8ca6", "#7d9270", "#aa8a60"][i] }]}>
@@ -247,24 +402,35 @@ export function StudentMeetingsPanel() {
           </View>
           <View style={s.next}>
             <MeetingClock {...(next ? { next: start(next) } : {})} />
-            <AppText style={s.eyebrow}>NEXT ON YOUR CALENDAR</AppText>
-            <AppText style={s.nextTitle}>{next?.title ?? "A little space to plan."}</AppText>
+            <AppText style={s.eyebrow}>{t("NEXT ON YOUR CALENDAR", "التالي في تقويمك")}</AppText>
+            <AppText style={s.nextTitle}>
+              {next?.title ?? t("A little space to plan.", "مساحة صغيرة للتخطيط.")}
+            </AppText>
             <AppText style={s.copy}>
-              {next ? `${labelDate(next)} · ${labelTime(next)}` : "No upcoming meetings."}
+              {next
+                ? `${labelDate(next, language)} · ${labelTime(next, language)}`
+                : t("No upcoming meetings.", "لا توجد اجتماعات قادمة.")}
             </AppText>
             {next && (
               <AppText style={s.small}>
-                {next.duration ?? 30} min · {next.sample ? "Example meeting" : "Scheduled"}
+                {next.duration ?? 30} {t("min", "دقيقة")} ·{" "}
+                {next.sample ? t("Example meeting", "اجتماع تجريبي") : t("Scheduled", "مجدول")}
               </AppText>
             )}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={next ? "View next meeting" : "Schedule your next meeting"}
+              accessibilityLabel={
+                next
+                  ? t("View next meeting", "عرض الاجتماع التالي")
+                  : t("Schedule your next meeting", "جدولة اجتماعك القادم")
+              }
               style={s.link}
               onPress={() => (next ? (setSelected(next.id), setSheet("detail")) : openForm())}
             >
               <AppText style={s.linkText}>
-                {next ? "View meeting" : "Schedule your next meeting"}
+                {next
+                  ? t("View meeting", "عرض الاجتماع")
+                  : t("Schedule your next meeting", "جدولة اجتماعك القادم")}
               </AppText>
               <ChevronRight size={16} color="#7496b1" />
             </Pressable>
@@ -276,7 +442,7 @@ export function StudentMeetingsPanel() {
           <AppText style={[s.copy, s.flex]}>{notice}</AppText>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Dismiss notice"
+            accessibilityLabel={t("Dismiss notice", "إخفاء الإشعار")}
             onPress={() => setNotice("")}
           >
             <X size={17} color="#62784f" />
@@ -285,16 +451,16 @@ export function StudentMeetingsPanel() {
       )}
       <View style={s.listPanel}>
         <View style={s.top}>
-          <AppText style={s.sectionTitle}>Your meetings</AppText>
+          <AppText style={s.sectionTitle}>{t("Your meetings", "اجتماعاتك")}</AppText>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Toggle calendar"
+            accessibilityLabel={t("Toggle calendar", "إظهار التقويم أو إخفاؤه")}
             accessibilityState={{ expanded: calendarOpen }}
             style={s.calendarButton}
             onPress={() => setCalendarOpen(!calendarOpen)}
           >
             <CalendarDays size={18} color="#8d7eac" />
-            <AppText style={s.calendarText}>Calendar</AppText>
+            <AppText style={s.calendarText}>{t("Calendar", "التقويم")}</AppText>
           </Pressable>
         </View>
         {calendarOpen && (
@@ -310,7 +476,7 @@ export function StudentMeetingsPanel() {
               marked={meetings.filter((m) => !m.cancelled).map((m) => m.date)}
             />
             <Button
-              title="Back to this month"
+              title={t("Back to this month", "العودة إلى هذا الشهر")}
               variant="ghost"
               size="sm"
               onPress={() => {
@@ -323,8 +489,8 @@ export function StudentMeetingsPanel() {
         <View style={s.search}>
           <Search size={17} color="#8a9979" />
           <TextInput
-            accessibilityLabel="Search meetings"
-            placeholder="Search meetings…"
+            accessibilityLabel={t("Search meetings", "البحث في الاجتماعات")}
+            placeholder={t("Search meetings…", "ابحث في الاجتماعات…")}
             placeholderTextColor="#929c8b"
             value={query}
             onChangeText={setQuery}
@@ -333,7 +499,7 @@ export function StudentMeetingsPanel() {
           {!!query && (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Clear meeting search"
+              accessibilityLabel={t("Clear meeting search", "مسح البحث")}
               onPress={() => setQuery("")}
             >
               <X size={16} color="#6f815d" />
@@ -349,25 +515,29 @@ export function StudentMeetingsPanel() {
               onPress={() => setFilter(value)}
               style={[s.filter, filter === value && s.selectedFilter]}
             >
-              <AppText style={[s.filterText, filter === value && s.white]}>{value}</AppText>
+              <AppText style={[s.filterText, filter === value && s.white]}>
+                {filterText[value]}
+              </AppText>
             </Pressable>
           ))}
         </View>
         {!!selectedDay && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Clear date filter"
+            accessibilityLabel={t("Clear date filter", "مسح تصفية التاريخ")}
             onPress={() => setSelectedDay("")}
             style={s.dayFilter}
           >
-            <AppText style={s.small}>{selectedDay} · Clear date</AppText>
+            <AppText style={s.small}>
+              {formatLongDate(selectedDay)} · {t("Clear date", "مسح التاريخ")}
+            </AppText>
             <X size={14} color="#8e7da7" />
           </Pressable>
         )}
         {visible.map((m) => (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`View ${m.title}`}
+            accessibilityLabel={`${t("View", "عرض")} ${m.title}`}
             key={m.id}
             style={[s.meetingCard, m.cancelled && s.cancelled]}
             onPress={() => {
@@ -377,7 +547,7 @@ export function StudentMeetingsPanel() {
           >
             <View style={s.dateTile}>
               <AppText style={s.dateMonth}>
-                {new Date(start(m)).toLocaleDateString("en-US", {
+                {new Date(start(m)).toLocaleDateString(meetingLocale(language), {
                   timeZone: meetingZone,
                   month: "short",
                 })}
@@ -387,21 +557,23 @@ export function StudentMeetingsPanel() {
             <View style={s.flex}>
               <View style={s.badges}>
                 <AppText style={[s.badge, meetingType(m) === "individual" && s.individual]}>
-                  {meetingType(m) === "team" ? "Team meeting" : "One-to-one"}
+                  {meetingType(m) === "team"
+                    ? t("Team meeting", "اجتماع فريق")
+                    : t("One-to-one", "لقاء فردي")}
                 </AppText>
-                <AppText style={[s.badge, m.cancelled && s.cancelBadge]}>{getStatus(m)}</AppText>
-                {m.sample && <AppText style={s.example}>Example</AppText>}
+                <AppText style={[s.badge, m.cancelled && s.cancelBadge]}>{statusText(m)}</AppText>
+                {m.sample && <AppText style={s.example}>{t("Example", "مثال")}</AppText>}
               </View>
               <AppText style={s.meetingTitle}>{m.title}</AppText>
               <AppText style={s.small}>
-                {labelTime(m)} · {m.duration ?? 30} min
+                {labelTime(m, language)} · {m.duration ?? 30} {t("min", "دقيقة")}
               </AppText>
               <AppText style={s.small}>{m.location}</AppText>
               <AppText style={s.peopleMeta}>
-                {members(m).length} participants ·{" "}
+                {members(m).length} {t("participants", "مشاركين")} ·{" "}
                 {meetingType(m) === "team"
-                  ? "Project Team"
-                  : (members(m).find((u) => u.id !== actorId)?.name ?? "Participant")}
+                  ? t("Project Team", "فريق المشروع")
+                  : (members(m).find((u) => u.id !== actorId)?.name ?? t("Participant", "مشارك"))}
               </AppText>
             </View>
             <ChevronRight size={17} color="#97a186" />
@@ -410,10 +582,17 @@ export function StudentMeetingsPanel() {
         {!visible.length && (
           <View style={s.empty}>
             <CalendarDays size={35} color="#8e9f80" />
-            <AppText style={s.sectionTitle}>No meetings here yet.</AppText>
-            <AppText style={s.copy}>Try another filter or schedule a time to get together.</AppText>
+            <AppText style={s.sectionTitle}>
+              {t("No meetings here yet.", "لا توجد اجتماعات هنا بعد.")}
+            </AppText>
+            <AppText style={s.copy}>
+              {t(
+                "Try another filter or schedule a time to get together.",
+                "جرّب تصفية أخرى أو حدّد وقتًا للقاء.",
+              )}
+            </AppText>
             <Button
-              title="Show all meetings"
+              title={t("Show all meetings", "عرض كل الاجتماعات")}
               variant="soft"
               size="sm"
               onPress={() => {
@@ -427,12 +606,15 @@ export function StudentMeetingsPanel() {
       </View>
       <View style={s.tip}>
         <MessageCircle color="#8e80a8" size={24} />
-        <AppText style={s.sectionTitle}>Make the time count.</AppText>
+        <AppText style={s.sectionTitle}>{t("Make the time count.", "اجعل الوقت مثمرًا.")}</AppText>
         <AppText style={s.copy}>
-          Add an agenda before you meet. Keep the decisions and next steps in your meeting notes.
+          {t(
+            "Add an agenda before you meet. Keep the decisions and next steps in your meeting notes.",
+            "أضف جدول أعمال قبل اللقاء، واحفظ القرارات والخطوات التالية في ملاحظات الاجتماع.",
+          )}
         </AppText>
         <Button
-          title="Open team conversation ↗"
+          title={t("Open team conversation ↗", "فتح محادثة الفريق ↗")}
           variant="ghost"
           size="sm"
           onPress={async () => await openChat()}
@@ -449,19 +631,19 @@ export function StudentMeetingsPanel() {
             <AppText style={[s.sectionTitle, s.flex]}>
               {sheet === "form"
                 ? editing
-                  ? "Edit Meeting"
-                  : "Schedule Meeting"
+                  ? t("Edit Meeting", "تعديل الاجتماع")
+                  : t("Schedule Meeting", "جدولة اجتماع")
                 : sheet === "person"
-                  ? "Choose a person"
+                  ? t("Choose a person", "اختر شخصًا")
                   : sheet === "date"
-                    ? "Choose a date"
+                    ? t("Choose a date", "اختر تاريخًا")
                     : sheet === "cancel"
-                      ? "Cancel meeting?"
-                      : "Meeting details"}
+                      ? t("Cancel meeting?", "إلغاء الاجتماع؟")
+                      : t("Meeting details", "تفاصيل الاجتماع")}
             </AppText>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Close meeting dialog"
+              accessibilityLabel={t("Close meeting dialog", "إغلاق")}
               onPress={() => setSheet(sheet === "person" || sheet === "date" ? "form" : null)}
               style={s.close}
             >
@@ -469,6 +651,7 @@ export function StudentMeetingsPanel() {
             </Pressable>
           </View>
           <ScrollView
+            ref={formScroll}
             automaticallyAdjustKeyboardInsets
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
@@ -478,38 +661,79 @@ export function StudentMeetingsPanel() {
               <>
                 <View style={s.formIntro}>
                   <AppText style={s.copy}>
-                    {project?.title} · Choose a time and give everyone a clear agenda.
+                    {project?.title} ·{" "}
+                    {t(
+                      "Choose a time and give everyone a clear agenda.",
+                      "اختر وقتًا وحدد جدول أعمال واضحًا للجميع.",
+                    )}
                   </AppText>
                 </View>
-                <Field
-                  label="Meeting title"
-                  value={title}
-                  onChangeText={setTitle}
-                  maxLength={120}
-                />
-                <AppText style={s.label}>Date & time · Palestine time</AppText>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Choose meeting date"
-                  onPress={() => {
-                    setDateMonth((date || today).slice(0, 7));
-                    setSheet("date");
-                  }}
-                  style={s.dateInput}
+                <View testID="meeting-field-title" onLayout={(event) => recordY("title", event)}>
+                  <Field
+                    ref={titleRef}
+                    label={t("Meeting title", "عنوان الاجتماع")}
+                    value={title}
+                    error={fieldErrors.title}
+                    onChangeText={(value) => {
+                      setTitle(value);
+                      clearField("title");
+                    }}
+                    maxLength={120}
+                  />
+                </View>
+                <View
+                  testID="meeting-field-date"
+                  onLayout={(event) => recordY("date", event)}
+                  style={s.fieldGroup}
                 >
-                  <CalendarDays size={19} color="#728eab" />
-                  <AppText style={s.copy}>{date || "Choose date"}</AppText>
-                </Pressable>
-                <Field
-                  label="Time (HH:mm)"
-                  value={time}
-                  onChangeText={setTime}
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={5}
-                />
+                  <AppText style={s.label}>
+                    {t("Date & time · Palestine time", "التاريخ والوقت · توقيت فلسطين")}
+                  </AppText>
+                  <Pressable
+                    ref={dateRef}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("Choose meeting date", "اختيار تاريخ الاجتماع")}
+                    accessibilityHint={fieldErrors.date}
+                    aria-invalid={!!fieldErrors.date}
+                    onPress={() => {
+                      setDateMonth((date || today).slice(0, 7));
+                      setSheet("date");
+                    }}
+                    style={[s.dateInput, !!fieldErrors.date && s.invalid]}
+                  >
+                    <CalendarDays size={19} color="#728eab" />
+                    <AppText style={s.copy}>
+                      {date ? formatLongDate(date) : t("Choose date", "اختر التاريخ")}
+                    </AppText>
+                  </Pressable>
+                  {!!fieldErrors.date && (
+                    <AppText variant="caption" tone="danger">
+                      {fieldErrors.date}
+                    </AppText>
+                  )}
+                </View>
+                <View testID="meeting-field-time" onLayout={(event) => recordY("time", event)}>
+                  <Field
+                    ref={timeRef}
+                    label={t("Time (HH:mm)", "الوقت (HH:mm)")}
+                    value={time}
+                    error={fieldErrors.time}
+                    onChangeText={(value) => {
+                      setTime(value);
+                      clearField("time");
+                      clearField("date");
+                    }}
+                    keyboardType="numbers-and-punctuation"
+                    maxLength={5}
+                  />
+                </View>
                 <Chips
                   value={time}
-                  onChange={setTime}
+                  onChange={(value) => {
+                    setTime(value);
+                    clearField("time");
+                    clearField("date");
+                  }}
                   options={[
                     "09:00",
                     "10:00",
@@ -521,26 +745,42 @@ export function StudentMeetingsPanel() {
                     "16:00",
                   ].map((v) => ({ id: v, label: v }))}
                 />
-                <AppText style={s.label}>Duration</AppText>
+                <View onLayout={(event) => recordY("duration", event)}>
+                  <AppText style={s.label}>{t("Duration", "المدة")}</AppText>
+                </View>
                 <Chips
                   value={duration}
-                  onChange={setDuration}
+                  onChange={(value) => {
+                    setDuration(value);
+                    clearField("duration");
+                  }}
                   options={[15, 30, 40, 45, 60, 90, 120].map((v) => ({
                     id: String(v),
-                    label: `${v} min`,
+                    label: `${v} ${t("min", "دقيقة")}`,
                   }))}
                 />
-                <AppText style={s.label}>Who are you meeting?</AppText>
-                <View style={s.typePicker}>
+                {!!fieldErrors.duration && (
+                  <AppText variant="caption" tone="danger">
+                    {fieldErrors.duration}
+                  </AppText>
+                )}
+                <View onLayout={(event) => recordY("person", event)}>
+                  <AppText style={s.label}>{t("Who are you meeting?", "مع من ستلتقي؟")}</AppText>
+                </View>
+                <View testID="meeting-field-person" style={s.typePicker}>
                   {(["team", "individual"] as const).map((v) => (
                     <Pressable
                       key={v}
+                      ref={type === v ? personRef : undefined}
                       accessibilityRole="button"
-                      accessibilityLabel={v === "team" ? "With my team" : "One-to-one"}
+                      accessibilityLabel={
+                        v === "team" ? t("With my team", "مع فريقي") : t("One-to-one", "لقاء فردي")
+                      }
                       accessibilityState={{ selected: type === v }}
                       onPress={() => {
                         setType(v);
                         setPerson("");
+                        clearField("person");
                       }}
                       style={[s.typeOption, type === v && s.typeChosen]}
                     >
@@ -550,7 +790,9 @@ export function StudentMeetingsPanel() {
                         <MessageCircle size={20} color="#8c7ca7" />
                       )}
                       <AppText style={s.typeText}>
-                        {v === "team" ? "With my team" : "One-to-one"}
+                        {v === "team"
+                          ? t("With my team", "مع فريقي")
+                          : t("One-to-one", "لقاء فردي")}
                       </AppText>
                     </Pressable>
                   ))}
@@ -559,7 +801,7 @@ export function StudentMeetingsPanel() {
                   <View style={s.chosenPerson}>
                     <Users color="#829269" size={22} />
                     <View style={s.flex}>
-                      <AppText style={s.label}>Project team</AppText>
+                      <AppText style={s.label}>{t("Project team", "فريق المشروع")}</AppText>
                       <AppText style={s.copy}>
                         {project?.studentIds
                           .map((id) => state.users.find((u) => u.id === id)?.name)
@@ -587,7 +829,11 @@ export function StudentMeetingsPanel() {
                       </>
                     )}
                     <Button
-                      title={selectedPerson ? "Change person" : "Choose a person"}
+                      title={
+                        selectedPerson
+                          ? t("Change person", "تغيير الشخص")
+                          : t("Choose a person", "اختر شخصًا")
+                      }
                       variant="soft"
                       size="sm"
                       onPress={() => {
@@ -598,49 +844,59 @@ export function StudentMeetingsPanel() {
                     />
                   </View>
                 )}
+                {!!fieldErrors.person && (
+                  <AppText variant="caption" tone="danger">
+                    {fieldErrors.person}
+                  </AppText>
+                )}
+                <View
+                  testID="meeting-field-location"
+                  onLayout={(event) => recordY("location", event)}
+                >
+                  <Field
+                    ref={locationRef}
+                    label={t("Location or meeting link", "المكان أو رابط الاجتماع")}
+                    placeholder={t("Engineering lab or https://…", "مختبر الهندسة أو https://…")}
+                    value={location}
+                    error={fieldErrors.location}
+                    onChangeText={(value) => {
+                      setLocation(value);
+                      clearField("location");
+                    }}
+                    maxLength={300}
+                  />
+                </View>
                 <Field
-                  label="Location or meeting link"
-                  placeholder="Engineering lab or https://…"
-                  value={location}
-                  onChangeText={setLocation}
-                  maxLength={300}
-                />
-                <Field
-                  label="Agenda"
-                  placeholder="What should everyone prepare?"
+                  label={t("Agenda", "جدول الأعمال")}
+                  placeholder={t("What should everyone prepare?", "ما الذي يجب أن يحضّره الجميع؟")}
                   value={agenda}
                   onChangeText={setAgenda}
                   maxLength={3000}
                   multiline
                 />
-                {!!error && (
-                  <AppText accessibilityRole="alert" style={s.error}>
-                    {error}
-                  </AppText>
-                )}
-                <View style={s.actions}>
-                  <Button title="Cancel" variant="ghost" onPress={() => setSheet(null)} />
-                  <Button
-                    title={editing ? "Save Changes" : "Save Meeting"}
-                    disabled={type === "individual" && !person}
-                    onPress={save}
-                  />
-                </View>
               </>
             )}
             {sheet === "person" && (
               <>
-                <AppText style={s.copy}>Select someone to meet, then save your choice.</AppText>
-                <Field
-                  label="Search meeting participants"
-                  placeholder="Search name, role or university number…"
+                <AppText style={s.copy}>
+                  {t(
+                    "Select someone to meet, then save your choice.",
+                    "اختر شخصًا للقاء ثم احفظ اختيارك.",
+                  )}
+                </AppText>
+                <SearchField
+                  label={t("Search meeting participants", "البحث عن مشاركين")}
+                  placeholder={t(
+                    "Search name, role or university number…",
+                    "ابحث بالاسم أو الدور أو الرقم الجامعي…",
+                  )}
                   value={personQuery}
                   onChangeText={setPersonQuery}
                 />
                 {people.map((u) => (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`Select ${u.name}`}
+                    accessibilityLabel={`${t("Select", "اختيار")} ${u.name}`}
                     accessibilityState={{ selected: personDraft === u.id }}
                     key={u.id}
                     onPress={() => setPersonDraft(u.id)}
@@ -665,11 +921,19 @@ export function StudentMeetingsPanel() {
                     {personDraft === u.id && <Check size={18} color="#668252" />}
                   </Pressable>
                 ))}
-                {!people.length && <AppText style={s.copy}>No matching people.</AppText>}
+                {!people.length && (
+                  <AppText style={s.copy}>
+                    {t("No matching people.", "لا يوجد أشخاص مطابقون.")}
+                  </AppText>
+                )}
                 <View style={s.actions}>
-                  <Button title="Cancel" variant="ghost" onPress={() => setSheet("form")} />
                   <Button
-                    title="Save Person"
+                    title={t("Cancel", "إلغاء")}
+                    variant="ghost"
+                    onPress={() => setSheet("form")}
+                  />
+                  <Button
+                    title={t("Save Person", "حفظ الشخص")}
                     disabled={!personDraft}
                     onPress={() => {
                       setPerson(personDraft);
@@ -692,7 +956,12 @@ export function StudentMeetingsPanel() {
                   }}
                   minimumDay={today}
                 />
-                <AppText style={s.copy}>Choose the meeting day. Times use Palestine time.</AppText>
+                <AppText style={s.copy}>
+                  {t(
+                    "Choose the meeting day. Times use Palestine time.",
+                    "اختر يوم الاجتماع. الأوقات بتوقيت فلسطين.",
+                  )}
+                </AppText>
               </>
             )}
             {sheet === "detail" && active && (
@@ -700,19 +969,22 @@ export function StudentMeetingsPanel() {
                 <AppText style={s.nextTitle}>{active.title}</AppText>
                 <View style={s.badges}>
                   <AppText style={[s.badge, active.cancelled && s.cancelBadge]}>
-                    {getStatus(active)}
+                    {statusText(active)}
                   </AppText>
-                  {active.sample && <AppText style={s.example}>Example meeting</AppText>}
+                  {active.sample && (
+                    <AppText style={s.example}>{t("Example meeting", "اجتماع تجريبي")}</AppText>
+                  )}
                 </View>
                 <View style={s.metaPanel}>
                   <View style={s.metaLine}>
                     <CalendarDays size={18} color="#8496af" />
-                    <AppText style={s.copy}>{labelDate(active)}</AppText>
+                    <AppText style={s.copy}>{labelDate(active, language)}</AppText>
                   </View>
                   <View style={s.metaLine}>
                     <Clock3 size={18} color="#b2947a" />
                     <AppText style={s.copy}>
-                      {labelTime(active)} · {active.duration ?? 30} minutes · Palestine time
+                      {labelTime(active, language)} · {active.duration ?? 30}{" "}
+                      {t("minutes", "دقيقة")} · {t("Palestine time", "توقيت فلسطين")}
                     </AppText>
                   </View>
                   <View style={s.metaLine}>
@@ -722,29 +994,32 @@ export function StudentMeetingsPanel() {
                 </View>
                 {/^https:\/\//i.test(active.location) && !active.cancelled && !active.completed && (
                   <Button
-                    title="Open Meeting Link ↗"
+                    title={t("Open Meeting Link ↗", "فتح رابط الاجتماع ↗")}
                     variant="soft"
                     onPress={() => openLink(active.location)}
                   />
                 )}
-                <AppText style={s.sectionTitle}>Participants</AppText>
+                <AppText style={s.sectionTitle}>{t("Participants", "المشاركون")}</AppText>
                 <View style={s.participants}>
                   {members(active).map((u) => (
                     <View style={s.participant} key={u.id}>
                       <AppText style={s.label}>{u.name}</AppText>
                       <AppText style={s.small}>
                         {u.id === active.creatorId
-                          ? "Organizer"
-                          : (active.responses[u.id] ?? "Pending invitation")}
+                          ? t("Organizer", "المنظم")
+                          : responseText(active.responses[u.id] ?? "pending")}
                       </AppText>
                     </View>
                   ))}
                 </View>
-                <AppText style={s.sectionTitle}>Agenda</AppText>
+                <AppText style={s.sectionTitle}>{t("Agenda", "جدول الأعمال")}</AppText>
                 <AppText style={s.copy}>{active.agenda || "No agenda added yet."}</AppText>
                 <Field
-                  label="Meeting notes & next steps"
-                  placeholder="Capture decisions, action items, and what happens next…"
+                  label={t("Meeting notes & next steps", "ملاحظات الاجتماع والخطوات التالية")}
+                  placeholder={t(
+                    "Capture decisions, action items, and what happens next…",
+                    "سجّل القرارات والمهام وما سيحدث لاحقًا…",
+                  )}
                   value={active.notes ?? ""}
                   onChangeText={async (notes) =>
                     await act({ type: "meeting.notes", id: active.id, notes })
@@ -752,10 +1027,12 @@ export function StudentMeetingsPanel() {
                   maxLength={5000}
                   multiline
                 />
-                <AppText style={s.small}>Notes are saved on this device.</AppText>
+                <AppText style={s.small}>
+                  {t("Notes are saved on this device.", "تُحفظ الملاحظات على هذا الجهاز.")}
+                </AppText>
                 <View style={s.actions}>
                   <Button
-                    title="Open Chat"
+                    title={t("Open Chat", "فتح المحادثة")}
                     variant="soft"
                     size="sm"
                     onPress={async () => await openChat(active)}
@@ -765,30 +1042,32 @@ export function StudentMeetingsPanel() {
                     (active.creatorId === actorId ? (
                       <>
                         <Button
-                          title="Edit"
+                          title={t("Edit", "تعديل")}
                           size="sm"
                           variant="soft"
                           onPress={() => openForm(active)}
                         />
                         <Button
-                          title="Cancel Meeting"
+                          title={t("Cancel Meeting", "إلغاء الاجتماع")}
                           variant="ghost"
                           size="sm"
                           onPress={() => setSheet("cancel")}
                         />
                         <Button
-                          title="Mark Completed"
+                          title={t("Mark Completed", "تعليم كمكتمل")}
                           size="sm"
                           onPress={async () => {
                             if (await act({ type: "meeting.complete", id: active.id }))
-                              setNotice("Meeting marked completed.");
+                              setNotice(
+                                t("Meeting marked completed.", "تم تعليم الاجتماع كمكتمل."),
+                              );
                           }}
                         />
                       </>
                     ) : (
                       <>
                         <Button
-                          title="Accept"
+                          title={t("Accept", "قبول")}
                           size="sm"
                           onPress={async () => {
                             if (
@@ -798,11 +1077,11 @@ export function StudentMeetingsPanel() {
                                 response: "accepted",
                               })
                             )
-                              setNotice("Invitation accepted.");
+                              setNotice(t("Invitation accepted.", "تم قبول الدعوة."));
                           }}
                         />
                         <Button
-                          title="Decline"
+                          title={t("Decline", "رفض")}
                           size="sm"
                           variant="ghost"
                           onPress={async () => {
@@ -813,7 +1092,7 @@ export function StudentMeetingsPanel() {
                                 response: "declined",
                               })
                             )
-                              setNotice("Invitation declined.");
+                              setNotice(t("Invitation declined.", "تم رفض الدعوة."));
                           }}
                         />
                       </>
@@ -824,28 +1103,69 @@ export function StudentMeetingsPanel() {
             {sheet === "cancel" && active && (
               <>
                 <AppText style={s.copy}>
-                  {active.title} will remain visible under Cancelled.
+                  {active.title} ·{" "}
+                  {t(
+                    "This meeting will remain visible under Cancelled.",
+                    "سيظل هذا الاجتماع ظاهرًا ضمن الاجتماعات الملغاة.",
+                  )}
                 </AppText>
-                <Button title="Keep meeting" variant="soft" onPress={() => setSheet("detail")} />
                 <Button
-                  title="Confirm cancellation"
+                  title={t("Keep meeting", "الإبقاء على الاجتماع")}
+                  variant="soft"
+                  onPress={() => setSheet("detail")}
+                />
+                <Button
+                  title={t("Confirm cancellation", "تأكيد الإلغاء")}
                   variant="danger"
                   onPress={async () => {
                     if (await act({ type: "meeting.cancel", id: active.id })) {
                       setSheet(null);
-                      setNotice("Meeting cancelled.");
+                      setNotice(t("Meeting cancelled.", "تم إلغاء الاجتماع."));
                     }
                   }}
                 />
               </>
             )}
           </ScrollView>
+          {/* The save action stays pinned above the keyboard and the home indicator. */}
+          {sheet === "form" && (
+            <View style={s.footer}>
+              {!!(saveError || error) && (
+                <AppText
+                  tone="danger"
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="assertive"
+                  style={s.footerMessage}
+                >
+                  {saveError || error}
+                </AppText>
+              )}
+              <Button
+                title={
+                  editing ? t("Save Changes", "حفظ التغييرات") : t("Save Meeting", "حفظ الاجتماع")
+                }
+                loading={savingMeeting}
+                onPress={submit}
+              />
+            </View>
+          )}
         </SafeAreaView>
       </Modal>
     </View>
   );
 }
 const s = StyleSheet.create({
+  fieldGroup: { gap: 8 },
+  invalid: { borderColor: "#d4402f", borderWidth: 1.5 },
+  footerMessage: { fontSize: 14 },
+  footer: {
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderColor: "#e2e7d8",
+    backgroundColor: "#fafbf7",
+  },
   page: { gap: 18 },
   flex: { flex: 1, minWidth: 0 },
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 9 },

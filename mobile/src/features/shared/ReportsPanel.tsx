@@ -11,6 +11,7 @@ import Svg, { Rect, Ellipse, Text as SvgText } from "react-native-svg";
 import { AppText, Button } from "@/components";
 import { Chips, Field, Panel, kit, useCopy } from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
+import { useStatusLabel } from "@/features/shared/reportLabels";
 import type { Report, ReportKind } from "@/domain/workspace";
 import { colors } from "@/theme";
 import templates from "../../../assets/data/templates.json";
@@ -48,6 +49,7 @@ export function ReportsPanel({
 }) {
   const { state, actorId, act } = useWorkspace();
   const t = useCopy();
+  const statusLabel = useStatusLabel();
   const [kind, setKind] = useState<ReportKind>(onlyFinal ? "final" : "weekly");
   const [selected, setSelected] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string> | null>(null);
@@ -115,12 +117,6 @@ export function ReportsPanel({
   }
   const hero = !supervisor && (
     <View style={{ gap: 4 }}>
-      <AppText variant="heading">
-        {t(
-          "Reports & submissions",
-          "\u0627\u0644\u062a\u0642\u0627\u0631\u064a\u0631 \u0648\u0627\u0644\u062a\u0633\u0644\u064a\u0645\u0627\u062a",
-        )}
-      </AppText>
       <AppText variant="caption" tone="muted">
         {t(
           "Weekly updates, final report and presentation.",
@@ -161,9 +157,9 @@ export function ReportsPanel({
             setSelected(null);
           }}
           options={[
-            { id: "weekly", label: "Weekly" },
-            { id: "final", label: "Final report" },
-            { id: "presentation", label: "Presentation" },
+            { id: "weekly", label: t("Weekly", "أسبوعي") },
+            { id: "final", label: t("Final report", "النهائي") },
+            { id: "presentation", label: t("Presentation", "العرض") },
           ]}
         />
         {supervisor && (
@@ -287,7 +283,7 @@ export function ReportsPanel({
                 {r.kind === "weekly"
                   ? t(`Week ${r.week}`, `الأسبوع ${r.week}`)
                   : t("Team workspace", "مساحة الفريق")}{" "}
-                · {r.status}
+                · {statusLabel(r.status)}
               </AppText>
               <Button title={t("Open", "فتح")} variant="soft" onPress={async () => await open(r)} />
             </Panel>
@@ -311,7 +307,7 @@ export function ReportsPanel({
           />
           <Panel tint={colors.primaryWash}>
             <AppText variant="heading">{title}</AppText>
-            <AppText>{report.status.toUpperCase()}</AppText>
+            <AppText>{statusLabel(report.status)}</AppText>
             {report.submittedAt && (
               <AppText variant="caption" tone="muted">
                 {new Date(report.submittedAt).toLocaleString()}
@@ -339,8 +335,8 @@ export function ReportsPanel({
                   >
                     <TemplatePreview
                       template={p.id}
-                      title="Your project"
-                      body="Your ideas, clearly presented."
+                      title={t("Your project", "مشروعك")}
+                      body={t("Your ideas, clearly presented.", "أفكارك بوضوح.")}
                       color={color}
                     />
                     <AppText variant="caption">{p.name}</AppText>

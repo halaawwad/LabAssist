@@ -1,31 +1,33 @@
 import { useRouter, type Href } from "@/native/router";
-import { RefreshControl, StyleSheet, View } from "react-native";
+import { Platform, RefreshControl } from "react-native";
 
-import {
-  ErrorState,
-  LanguageToggle,
-  LoadingState,
-  ScreenContainer,
-  ScreenHeader,
-} from "@/components";
+import { ErrorState, LoadingState, ScreenContainer } from "@/components";
+import { Greeting, StatGrid, type StatTone } from "@/components/MobileKit";
+import { useWorkspace } from "@/state/WorkspaceProvider";
+import { CalendarDays, ClipboardList, Folder, TriangleAlert } from "lucide-react-native";
 import { useLanguage } from "@/i18n";
-import { colors, spacing } from "@/theme";
+import { colors } from "@/theme";
 import type { ActivityStatus, DashboardStatId } from "@/types/supervisor";
 
 import { ActivityCard } from "../components/ActivityCard";
 import { MeetingsCard } from "../components/MeetingsCard";
 import { ProgressOverviewCard } from "../components/ProgressOverviewCard";
-import { StatCard } from "../components/StatCard";
 import { SupportCard } from "../components/SupportCard";
 import { useSupervisorDashboard } from "../hooks/useSupervisorDashboard";
 import { sectionHref, type SupervisorSectionId } from "../navigation";
 
-function partOfDay(date: Date) {
-  const hour = date.getHours();
-  if (hour < 12) return "morning";
-  if (hour < 18) return "afternoon";
-  return "evening";
-}
+const statIcons = {
+  myProjects: Folder,
+  delayed: CalendarDays,
+  reports: ClipboardList,
+  issues: TriangleAlert,
+};
+const statTones: Record<"green" | "orange" | "blue" | "red", StatTone> = {
+  green: "olive",
+  orange: "orange",
+  blue: "blue",
+  red: "red",
+};
 
 /** A tab route, or a section that lives under "More". */
 type Target = { tab: Href } | { section: SupervisorSectionId };
@@ -58,14 +60,18 @@ export function DashboardScreen() {
     }
   };
 
-  const firstName = data?.profile.name.trim().split(/\s+/)[0];
+  // The signed-in workspace account, as on every role's Home (not the mock profile name).
+  const { state, actorId } = useWorkspace();
+  const userName = state.users.find((user) => user.id === actorId)?.name ?? "";
 
   return (
     <ScreenContainer
       scroll
       edges={["top"]}
       refreshControl={
-        data ? (
+        // Pull-to-refresh is native-only; on the web RNW would wrap the list in a second,
+        // non-scrolling overflow container.
+        data && Platform.OS !== "web" ? (
           <RefreshControl
             refreshing={refreshing}
             onRefresh={refresh}
@@ -75,27 +81,25 @@ export function DashboardScreen() {
         ) : undefined
       }
     >
-      <ScreenHeader
-        eyebrow={t(`supervisor.dashboard.greeting.${partOfDay(new Date())}`)}
-        title={
-          firstName
-            ? t("supervisor.dashboard.honorific", { name: firstName })
-            : t("supervisor.nav.dashboard")
-        }
-        subtitle={t("supervisor.dashboard.subtitle")}
-        trailing={<LanguageToggle compact />}
-      />
+      {/* Shared Home pattern: greeting with the signed-in user's name, then stats and cards. */}
+      <Greeting name={userName} subtitle={t("supervisor.dashboard.subtitle")} />
 
       {status === "loading" ? <LoadingState message={t("supervisor.dashboard.loading")} /> : null}
       {status === "error" ? <ErrorState onRetry={retry} /> : null}
 
       {data ? (
         <>
-          <View style={styles.stats}>
-            {data.stats.map((stat) => (
-              <StatCard key={stat.id} stat={stat} onPress={() => open(statTargets[stat.id])} />
-            ))}
-          </View>
+          <StatGrid
+            items={data.stats.map((stat) => ({
+              id: stat.id,
+              icon: statIcons[stat.id],
+              tone: statTones[stat.tone],
+              value: stat.value,
+              label: t(`supervisor.dashboard.stats.${stat.id}.label`),
+              note: t(`supervisor.dashboard.stats.${stat.id}.trend`),
+              onPress: () => open(statTargets[stat.id]),
+            }))}
+          />
           <ProgressOverviewCard
             progress={data.progress}
             onViewAll={() => open({ section: "progress" })}
@@ -112,11 +116,3 @@ export function DashboardScreen() {
     </ScreenContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  stats: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.md,
-  },
-});

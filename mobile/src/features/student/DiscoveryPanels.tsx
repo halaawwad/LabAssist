@@ -2,7 +2,7 @@ import { Disclosure } from "@/components/Disclosure";
 import { useState } from "react";
 import { Linking, View } from "react-native";
 import { AppText, Button } from "@/components";
-import { Chips, Field, Panel, kit, useCopy } from "@/components/MobileKit";
+import { Chips, Panel, kit, useCopy, SearchField } from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { colors } from "@/theme";
 import hardware from "../../../assets/data/hardware.json";
@@ -78,8 +78,12 @@ export function LearningPanel() {
         </Panel>
       ) : (
         <>
-          <Field
+          <SearchField
             label={t("Search lessons", "ابحث في الدروس")}
+            placeholder={t(
+              "Search lessons by topic or part…",
+              "ابحث في الدروس بالموضوع أو القطعة…",
+            )}
             value={query}
             onChangeText={setQuery}
           />

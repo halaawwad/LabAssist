@@ -134,3 +134,201 @@ bytecode successfully. Final verification results are recorded below.
 
 There is no outstanding reproduced Expo Web renderer/export failure. Physical
 device checks remain required before declaring native runtime export verified.
+
+## Phase 1 — runtime errors, clipped content, navigation (2026-11-19)
+
+### Confirmed causes and fixes
+
+| Issue | Cause found | Fix |
+| --- | --- | --- |
+| BackHandler error on Messages (web) | Hardware-Back listener registered on every platform | Registered on Android only, removal on blur kept; the conversation's own Back closes it on web/iOS |
+| `POP_TO_TOP was not handled` (seen at the next login) | Log out called `dismissAll()` with nothing to pop | Guarded with `canDismiss()`; login, logout and tab switches use `replace` |
+| `Invalid style property of "direction"` | react-native-web rejects and drops the `direction` style | Native-only `directionStyle`; the web uses the document `dir`. Manual `ltr` + `row-reverse` pinning removed, so Arabic web layout now mirrors like native |
+| Department list "stops after two cards" | Web `ImageBackground` used the asset's pixel size, leaving 100–290px of hidden overflow in the shell; switching to Accounts scrolled the shell, moving the tab bar mid-screen | Shared `ShellFrame` sizes the backdrop to the screen; same fix in Messages and the supervisor support card (its photo now shows) |
+| Student CropBot / Supervisor Recent Activity | Not reproduced as clipping on Expo Web, before or after; both lists reached their end. The same shell overflow affected these screens | Same shell fix; one vertical scroll owner per screen; web no longer wraps the supervisor dashboard in a second (RefreshControl) scroll container |
+| Also found | Stray text node on Issues; `<button>` nested in `<button>` in message bubbles | Removed; on web the bubble is a labelled group (its inner Message actions button remains) |
+
+### Navigation
+
+- `src/native/AppShell.tsx` (header, tabs, frame, More) is used by all four roles, including Department.
+- Tabs: Student — Home, Project, Reports, Messages, More. Supervisor — Home, Projects, Reports, Messages, More.
+  Workshop — Home, Attendance, Map, Messages, More. Department — Home, Accounts, Groups, Messages, More.
+- More: Project / Workshop / Communication / Account rows (52px), Language, then a full-width Log out row.
+  Every former menu destination is retained. Hamburger menus and drawers are removed.
+- Tab roots show no Back; sub-pages show Back and a centred 17px semibold title. Home shows the logo and
+  notifications. Duplicated in-page titles and the inventory breadcrumb were removed.
+- `/{role}/more/{page}` and `final-reports` links still resolve. Logout preserves stored records and preferences.
+
+### Verification (Expo Web only)
+
+Dev server `http://localhost:8081`, headless Chrome, scripts and screenshots in
+`D:/LabAssist/.verification-mobile-phase1-20261119` (`audit.cjs`, `flows.cjs`, `dialogs.cjs`).
+
+- Route audit: 50 destinations × {EN, AR} × {390×844, 320×640}: no console errors, no hidden-overflow shift,
+  no nested vertical scrollers, no horizontal page overflow, tab bar pinned to the bottom.
+- Flows, all four roles, EN 390×844 and AR 320×640 (8/8 pass): login, browser Back cannot reopen login, all
+  tabs, More → sub-page → Back, list ends (last item and action visible and hit-testable), logout keeps every
+  other stored key, Back after logout stays signed out, re-login with zero console errors.
+- Conversation and account dialog at 320×640, EN/AR: independent scrolling, composer and Save reachable.
+- `npm run typecheck`, `npm run lint` (no warnings) and `npm test` (53 pass).
+
+### Not verified / limitations
+
+- No Android/iOS device or simulator here: native safe areas, hardware Back, keyboard, and native text
+  measurement in wrapping rows (a possible native-only source of the CropBot/activity reports) are unverified.
+- Department sections are local tabs; Android hardware Back does not step between them.
+- Some content strings inside screens remain English in Arabic mode (unchanged in this phase).
+- Unused legacy `features/supervisor/screens/MoreScreen.tsx` and `PlaceholderScreen.tsx` were left in place.
+
+## Phase 2 completion and Phase 3 follow-up (2026-11-19)
+
+### Phase 2 targeted verification
+
+- Reused the previous successful attendance checks (English 390×844 and Arabic
+  320×640) and the 320×640 workshop map check. The account, task and final-report
+  cases were rerun in isolated contexts in `recheck.cjs`.
+- Department accounts passed in both languages: action/assignment sheets,
+  disable and restore with reload persistence, failed save with preserved input,
+  storage reload, and successful Pending-account retry. After a failed multi-key
+  write, recovery must reload storage before retrying; the existing form offers it.
+- Student task failed-save and double-submit protection passed. The repeated
+  error announcements are the page banner and the form's local error, rather
+  than two task forms; the test now scopes to the form.
+- Arabic final reports passed: project selection, four 44px sections, page and
+  slide navigation, and feedback stored against the submitted version and shown
+  in history. The former timeout selected a section radio outside the picker.
+- The preceding 50-route Phase 2 audit at 390×844 English reported one 46px date
+  input; the current web DateField specifies a 48px minimum. The broader audit
+  below checks visible controls, not every control in every possible dialog.
+
+### Phase 3 changes and checks
+
+- Shared Student/Supervisor/Workshop messages now use 56px inbox avatars,
+  grouped narrower bubbles, long-press/tap actions with a keyboard alternative,
+  no per-message ellipsis or implied delivery check, and a quiet background.
+  Sending is guarded against duplicates; failed sends retain the draft and show
+  an error. The list tracks reading position, scrolls on open and send, and
+  offers a jump to new messages without moving a reader who is higher up.
+- Department keeps its separate existing message store and contact model. Its
+  working background is cream, inbox avatars are 56px with preview and time,
+  conversation bubbles are bounded, and storage recovery is reachable from the
+  open conversation. No unread or delivery state was invented for that store.
+- Isolated Expo Web contexts tested all four roles in English at 390×844 and
+  Arabic at 320×640: send, visible message, no page overflow and no page errors;
+  the shared conversation's action menu also opened with the keyboard. Student
+  and Department failed-send/retry and reload persistence passed. Long-history
+  checks confirmed reopening at the latest message for both stores; the Student
+  test also checked that reading older content did not jump to the end.
+- A route audit covered 50 destinations at both 390×844 and 320×640 in both
+  languages (200 checks): visible control sizes, input sizes, page overflow,
+  shell position and console/page errors. One Workshop Notices load reported
+  `ERR_NETWORK_IO_SUSPENDED`; its isolated rerun passed. These route checks do
+  not exercise every dialog or prove contrast of every text/background pair.
+- Final `npm run typecheck`, `npm run lint`, and `npm test`: passed; 53 tests.
+  Screenshots, scripts and logs are in `D:/LabAssist/.verification-mobile-phase2-20261119`.
+  Tests used isolated browser contexts and did not use the review browser profile.
+
+### Remaining verification limits
+
+- Android/iOS simulator or physical-device runtime was unavailable. Native
+  keyboard avoidance, safe-area placement, native picker and long-press/screen
+  reader behavior are unverified; Expo Web does not validate these.
+- The final route audit is not a fresh interactive review of every nested form,
+  export and dialog, and a complete measured 4.5:1 contrast audit across all
+  role screens was not performed. Previous coverage above predates these edits.
+  The user-specified complete contrast and interaction review therefore remains
+  open; no blanket conformance is claimed.
+
+## Mobile follow-up (2026-11-19)
+
+- Recovered existing follow-up work and left the earlier navigation, messaging,
+  local data and uncommitted changes intact. The interrupted final-review script
+  was not present in the helper directory, so whether it wrote any changes cannot
+  be established from the script. The source still contained untranslated status
+  and interface strings; these were edited directly. Saved report content was not
+  translated.
+- Supervisor Final Reports: localized status/feedback labels and dates, and kept
+  the review editor and text visible on a failed save. Isolated English and Arabic
+  tests passed failure, retry and submitted-version history.
+- Meetings: fixed Expo Web focus of the first invalid field, separated persistence
+  feedback from validation, and guarded rapid duplicate submissions; an isolated
+  test passed validation/focus, failed save, retry, double tap and reload.
+- Workshop: the table list is the initial phone view. Map table selection is
+  available only when all actual shapes are at least 44×44; the list remains
+  available where zoom cannot reach that size. EN/AR checks at 320 and 390 passed.
+- Department account action-sheet X, backdrop and Escape dismissal followed by
+  immediate tab taps passed on web with mouse and touch. Department notifications
+  have no Department identity or destination in the existing data model; no bell,
+  count or other role's alerts were invented.
+- The shared profile screen accepts the Department demo's own read-only identity;
+  Department settings reuse the shared settings screen without another role's data.
+  Profile, settings and Back passed for all roles in English and Arabic.
+- Home and More comparison screenshots were captured for four roles, two languages
+  and both phone sizes under `D:/LabAssist/.verification-mobile-followup-20261119/shots/comparison`.
+  These are disposable browser contexts. The 200 route/size/language audit checked
+  visible text/controls, layout and browser errors; one settings navigation aborted
+  during development reload and passed in isolation. The Arabic working-day switch
+  and English counterpart passed checked-state, knob containment and 44px checks.
+- Login, logout, tabs, Back and list ends passed for all roles at English 390×844
+  and Arabic 320×640. A concurrent earlier Arabic run hit browser resource
+  exhaustion and was rerun successfully after the route audit completed.
+- Final `npm run typecheck`, `npm run lint`, and `npm test` passed, including all
+  53 existing tests. The local Expo Web server remains on port 8081.
+
+### Follow-up limits
+
+- There is no Department Head notification identity or notification destination
+  in the current model. The shared header therefore cannot show a functioning
+  Department bell without additional product/data functionality.
+- All four roles share the message-bubble component; Department still uses its
+  separate local data model and conversation screen, while the other three roles
+  share the native messages screen. A full conversation-screen consolidation
+  remains unfinished. After extracting the component, English/Arabic send and
+  keyboard-action checks passed for the shared screen, and Department send checks
+  passed; Student and Department failed-send/retry/reload checks also passed.
+- The browser audit covers route surfaces and targeted interactions, not every
+  nested form, error path, translation or accessibility label. User-authored
+  text, names, identifiers and document contents were preserved; a complete
+  interactive Arabic and bidi review of every nested screen remains outstanding.
+- Native keyboard, safe-area, SVG touch and screen-reader behavior remain
+  unverified without a physical device or native simulator.
+
+## Department notifications, shared messaging and Arabic follow-up (2026-11-19)
+
+- Department has no compatible notification records or identity in the existing
+  model. The shared header bell now opens a localized empty view and Back returns
+  to the originating Department tab. It shows no badge, borrowed alerts, counts
+  or delivery claims. The EN/AR × 390×844/320×640 isolated checks passed.
+- All four roles now render shared inbox rows, conversation header, composer frame
+  and message bubbles. Their adapters retain the existing role-specific actions,
+  contact IDs, domain logic and separate message stores. Department contact stars,
+  formerly held only in memory, now persist in the new independent key
+  `labassist.mobile.department.contact-stars.v1`; no existing key was migrated or
+  replaced. Star reload and a failed write followed by retry passed in isolated
+  contexts. All-role send and keyboard-action checks passed across both sizes and
+  languages; Student and Department failed-send/retry/reload checks and long
+  history position checks also passed.
+- Arabic route surfaces were inspected using the existing isolated Latin-text audit;
+  report and presentation dialogs were inspected interactively. Fixed interface
+  labels include report status/checks, form and tool accessibility labels,
+  presentation sections/layouts, inventory comparison, the table action sheet,
+  and the web preview controls. Names, codes, user text and document/export
+  content were not translated or rewritten. Untranslated interface still possible:
+  low-level PDF/PowerPoint renderer, file or platform error details can appear in
+  their original language; a complete interactive traversal of every conditional
+  dialog and native screen has not been achieved. Template/theme names and the
+  English text within the report/presentation document previews are retained as
+  names or document content, not claimed as translated UI.
+- No Android device was listed by the available SDK paths and no emulator process
+  was running. Metro on port 8081 returned an Expo SDK 58 Android manifest and an
+  Android JavaScript bundle over `192.168.1.13`; this is bundling/network readiness,
+  not native runtime verification. Native keyboard, safe area, picker, long press,
+  screen reader and device-only behavior remain unverified.
+- `npx expo install --check` reported installed expo 58.0.25 vs ~58.0.26,
+  expo-file-system 58.0.13 vs ~58.0.14, and expo-router 58.0.31 vs ~58.0.32.
+  No dependencies or lockfiles were changed during this follow-up. These warnings
+  may affect native testing and should not be mistaken for a confirmed device issue.
+- Final `npm run typecheck`, `npm run lint`, and `npm test` passed (53 tests).
+  Browser checks used isolated contexts. Screenshots and scripts are under
+  `D:/LabAssist/.verification-mobile-followup-20261119`; the existing Expo server
+  remains running for review.

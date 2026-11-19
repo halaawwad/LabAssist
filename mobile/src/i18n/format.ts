@@ -57,3 +57,60 @@ export function formatRelative(language: Language, isoTimestamp: string, now = D
   if (elapsed < DAY) return translatePlural(language, "dates.hoursAgo", Math.floor(elapsed / HOUR));
   return translatePlural(language, "dates.daysAgo", Math.floor(elapsed / DAY));
 }
+
+const LRI = "⁦"; // left-to-right isolate
+const FSI = "⁨"; // first-strong isolate
+const PDI = "⁩"; // pop directional isolate
+
+/**
+ * Display-only bidi isolation for Latin tokens inside Arabic text (emails, codes, versions,
+ * file names, sizes, "HH:mm"). The marks are added when rendering and never stored.
+ * Unicode isolates work in both React Native Text and browsers.
+ */
+export function isolateLtr(value: string | number) {
+  return `${LRI}${value}${PDI}`;
+}
+/** Isolates a value of unknown direction (for example a user-authored name or title). */
+export function isolate(value: string | number) {
+  return `${FSI}${value}${PDI}`;
+}
+
+function toDate(value: string | Date) {
+  if (value instanceof Date) return value;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? parseIsoDate(value) : new Date(value);
+}
+
+/** "19 November 2026" / "19 نوفمبر 2026"; plain YYYY-MM-DD values stay calendar days. */
+export function formatLongDate(language: Language, value: string | Date, weekday = false) {
+  const date = toDate(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return format(language, date, {
+    ...(weekday ? { weekday: "long" as const } : {}),
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/** Date and time of an ISO timestamp, e.g. "15 Oct 2026, 14:20". */
+export function formatDateTime(language: Language, value: string | Date) {
+  const date = toDate(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return format(language, date, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** Latin-digit number with grouping, isolated so it never reorders inside Arabic text. */
+export function formatNumber(language: Language, value: number, options?: Intl.NumberFormatOptions) {
+  return isolateLtr(latinDigits(new Intl.NumberFormat(locales[language], options).format(value)));
+}
+
+/** "2.4 MB", kept together and left-to-right in both languages. */
+export function formatFileSize(language: Language, megabytes: number) {
+  return isolateLtr(`${latinDigits(new Intl.NumberFormat(locales[language]).format(megabytes))} MB`);
+}
