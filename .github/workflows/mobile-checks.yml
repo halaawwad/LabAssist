@@ -1,0 +1,37 @@
+name: Mobile checks
+on:
+  push:
+    branches: [main, noor]
+    paths: ["mobile/**", "shared/**", ".github/workflows/mobile-checks.yml"]
+  pull_request:
+    branches: [main, noor]
+    paths: ["mobile/**", "shared/**", ".github/workflows/mobile-checks.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      NPM_CONFIG_WORKSPACES: "false"
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci --workspaces=false
+      - run: npm run typecheck
+      - run: npm test
+      - name: Verify iOS JavaScript bundle
+        run: npx expo export --platform ios --output-dir .expo/ci-ios
