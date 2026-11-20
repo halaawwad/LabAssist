@@ -4,9 +4,14 @@ import { StyleSheet, View } from "react-native";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import Svg, { Circle, Line } from "react-native-svg";
 import { AppText } from "@/components";
+import { useCopy } from "@/components/MobileKit";
+import { useLanguage } from "@/i18n";
 import { meetingDay, meetingZone } from "@/domain/meetingTime";
 
 export function MeetingClock({ next }: { next?: number }) {
+  const t = useCopy();
+  const { language } = useLanguage();
+  const locale = language === "ar" ? "ar-u-nu-latn" : "en-US";
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -49,21 +54,26 @@ export function MeetingClock({ next }: { next?: number }) {
           <View style={s.ring} />
         </View>
         <AppText style={s.month}>
-          {new Intl.DateTimeFormat("en-US", { timeZone: meetingZone, month: "short" })
+          {new Intl.DateTimeFormat(locale, { timeZone: meetingZone, month: "short" })
             .format(date)
             .toUpperCase()}
         </AppText>
         <AppText style={s.big}>
-          {new Intl.DateTimeFormat("en-US", { timeZone: meetingZone, day: "2-digit" }).format(date)}
+          {new Intl.DateTimeFormat(locale, { timeZone: meetingZone, day: "2-digit" }).format(date)}
         </AppText>
         <AppText style={s.day}>
-          {new Intl.DateTimeFormat("en-US", { timeZone: meetingZone, weekday: "short" }).format(
+          {new Intl.DateTimeFormat(locale, { timeZone: meetingZone, weekday: "short" }).format(
             date,
           )}
         </AppText>
       </View>
       <View style={s.clock}>
-        <Svg width={78} height={78} viewBox="0 0 80 80" accessibilityLabel="Current Palestine time">
+        <Svg
+          width={78}
+          height={78}
+          viewBox="0 0 80 80"
+          accessibilityLabel={t("Current Palestine time", "الوقت الحالي في فلسطين")}
+        >
           <Circle cx={40} cy={40} r={36} fill="#fffdf8" stroke="#d0b5a0" strokeWidth={3} />
           {[0, 90, 180, 270].map((a) => (
             <Line
@@ -81,20 +91,20 @@ export function MeetingClock({ next }: { next?: number }) {
           {hand(Number(p.second) * 6, 29, "#b38d80", 1)}
           <Circle cx={40} cy={40} r={3} fill="#b38d80" />
         </Svg>
-        <AppText style={s.tiny}>PALESTINE TIME</AppText>
+        <AppText style={s.tiny}>{t("PALESTINE TIME", "توقيت فلسطين")}</AppText>
       </View>
       <View style={s.relative}>
         <View style={s.dot} />
         <AppText style={s.relativeText}>
           {difference === null
-            ? "Time to plan"
+            ? t("Time to plan", "وقت للتخطيط")
             : difference === 0
-              ? "Today"
+              ? t("Today", "اليوم")
               : difference === 1
-                ? "Tomorrow"
+                ? t("Tomorrow", "غدًا")
                 : difference < 0
-                  ? "In progress"
-                  : `In ${difference} days`}
+                  ? t("In progress", "جارٍ الآن")
+                  : t(`In ${difference} days`, `بعد ${difference} أيام`)}
         </AppText>
       </View>
     </View>
@@ -115,6 +125,10 @@ export function MeetingCalendar({
   marked?: string[];
   minimumDay?: string;
 }) {
+  const t = useCopy();
+  const { language, isRTL } = useLanguage();
+  const locale = language === "ar" ? "ar-u-nu-latn" : "en-US";
+  const flip = isRTL ? { transform: [{ scaleX: -1 }] } : undefined;
   const [year, m] = month.split("-").map(Number),
     first = new Date(Date.UTC(year, m - 1, 1, 12));
   const offset = (first.getUTCDay() + 6) % 7,
@@ -125,29 +139,32 @@ export function MeetingCalendar({
     <View style={s.calendar}>
       <View style={s.header}>
         <AppText style={s.heading}>
-          {first.toLocaleDateString("en-US", { timeZone: "UTC", month: "long", year: "numeric" })}
+          {first.toLocaleDateString(locale, { timeZone: "UTC", month: "long", year: "numeric" })}
         </AppText>
         <View style={s.arrows}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Previous month"
+            accessibilityLabel={t("Previous month", "الشهر السابق")}
             onPress={() => shift(-1)}
             style={s.arrow}
           >
-            <ChevronLeft size={19} color="#657e53" />
+            <ChevronLeft size={19} color="#657e53" style={flip} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Next month"
+            accessibilityLabel={t("Next month", "الشهر التالي")}
             onPress={() => shift(1)}
             style={s.arrow}
           >
-            <ChevronRight size={19} color="#657e53" />
+            <ChevronRight size={19} color="#657e53" style={flip} />
           </Pressable>
         </View>
       </View>
       <View style={s.grid}>
-        {["M", "T", "W", "T", "F", "S", "S"].map((v, i) => (
+        {(language === "ar"
+          ? ["ن", "ث", "ر", "خ", "ج", "س", "ح"]
+          : ["M", "T", "W", "T", "F", "S", "S"]
+        ).map((v, i) => (
           <View style={s.cell} key={`head${i}`}>
             <AppText style={s.weekday}>{v}</AppText>
           </View>
@@ -182,7 +199,9 @@ export function MeetingCalendar({
       </View>
       <View style={s.legend}>
         <View style={s.dot} />
-        <AppText style={s.day}>Meeting scheduled · Palestine time</AppText>
+        <AppText style={s.day}>
+          {t("Meeting scheduled · Palestine time", "اجتماع مجدول · توقيت فلسطين")}
+        </AppText>
       </View>
     </View>
   );

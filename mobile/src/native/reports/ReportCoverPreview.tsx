@@ -1,3 +1,4 @@
+import { useCopy } from "@/components/MobileKit";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { MobileModal as Modal } from "@/components/MobileModal";
 import { useState } from "react";
@@ -15,11 +16,12 @@ type Meta = FinalDocument["meta"];
 
 /** The paper always uses PDF points; only the entire finished page is scaled. */
 function CoverPage({ meta, width, guides }: { meta: Meta; width: number; guides: boolean }) {
+  const t = useCopy();
   const scale = width / PAGE_WIDTH;
   return (
     <View
       testID="report-cover-page"
-      accessibilityLabel="A4 cover page preview"
+      accessibilityLabel={t("A4 cover page preview", "معاينة صفحة الغلاف A4")}
       style={{
         width,
         height: (width * PAGE_HEIGHT) / PAGE_WIDTH,
@@ -86,6 +88,7 @@ function CoverPage({ meta, width, guides }: { meta: Meta; width: number; guides:
 }
 
 export function ReportCoverPreview({ meta }: { meta: Meta }) {
+  const t = useCopy();
   const screen = useWindowDimensions();
   const [width, setWidth] = useState(Math.max(200, screen.width - 36));
   const [guides, setGuides] = useState(true),
@@ -101,11 +104,11 @@ export function ReportCoverPreview({ meta }: { meta: Meta }) {
       <View style={s.toolbar}>
         <View style={s.size}>
           <Ruler size={15} color="#789061" />
-          <AppText style={s.sizeText}>A4 · 210 × 297 mm</AppText>
+          <AppText style={s.sizeText}>{t("A4 · 210 × 297 mm", "A4 · 210 × 297 مم")}</AppText>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Enlarge cover"
+          accessibilityLabel={t("Enlarge cover", "تكبير الغلاف")}
           onPress={() => {
             setZoom(1);
             setEnlarged(true);
@@ -116,7 +119,10 @@ export function ReportCoverPreview({ meta }: { meta: Meta }) {
         </Pressable>
       </View>
       <AppText style={s.hint}>
-        Edit the fields below. This page shows their size and position in the PDF.
+        {t(
+          "Edit the fields below. This page shows their size and position in the PDF.",
+          "عدّل الحقول أدناه. تعرض هذه الصفحة حجمها وموضعها في ملف PDF.",
+        )}
       </AppText>
       <View
         style={s.paper}
@@ -147,20 +153,25 @@ export function ReportCoverPreview({ meta }: { meta: Meta }) {
         <Pressable
           accessibilityRole="checkbox"
           accessibilityState={{ checked: guides }}
-          accessibilityLabel="Show page guides"
+          accessibilityLabel={t("Show page guides", "إظهار أدلة الصفحة")}
           onPress={() => setGuides(!guides)}
           style={s.guideToggle}
         >
           <View style={[s.checkbox, guides && s.checked]}>
             <AppText style={s.check}>{guides ? "✓" : ""}</AppText>
           </View>
-          <AppText style={s.sizeText}>Show page guides</AppText>
+          <AppText style={s.sizeText}>{t("Show page guides", "إظهار أدلة الصفحة")}</AppText>
         </Pressable>
-        <AppText style={s.scale}>{Math.round((width / PAGE_WIDTH) * 100)}% preview</AppText>
+        <AppText style={s.scale}>
+          {Math.round((width / PAGE_WIDTH) * 100)}% {t("preview", "معاينة")}
+        </AppText>
       </View>
       {guides && (
         <AppText style={s.hint}>
-          Reserved header: 47 mm · Side margins: 20 mm · Bottom: 20 mm. Guides are not printed.
+          {t(
+            "Reserved header: 47 mm · Side margins: 20 mm · Bottom: 20 mm. Guides are not printed.",
+            "الترويسة المحجوزة: 47 مم · الهوامش الجانبية: 20 مم · الأسفل: 20 مم. الأدلة لا تُطبع.",
+          )}
         </AppText>
       )}
       <Modal
@@ -171,11 +182,11 @@ export function ReportCoverPreview({ meta }: { meta: Meta }) {
       >
         <SafeAreaView style={s.modal}>
           <View style={s.modalHeader}>
-            <AppText weight="bold">Cover · A4</AppText>
+            <AppText weight="bold">{t("Cover · A4", "الغلاف · A4")}</AppText>
             <View style={s.zoomTools}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Zoom out cover"
+                accessibilityLabel={t("Zoom out cover", "تصغير الغلاف")}
                 disabled={zoom <= 1}
                 onPress={() => setZoom(Math.max(1, zoom - 0.25))}
                 style={s.icon}
@@ -185,7 +196,7 @@ export function ReportCoverPreview({ meta }: { meta: Meta }) {
               <AppText style={s.sizeText}>{Math.round(zoom * 100)}%</AppText>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Zoom in cover"
+                accessibilityLabel={t("Zoom in cover", "تكبير عرض الغلاف")}
                 disabled={zoom >= 3}
                 onPress={() => setZoom(Math.min(3, zoom + 0.25))}
                 style={s.icon}
@@ -195,7 +206,7 @@ export function ReportCoverPreview({ meta }: { meta: Meta }) {
             </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Close enlarged cover"
+              accessibilityLabel={t("Close enlarged cover", "إغلاق الغلاف المكبر")}
               onPress={() => setEnlarged(false)}
               style={s.icon}
             >
@@ -213,7 +224,7 @@ export function ReportCoverPreview({ meta }: { meta: Meta }) {
           </ScrollView>
           <View style={s.bottom}>
             <Button
-              title="Return to cover fields"
+              title={t("Return to cover fields", "العودة إلى حقول الغلاف")}
               variant="soft"
               onPress={() => setEnlarged(false)}
             />

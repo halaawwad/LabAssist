@@ -1,5 +1,15 @@
 import { useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
 export default function NativePreview() {
+  const [arabic, setArabic] = useState(
+    () =>
+      typeof window !== "undefined" && window.localStorage.getItem("labassist.language") === "ar",
+  );
+  useEffect(() => {
+    const sync = () => setArabic(window.localStorage.getItem("labassist.language") === "ar");
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, []);
   const { role, page } = useLocalSearchParams<{ role?: string; page?: string }>();
   const portal =
     role === "supervisor" || role === "workshop" || role === "department" || role === "login"
@@ -32,14 +42,34 @@ export default function NativePreview() {
       .phone-preview-size{font-size:11px;color:#67735e;flex-shrink:0;}
       @media(max-width:460px){.phone-preview-stage{padding:10px;gap:10px;}.phone-preview-toolbar strong{display:none;}.phone-preview-frame{width:calc(100vw - 38px);height:calc(100dvh - 115px);border-radius:34px;min-height:320px;}}
     `}</style>
-      <nav className="phone-preview-toolbar" aria-label="Preview role">
+      <nav className="phone-preview-toolbar" aria-label={arabic ? "دور المعاينة" : "Preview role"}>
         <strong>LabAssist</strong>
         {[
-          { id: "login", label: "Login", href: "/native-preview?role=login" },
-          { id: "department", label: "Department Head", href: "/native-preview?role=department" },
-          { id: "student", label: "الطالب", href: "/native-preview?role=student" },
-          { id: "supervisor", label: "المشرف", href: "/native-preview?role=supervisor" },
-          { id: "workshop", label: "مسؤول الورشة", href: "/native-preview?role=workshop" },
+          {
+            id: "login",
+            label: arabic ? "تسجيل الدخول" : "Login",
+            href: "/native-preview?role=login",
+          },
+          {
+            id: "department",
+            label: arabic ? "رئيس القسم" : "Department Head",
+            href: "/native-preview?role=department",
+          },
+          {
+            id: "student",
+            label: arabic ? "الطالب" : "Student",
+            href: "/native-preview?role=student",
+          },
+          {
+            id: "supervisor",
+            label: arabic ? "المشرف" : "Supervisor",
+            href: "/native-preview?role=supervisor",
+          },
+          {
+            id: "workshop",
+            label: arabic ? "مسؤول الورشة" : "Workshop Manager",
+            href: "/native-preview?role=workshop",
+          },
         ].map((role) => (
           <a
             key={role.id}
@@ -62,7 +92,9 @@ export default function NativePreview() {
         />
         <div className="phone-preview-home" />
       </div>
-      <span className="phone-preview-size">390 px · معاينة React Native بحجم الهاتف</span>
+      <span className="phone-preview-size">
+        390 px · {arabic ? "معاينة React Native بحجم الهاتف" : "React Native phone preview"}
+      </span>
     </div>
   );
 }

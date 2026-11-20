@@ -1,4 +1,3 @@
-import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import type { ReactElement, ReactNode } from "react";
 import {
   KeyboardAvoidingView,
@@ -14,7 +13,7 @@ import {
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 import { usePathname } from "@/native/router";
 
-import { useLanguage } from "@/i18n";
+import { directionStyle, useLanguage } from "@/i18n";
 import { colors, spacing } from "@/theme";
 
 export type ScreenContainerProps = {
@@ -56,17 +55,16 @@ export function ScreenContainer({
                   : require("../../assets/web/project-white-background.png");
 
   return (
-    // The root layout already sets the direction; setting it again keeps a screen correct
-    // when a native container (like a navigator screen) starts a new layout tree.
+    // Native layout direction is set per screen root (a navigator screen starts a new
+    // layout tree); on the web the document `dir` applies (see i18n/direction.ts).
     <SafeAreaView
       // NativeScreen already owns the safe areas around its header and tabs.
       edges={/^\/native\/(student|supervisor|workshop)\//.test(path) ? [] : edges}
       style={[
         styles.safeArea,
-        { ...layoutDirection(dir) },
+        directionStyle(dir),
         path.startsWith("/native/") && { backgroundColor: "transparent" },
       ]}
-      {...directionProps(dir)}
     >
       {path.startsWith("/student") && (
         <>

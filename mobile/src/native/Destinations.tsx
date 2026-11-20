@@ -11,7 +11,7 @@ import {
   NoticesPanel,
 } from "@/features/shared/AccountPanels";
 import { ReportsPanel } from "@/features/shared/ReportsPanel";
-import { Panel } from "@/components/MobileKit";
+import { Panel, useCopy } from "@/components/MobileKit";
 import { AppText } from "@/components";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { ReferenceProject } from "./ProjectDetails";
@@ -36,6 +36,7 @@ export const studentDestinations: Record<string, string> = {
 };
 export function StudentDestination({ page }: { page: string }) {
   const { state, actorId } = useWorkspace();
+  const t = useCopy();
   switch (page) {
     case "tasks":
       return <TasksPanel />;
@@ -74,8 +75,13 @@ export function StudentDestination({ page }: { page: string }) {
     case "circuits":
       return (
         <View style={{ gap: 16 }}>
-          <Panel title="My Circuits">
-            <AppText>Private, team-shared and published circuit versions.</AppText>
+          <Panel>
+            <AppText>
+              {t(
+                "Private, team-shared and published circuit versions.",
+                "نسخ الدوائر الخاصة والمشارَكة مع الفريق والمنشورة.",
+              )}
+            </AppText>
             <AppText>
               {
                 state.circuits.filter(
@@ -87,7 +93,7 @@ export function StudentDestination({ page }: { page: string }) {
                       )),
                 ).length
               }{" "}
-              saved circuits
+              {t("saved circuits", "دوائر محفوظة")}
             </AppText>
           </Panel>
           <CircuitLabPanel />

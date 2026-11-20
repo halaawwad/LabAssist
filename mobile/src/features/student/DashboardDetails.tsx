@@ -1,7 +1,15 @@
 import { router, type Href } from "@/native/router";
 import { View } from "react-native";
 import { AppText, Button } from "@/components";
-import { Field, MenuRow, Panel, Portrait, Ring, kit, useCopy } from "@/components/MobileKit";
+import {
+  MenuRow,
+  Panel,
+  Portrait,
+  Ring,
+  kit,
+  useCopy,
+  SearchField,
+} from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { projectFor, projectProgress } from "@/domain/workspace";
 import { colors } from "@/theme";
@@ -181,8 +189,9 @@ export function DashboardSearch() {
   ];
   return (
     <View style={kit.stack}>
-      <Field
+      <SearchField
         label={t("Search your workspace", "ابحث في مساحة العمل")}
+        placeholder={t("Search your workspace…", "ابحث في مساحة العمل…")}
         value={query}
         onChangeText={setQuery}
       />

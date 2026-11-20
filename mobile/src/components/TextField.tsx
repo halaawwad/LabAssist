@@ -1,5 +1,5 @@
 import { MobileInput as TextInput } from "@/components/MobileInput";
-import { useState } from "react";
+import { forwardRef, useState, type ComponentRef } from "react";
 import {
   StyleSheet,
   View,
@@ -21,17 +21,11 @@ export type TextFieldProps = TextInputProps & {
   containerStyle?: StyleProp<ViewStyle>;
 };
 
-export function TextField({
-  label,
-  error,
-  hint,
-  containerStyle,
-  multiline,
-  style,
-  onFocus,
-  onBlur,
-  ...rest
-}: TextFieldProps) {
+/** Labelled input; the ref reaches the input so forms can focus the first invalid field. */
+export const TextField = forwardRef<ComponentRef<typeof TextInput>, TextFieldProps>(function TextField(
+  { label, error, hint, containerStyle, multiline, style, onFocus, onBlur, ...rest },
+  ref,
+) {
   const { language, dir } = useLanguage();
   const [focused, setFocused] = useState(false);
   const message = error ?? hint;
@@ -42,9 +36,11 @@ export function TextField({
         {label}
       </AppText>
       <TextInput
+        ref={ref}
         accessibilityLabel={label}
+        aria-invalid={!!error}
         accessibilityHint={message}
-        placeholderTextColor={colors.textFaint}
+        placeholderTextColor={colors.textMuted}
         selectionColor={colors.primary}
         {...rest}
         multiline={multiline}
@@ -76,7 +72,7 @@ export function TextField({
       ) : null}
     </View>
   );
-}
+});
 
 // Matches the workshop .field and .input classes.
 const styles = StyleSheet.create({

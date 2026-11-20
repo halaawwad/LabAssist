@@ -1,16 +1,24 @@
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
-import { MobileModal as Modal } from "@/components/MobileModal";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { router } from "@/native/router";
-import { Image, Linking, ScrollView, View } from "react-native";
+import { Image, Linking, View } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
 import { persistPickedFile as saveFile } from "@/lib/files";
 import { Info, Star, Reply, Forward, Trash2, Paperclip, Users } from "lucide-react-native";
 import { AppText, Button } from "@/components";
-import { Chips, Field, Panel, Portrait, kit, useCopy } from "@/components/MobileKit";
+import {
+  Chips,
+  Field,
+  Panel,
+  Portrait,
+  kit,
+  useCopy,
+  SearchField,
+  FormSheet,
+  FormError,
+} from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { calendarDay, type Message } from "@/domain/workspace";
 import { colors } from "@/theme";
@@ -94,8 +102,9 @@ export function MessagesPanel() {
     <View style={kit.stack}>
       {!thread ? (
         <>
-          <Field
+          <SearchField
             label={t("Search conversations or people", "ابحث عن محادثة أو شخص")}
+            placeholder={t("Search conversations or people…", "ابحث عن محادثة أو شخص…")}
             value={search}
             onChangeText={setSearch}
           />
@@ -317,8 +326,9 @@ export function MessagesPanel() {
                 ))}
             </Panel>
           )}
-          <Field
+          <SearchField
             label={t("Search messages", "البحث في الرسائل")}
+            placeholder={t("Search this conversation…", "ابحث في هذه المحادثة…")}
             value={messageQuery}
             onChangeText={setMessageQuery}
           />
@@ -516,102 +526,87 @@ export function MeetingsPanel() {
           ]}
         />
       </View>
-      <Modal visible={create} animationType="slide" onRequestClose={() => setCreate(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-          <ScrollView
-            automaticallyAdjustKeyboardInsets
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ padding: 16, gap: 16 }}
-          >
-            <Button
-              title={t("Close", "\u0625\u063a\u0644\u0627\u0642")}
-              variant="ghost"
-              onPress={() => setCreate(false)}
-            />
-            {!!meetingError && (
-              <AppText tone="danger" accessibilityRole="alert">
-                {meetingError}
-              </AppText>
-            )}
-            <Panel tint={colors.softBlue}>
-              <Field
-                label={t("Meeting title", "عنوان الاجتماع")}
-                value={title}
-                onChangeText={setTitle}
-              />
-              <Field
-                label={t("Find people", "ابحث عن الأشخاص")}
-                value={search}
-                onChangeText={setSearch}
-              />
-              <Chips
-                value=""
-                onChange={(id) =>
-                  setInvitees((old) =>
-                    old.includes(id) ? old.filter((i) => i !== id) : [...old, id],
-                  )
-                }
-                options={state.users
-                  .filter(
-                    (u) => u.id !== actorId && u.name.toLowerCase().includes(search.toLowerCase()),
-                  )
-                  .slice(0, search ? 15 : 6)
-                  .map((u) => ({
-                    id: u.id,
-                    label: `${invitees.includes(u.id) ? "✓ " : ""}${u.name}`,
-                  }))}
-              />
-              <AppText variant="caption">
-                {invitees.map((id) => state.users.find((u) => u.id === id)?.name).join(" · ")}
-              </AppText>
-              <Field
-                label={t("Date (YYYY-MM-DD)", "التاريخ (YYYY-MM-DD)")}
-                value={date}
-                onChangeText={setDate}
-                keyboardType="numbers-and-punctuation"
-              />
-              <Field
-                label={t("Time (HH:mm)", "الوقت (HH:mm)")}
-                value={time}
-                onChangeText={setTime}
-                keyboardType="numbers-and-punctuation"
-              />
-              <Field
-                label={t("Agenda", "أجندة الاجتماع")}
-                value={agenda}
-                onChangeText={setAgenda}
-                multiline
-              />
-              <Field
-                label={t("Location or meeting link", "المكان أو رابط الاجتماع")}
-                value={location}
-                onChangeText={setLocation}
-              />
-              <Button
-                title={t("Save invitations", "حفظ الدعوات")}
-                disabled={!title.trim() || !invitees.length}
-                onPress={async () => {
-                  if (
-                    await act({
-                      type: "meeting.create",
-                      title,
-                      inviteeIds: invitees,
-                      date,
-                      time,
-                      agenda,
-                      location,
-                    })
-                  ) {
-                    setCreate(false);
-                    setTitle("");
-                    setInvitees([]);
-                  }
-                }}
-              />
-            </Panel>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      <FormSheet
+        visible={create}
+        title={t("Schedule meeting", "جدولة اجتماع")}
+        onClose={() => setCreate(false)}
+      >
+        <FormError message={meetingError} />
+        <Panel tint={colors.softBlue}>
+          <Field
+            label={t("Meeting title", "عنوان الاجتماع")}
+            value={title}
+            onChangeText={setTitle}
+          />
+          <Field
+            label={t("Find people", "ابحث عن الأشخاص")}
+            value={search}
+            onChangeText={setSearch}
+          />
+          <Chips
+            value=""
+            onChange={(id) =>
+              setInvitees((old) => (old.includes(id) ? old.filter((i) => i !== id) : [...old, id]))
+            }
+            options={state.users
+              .filter(
+                (u) => u.id !== actorId && u.name.toLowerCase().includes(search.toLowerCase()),
+              )
+              .slice(0, search ? 15 : 6)
+              .map((u) => ({
+                id: u.id,
+                label: `${invitees.includes(u.id) ? "✓ " : ""}${u.name}`,
+              }))}
+          />
+          <AppText variant="caption">
+            {invitees.map((id) => state.users.find((u) => u.id === id)?.name).join(" · ")}
+          </AppText>
+          <Field
+            label={t("Date (YYYY-MM-DD)", "التاريخ (YYYY-MM-DD)")}
+            value={date}
+            onChangeText={setDate}
+            keyboardType="numbers-and-punctuation"
+          />
+          <Field
+            label={t("Time (HH:mm)", "الوقت (HH:mm)")}
+            value={time}
+            onChangeText={setTime}
+            keyboardType="numbers-and-punctuation"
+          />
+          <Field
+            label={t("Agenda", "أجندة الاجتماع")}
+            value={agenda}
+            onChangeText={setAgenda}
+            multiline
+          />
+          <Field
+            label={t("Location or meeting link", "المكان أو رابط الاجتماع")}
+            value={location}
+            onChangeText={setLocation}
+          />
+          <Button
+            title={t("Save invitations", "حفظ الدعوات")}
+            disabled={!title.trim() || !invitees.length}
+            onPress={async () => {
+              if (
+                await act({
+                  type: "meeting.create",
+                  title,
+                  inviteeIds: invitees,
+                  date,
+                  time,
+                  agenda,
+                  location,
+                })
+              ) {
+                setCreate(false);
+                setTitle("");
+                setInvitees([]);
+              }
+            }}
+          />
+        </Panel>
+      </FormSheet>
       {state.meetings
         .filter(
           (m) =>
@@ -629,7 +624,11 @@ export function MeetingsPanel() {
             {m.inviteeIds.map((id) => (
               <AppText key={id} variant="caption">
                 {state.users.find((u) => u.id === id)?.name} ·{" "}
-                {m.responses[id] ?? t("Pending", "بانتظار الرد")}
+                {m.responses[id] === "accepted"
+                  ? t("Accepted", "مقبولة")
+                  : m.responses[id] === "declined"
+                    ? t("Declined", "مرفوضة")
+                    : t("Pending", "بانتظار الرد")}
               </AppText>
             ))}
             {m.cancelled ? (

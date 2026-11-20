@@ -7,8 +7,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { AppText, Button } from "@/components";
-import { Chips, Field, Panel, kit } from "@/components/MobileKit";
+import { Chips, Field, Panel, kit, useCopy } from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
+import { useStatusLabel } from "@/features/shared/reportLabels";
 import {
   starterDeck,
   newSlide,
@@ -151,6 +152,8 @@ export function PresentationEditor({
   supervisor?: boolean;
   onClose: () => void;
 }) {
+  const t = useCopy();
+  const statusLabel = useStatusLabel();
   const { state, act } = useWorkspace();
   const project = state.projects.find((p) => p.id === report.projectId)!;
   const [deck, setDeck] = useState<Deck>(() => report.deck ?? starterDeck(project.title)),
@@ -174,10 +177,15 @@ export function PresentationEditor({
     const timer = setTimeout(() => {
       setBusy(false);
       setRequest(null);
-      setNotice("Presentation processing timed out. Please retry.");
+      setNotice(
+        t(
+          "Presentation processing timed out. Please retry.",
+          "انتهت مهلة معالجة العرض. حاول مجددًا.",
+        ),
+      );
     }, 90000);
     return () => clearTimeout(timer);
-  }, [busy]);
+  }, [busy, t]);
   function update(patch: Partial<Slide>) {
     setDeck((d) => ({
       ...d,
@@ -193,7 +201,12 @@ export function PresentationEditor({
   async function save() {
     if (!editable) return false;
     if (!validDeck(deck)) {
-      setNotice("Check slide content and object dimensions before saving.");
+      setNotice(
+        t(
+          "Check slide content and object dimensions before saving.",
+          "تحقق من محتوى الشريحة وأبعاد العناصر قبل الحفظ.",
+        ),
+      );
       return false;
     }
     const fields = Object.fromEntries(
@@ -207,7 +220,7 @@ export function PresentationEditor({
       color: deck.accent ?? themes.find((t) => t.id === deck.theme)!.accent,
       deck,
     });
-    if (ok) setNotice("Presentation draft saved.");
+    if (ok) setNotice(t("Presentation draft saved.", "تم حفظ مسودة العرض."));
     return ok;
   }
   function move(delta: number) {
@@ -228,7 +241,7 @@ export function PresentationEditor({
       if (result.canceled) return;
       const a = result.assets[0];
       if ((a.fileSize ?? 0) > 5 * 1024 * 1024 || !a.base64)
-        return setNotice("Choose an image under 5 MB.");
+        return setNotice(t("Choose an image under 5 MB.", "اختر صورة بحجم أقل من 5 MB."));
       const src = `data:${a.mimeType ?? "image/jpeg"};base64,${a.base64}`;
       const id = `image-${Date.now()}`;
       update({
@@ -239,7 +252,7 @@ export function PresentationEditor({
       });
       setObject(id);
     } catch {
-      setNotice("Could not add the image.");
+      setNotice(t("Could not add the image.", "تعذرت إضافة الصورة."));
     }
   }
   function addObject(kind: "text" | "shape") {
@@ -272,7 +285,9 @@ export function PresentationEditor({
       if (r.canceled) return;
       const asset = r.assets[0];
       if ((asset.size ?? 0) > 25 * 1024 * 1024)
-        return setNotice("Choose a PowerPoint file under 25 MB.");
+        return setNotice(
+          t("Choose a PowerPoint file under 25 MB.", "اختر ملف PowerPoint بحجم أقل من 25 MB."),
+        );
       let base64: string;
       if (Platform.OS === "web") {
         const bytes = new Uint8Array(await (await fetch(asset.uri)).arrayBuffer());
@@ -287,7 +302,7 @@ export function PresentationEditor({
       setBusy(true);
       setRequest({ id: String(Date.now()), operation: "import", base64, name: asset.name });
     } catch {
-      setNotice("Could not read this PowerPoint.");
+      setNotice(t("Could not read this PowerPoint.", "تعذرت قراءة ملف PowerPoint."));
     }
   }
   async function result(reply: DeckEngineReply) {
@@ -322,7 +337,7 @@ export function PresentationEditor({
             throw Error("Sharing is unavailable on this device.");
           await sharing.shareAsync(file.uri);
         }
-        setNotice("Presentation exported.");
+        setNotice(t("Presentation exported.", "تم تصدير العرض."));
       } catch (e) {
         setNotice(e instanceof Error ? e.message : "Export failed.");
       }
@@ -338,26 +353,33 @@ export function PresentationEditor({
     <View style={kit.stack}>
       <DeckEngine request={request} onResult={result} />
       <View style={kit.wrap}>
-        <Button title="Back to reports" variant="ghost" size="sm" onPress={onClose} />
-        <Button title="Present" size="sm" onPress={() => setPresent(true)} />
-        {editable && <Button title="Save Draft" size="sm" variant="soft" onPress={save} />}
+        <Button
+          title={t("Back to reports", "العودة إلى التقارير")}
+          variant="ghost"
+          size="sm"
+          onPress={onClose}
+        />
+        <Button title={t("Present", "عرض")} size="sm" onPress={() => setPresent(true)} />
+        {editable && (
+          <Button title={t("Save Draft", "حفظ كمسودة")} size="sm" variant="soft" onPress={save} />
+        )}
       </View>
-      <AppText variant="title">Presentation Studio</AppText>
+      <AppText variant="title">{t("Presentation Studio", "استوديو العروض")}</AppText>
       <AppText variant="caption" tone="muted">
-        {project.title} · {report.status} · {deck.slides.length} slides
+        {project.title} · {statusLabel(report.status)} · {deck.slides.length} {t("slides", "شرائح")}
       </AppText>
-      <Disclosure title="Import & export">
+      <Disclosure title={t("Import & export", "الاستيراد والتصدير")}>
         {" "}
         <View style={kit.wrap}>
           <Button
-            title="Export PowerPoint"
+            title={t("Export PowerPoint", "تصدير PowerPoint")}
             variant="soft"
             size="sm"
             disabled={busy}
             onPress={async () => await exportFile("pptx")}
           />
           <Button
-            title="Export PDF"
+            title={t("Export PDF", "تصدير PDF")}
             variant="soft"
             size="sm"
             disabled={busy}
@@ -365,7 +387,7 @@ export function PresentationEditor({
           />
           {editable && (
             <Button
-              title="Import PowerPoint"
+              title={t("Import PowerPoint", "استيراد PowerPoint")}
               variant="ghost"
               size="sm"
               disabled={busy}
@@ -379,7 +401,7 @@ export function PresentationEditor({
           {notice}
         </AppText>
       )}
-      {busy && <AppText>Processing presentation…</AppText>}
+      {busy && <AppText>{t("Processing presentation…", "جارٍ معالجة العرض…")}</AppText>}
       <SlidePage
         deck={deck}
         index={index}
@@ -388,7 +410,7 @@ export function PresentationEditor({
       />
       <View style={kit.wrap}>
         <Button
-          title="Previous"
+          title={t("Previous", "السابق")}
           size="sm"
           variant="ghost"
           disabled={!index}
@@ -398,7 +420,7 @@ export function PresentationEditor({
           {index + 1} / {deck.slides.length}
         </AppText>
         <Button
-          title="Next"
+          title={t("Next", "التالي")}
           size="sm"
           variant="ghost"
           disabled={index === deck.slides.length - 1}
@@ -408,15 +430,21 @@ export function PresentationEditor({
       <Chips
         value={tab}
         onChange={setTab}
-        options={["Slides", "Design", "Content", "Object", "Tips"].map((id) => ({ id, label: id }))}
+        options={[
+          { id: "Slides", label: t("Slides", "الشرائح") },
+          { id: "Design", label: t("Design", "التصميم") },
+          { id: "Content", label: t("Content", "المحتوى") },
+          { id: "Object", label: t("Object", "العنصر") },
+          { id: "Tips", label: t("Tips", "نصائح") },
+        ]}
       />
       {tab === "Slides" && (
-        <Panel title="Slides">
+        <Panel title={t("Slides", "الشرائح")}>
           <ScrollView horizontal contentContainerStyle={{ gap: 10 }}>
             {deck.slides.map((v, i) => (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Select slide ${i + 1}`}
+                accessibilityLabel={t(`Select slide ${i + 1}`, `اختيار الشريحة ${i + 1}`)}
                 key={v.id}
                 onPress={() => setIndex(i)}
                 style={{
@@ -438,11 +466,25 @@ export function PresentationEditor({
               <Chips
                 value={slide.layout}
                 onChange={(v) => update({ layout: v as Slide["layout"] })}
-                options={layouts.map((v) => ({ id: v.id, label: v.name }))}
+                options={layouts.map((v) => ({
+                  id: v.id,
+                  label: t(
+                    v.name,
+                    (
+                      {
+                        cover: "الغلاف",
+                        bullets: "النقاط الأساسية",
+                        split: "صورة وقصة",
+                        results: "النتائج",
+                        closing: "الخاتمة",
+                      } as Record<string, string>
+                    )[v.id] ?? v.name,
+                  ),
+                }))}
               />
               <View style={kit.wrap}>
                 <Button
-                  title="Add slide"
+                  title={t("Add slide", "إضافة شريحة")}
                   size="sm"
                   disabled={deck.slides.length >= 40}
                   onPress={() => {
@@ -451,7 +493,7 @@ export function PresentationEditor({
                   }}
                 />
                 <Button
-                  title="Duplicate"
+                  title={t("Duplicate", "تكرار")}
                   variant="soft"
                   size="sm"
                   disabled={deck.slides.length >= 40}
@@ -466,21 +508,21 @@ export function PresentationEditor({
                   }}
                 />
                 <Button
-                  title="Move up"
+                  title={t("Move up", "تحريك لأعلى")}
                   size="sm"
                   variant="ghost"
                   onPress={() => move(-1)}
                   disabled={!index}
                 />
                 <Button
-                  title="Move down"
+                  title={t("Move down", "تحريك لأسفل")}
                   size="sm"
                   variant="ghost"
                   onPress={() => move(1)}
                   disabled={index === deck.slides.length - 1}
                 />
                 <Button
-                  title="Delete slide"
+                  title={t("Delete slide", "حذف الشريحة")}
                   variant="danger"
                   size="sm"
                   disabled={deck.slides.length === 1}
@@ -495,11 +537,20 @@ export function PresentationEditor({
         </Panel>
       )}
       {tab === "Design" && (
-        <Panel title="Design library">
-          <AppText variant="caption">20 different layouts. Color is a separate choice.</AppText>
+        <Panel title={t("Design library", "مكتبة التصاميم")}>
+          <AppText variant="caption">
+            {t(
+              "20 different layouts. Color is a separate choice.",
+              "20 تخطيطًا مختلفًا. اللون اختيار منفصل.",
+            )}
+          </AppText>
           {deck.imported ? (
             <AppText>
-              Imported template: {deck.imported.name}. Original slide objects remain editable.
+              {t("Imported template:", "القالب المستورد:")} {deck.imported.name}.{" "}
+              {t(
+                "Original slide objects remain editable.",
+                "تبقى عناصر الشرائح الأصلية قابلة للتعديل.",
+              )}
             </AppText>
           ) : (
             <View style={kit.wrap}>
@@ -526,7 +577,20 @@ export function PresentationEditor({
                     {v.name}
                   </AppText>
                   <AppText variant="caption" tone="muted">
-                    {v.category}
+                    {t(
+                      v.category,
+                      (
+                        {
+                          Minimal: "بسيط",
+                          Editorial: "تحريري",
+                          Modern: "حديث",
+                          Creative: "إبداعي",
+                          Photo: "صور",
+                          Formal: "رسمي",
+                          Electronics: "إلكترونيات",
+                        } as Record<string, string>
+                      )[v.category] ?? v.category,
+                    )}
                   </AppText>
                 </Pressable>
               ))}
@@ -538,7 +602,7 @@ export function PresentationEditor({
             options={themes.map((v) => ({ id: v.id, label: v.name }))}
           />
           <Field
-            label="Custom accent color"
+            label={t("Custom accent color", "لون مميز مخصص")}
             editable={editable}
             value={deck.accent ?? themes.find((t) => t.id === deck.theme)!.accent}
             onChangeText={(v) => /^#[0-9a-f]{6}$/i.test(v) && setDeck({ ...deck, accent: v })}
@@ -546,23 +610,23 @@ export function PresentationEditor({
         </Panel>
       )}
       {tab === "Content" && (
-        <Panel title="Slide content">
+        <Panel title={t("Slide content", "محتوى الشريحة")}>
           <Field
-            label="Slide title"
+            label={t("Slide title", "عنوان الشريحة")}
             editable={editable}
             value={slide.title}
             onChangeText={(v) => update({ title: v })}
             maxLength={110}
           />
           <Field
-            label="Kicker"
+            label={t("Kicker", "عنوان تمهيدي")}
             editable={editable}
             value={slide.kicker}
             onChangeText={(v) => update({ kicker: v })}
             maxLength={70}
           />
           <Field
-            label="Slide body"
+            label={t("Slide body", "نص الشريحة")}
             editable={editable}
             value={slide.body}
             onChangeText={(v) => update({ body: v })}
@@ -570,14 +634,14 @@ export function PresentationEditor({
             maxLength={1200}
           />
           <Field
-            label="Caption"
+            label={t("Caption", "تعليق")}
             editable={editable}
             value={slide.caption}
             onChangeText={(v) => update({ caption: v })}
             maxLength={160}
           />
           <Field
-            label="Speaker notes"
+            label={t("Speaker notes", "ملاحظات المتحدث")}
             editable={editable}
             value={slide.notes}
             onChangeText={(v) => update({ notes: v })}
@@ -586,10 +650,20 @@ export function PresentationEditor({
           />
           {editable && (
             <View style={kit.wrap}>
-              <Button title="Add text" size="sm" variant="soft" onPress={() => addObject("text")} />
-              <Button title="Add image" size="sm" variant="soft" onPress={image} />
               <Button
-                title="Add shape"
+                title={t("Add text", "إضافة نص")}
+                size="sm"
+                variant="soft"
+                onPress={() => addObject("text")}
+              />
+              <Button
+                title={t("Add image", "إضافة صورة")}
+                size="sm"
+                variant="soft"
+                onPress={image}
+              />
+              <Button
+                title={t("Add shape", "إضافة شكل")}
                 size="sm"
                 variant="soft"
                 onPress={() => addObject("shape")}
@@ -599,10 +673,12 @@ export function PresentationEditor({
         </Panel>
       )}
       {tab === "Object" && (
-        <Panel title="Move & resize objects">
+        <Panel title={t("Move & resize objects", "تحريك العناصر وتغيير حجمها")}>
           <AppText variant="caption">
-            Select an object or drag it on the slide. Position and size are unrestricted by template
-            placeholders.
+            {t(
+              "Select an object or drag it on the slide. Position and size are unrestricted by template placeholders.",
+              "اختر عنصرًا أو اسحبه على الشريحة. الموضع والحجم غير مقيدين بعناصر القالب.",
+            )}
           </AppText>
           <Chips
             value={object}
@@ -615,7 +691,7 @@ export function PresentationEditor({
             <>
               {node.kind === "text" && (
                 <Field
-                  label="Object text"
+                  label={t("Object text", "نص العنصر")}
                   value={node.text ?? ""}
                   editable={editable}
                   onChangeText={(v) => patch(node.id, { text: v })}
@@ -652,7 +728,7 @@ export function PresentationEditor({
                     options={["Inter", "Georgia", "Courier New"].map((id) => ({ id, label: id }))}
                   />
                   <Field
-                    label="Text color (#RRGGBB)"
+                    label={t("Text color (#RRGGBB)", "لون النص (#RRGGBB)")}
                     editable={editable}
                     value={node.color ?? "#243530"}
                     onChangeText={(color) =>
@@ -663,7 +739,7 @@ export function PresentationEditor({
               )}
               {node.kind === "shape" && (
                 <Field
-                  label="Fill color (#RRGGBB)"
+                  label={t("Fill color (#RRGGBB)", "لون التعبئة (#RRGGBB)")}
                   editable={editable}
                   value={node.fill ?? "#738e61"}
                   onChangeText={(fill) => /^#[0-9a-f]{6}$/i.test(fill) && patch(node.id, { fill })}
@@ -703,19 +779,19 @@ export function PresentationEditor({
                     </>
                   )}
                   <Button
-                    title="Bring forward"
+                    title={t("Bring forward", "إحضار للأمام")}
                     size="sm"
                     variant="ghost"
                     onPress={() => patch(node.id, { z: (node.z ?? 10) + 1 })}
                   />
                   <Button
-                    title="Send backward"
+                    title={t("Send backward", "إرسال للخلف")}
                     size="sm"
                     variant="ghost"
                     onPress={() => patch(node.id, { z: (node.z ?? 10) - 1 })}
                   />
                   <Button
-                    title="Remove object"
+                    title={t("Remove object", "إزالة العنصر")}
                     size="sm"
                     variant="danger"
                     onPress={() =>
@@ -731,7 +807,7 @@ export function PresentationEditor({
         </Panel>
       )}
       {tab === "Tips" && (
-        <Panel title="Presentation guidance">
+        <Panel title={t("Presentation guidance", "إرشادات العرض التقديمي")}>
           {slideTips(slide, deck).map((t) => (
             <View key={t.id} style={{ gap: 5, paddingVertical: 10 }}>
               <AppText weight="bold">{t.title}</AppText>
@@ -744,20 +820,25 @@ export function PresentationEditor({
       )}
       {editable && (
         <Button
-          title="Submit presentation"
+          title={t("Submit presentation", "تسليم العرض التقديمي")}
           onPress={async () => (await save()) && setConfirm(true)}
         />
       )}
       {supervisor && (
-        <Panel title="Supervisor feedback">
+        <Panel title={t("Supervisor feedback", "ملاحظات المشرف")}>
           <Chips
             value={String(index)}
             onChange={(v) => setIndex(Number(v))}
             options={deck.slides.map((s, i) => ({ id: String(i), label: `Slide ${i + 1}` }))}
           />
-          <Field label="Slide feedback" value={feedback} onChangeText={setFeedback} multiline />
+          <Field
+            label={t("Slide feedback", "ملاحظات الشريحة")}
+            value={feedback}
+            onChangeText={setFeedback}
+            multiline
+          />
           <Button
-            title="Send feedback"
+            title={t("Send feedback", "إرسال الملاحظات")}
             disabled={!feedback.trim()}
             onPress={async () => {
               if (
@@ -795,18 +876,22 @@ export function PresentationEditor({
           </View>
           <View style={[kit.wrap, { justifyContent: "center", padding: 14 }]}>
             <Button
-              title="Previous"
+              title={t("Previous", "السابق")}
               variant="soft"
               disabled={!index}
               onPress={() => setIndex(index - 1)}
             />
             <Button
-              title="Next"
+              title={t("Next", "التالي")}
               variant="soft"
               disabled={index === deck.slides.length - 1}
               onPress={() => setIndex(index + 1)}
             />
-            <Button title="Close presentation" variant="soft" onPress={() => setPresent(false)} />
+            <Button
+              title={t("Close presentation", "إغلاق العرض")}
+              variant="soft"
+              onPress={() => setPresent(false)}
+            />
           </View>
         </SafeAreaView>
       </Modal>
@@ -814,17 +899,24 @@ export function PresentationEditor({
         <View
           style={{ flex: 1, justifyContent: "center", padding: 25, backgroundColor: "#24332488" }}
         >
-          <Panel title="Submit shared presentation?">
+          <Panel title={t("Submit shared presentation?", "تسليم العرض المشترك؟")}>
             <AppText>
-              The saved deck will be sent for supervisor review in this local preview.
+              {t(
+                "The saved deck will be sent for supervisor review in this local preview.",
+                "سيُرسل العرض المحفوظ لمراجعة المشرف في هذه المعاينة المحلية.",
+              )}
             </AppText>
-            <Button title="Keep editing" variant="ghost" onPress={() => setConfirm(false)} />
             <Button
-              title="Confirm submission"
+              title={t("Keep editing", "متابعة التعديل")}
+              variant="ghost"
+              onPress={() => setConfirm(false)}
+            />
+            <Button
+              title={t("Confirm submission", "تأكيد التسليم")}
               onPress={async () => {
                 if (await act({ type: "report.submit", id: report.id })) {
                   setConfirm(false);
-                  setNotice("Presentation submitted.");
+                  setNotice(t("Presentation submitted.", "تم تسليم العرض."));
                 }
               }}
             />

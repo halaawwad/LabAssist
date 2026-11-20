@@ -1,10 +1,18 @@
-import { MobileModal as Modal } from "@/components/MobileModal";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { useState } from "react";
-import { ScrollView, Switch, View } from "react-native";
+import { View } from "react-native";
 import { AppText, Button } from "@/components";
-import { Chips, Field, Panel, Ring, kit, useCopy } from "@/components/MobileKit";
+import {
+  Chips,
+  Field,
+  FormError,
+  FormSheet,
+  Panel,
+  Ring,
+  kit,
+  useCopy,
+  ToggleSwitch,
+} from "@/components/MobileKit";
 import { TeamPanels } from "./AccountPanels";
 import { ReportsPanel } from "./ReportsPanel";
 import { ProjectPhoto } from "@/components/ProjectPhoto";
@@ -21,7 +29,8 @@ export function TasksPanel({ readonly = false }: { readonly?: boolean }) {
   const [team, setTeam] = useState(projects[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [owner, setOwner] = useState(actorId);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(false),
+    [adding, setAdding] = useState(false);
   const p = projects.find((p) => p.id === team);
   return (
     <View style={kit.stack}>
@@ -50,51 +59,48 @@ export function TasksPanel({ readonly = false }: { readonly?: boolean }) {
               setCreating(true);
             }}
           />
-          <Modal visible={creating} animationType="slide" onRequestClose={() => setCreating(false)}>
-            <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-              <ScrollView
-                automaticallyAdjustKeyboardInsets
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ padding: 16, gap: 16 }}
-              >
-                <Button
-                  title={t("Close", "\u0625\u063a\u0644\u0627\u0642")}
-                  variant="ghost"
-                  onPress={() => setCreating(false)}
-                />
-                {!!taskError && (
-                  <AppText tone="danger" accessibilityRole="alert">
-                    {taskError}
-                  </AppText>
-                )}
-                <Panel>
-                  <Field
-                    label={t("New task", "مهمة جديدة")}
-                    value={title}
-                    onChangeText={setTitle}
-                  />
-                  <Chips
-                    value={owner}
-                    onChange={setOwner}
-                    options={p.studentIds.map((id) => ({
-                      id,
-                      label: state.users.find((u) => u.id === id)!.name,
-                    }))}
-                  />
-                  <Button
-                    title={t("Add task", "إضافة المهمة")}
-                    disabled={!title.trim()}
-                    onPress={async () => {
-                      if (await act({ type: "task.add", projectId: p.id, title, ownerId: owner })) {
-                        setTitle("");
-                        setCreating(false);
-                      }
-                    }}
-                  />
-                </Panel>
-              </ScrollView>
-            </SafeAreaView>
-          </Modal>
+          <FormSheet
+            visible={creating}
+            presentation="sheet"
+            title={t("New task", "مهمة جديدة")}
+            busy={adding}
+            onClose={() => setCreating(false)}
+            footer={
+              <Button
+                title={t("Add task", "إضافة المهمة")}
+                loading={adding}
+                disabled={!title.trim()}
+                onPress={async () => {
+                  if (adding) return;
+                  setAdding(true);
+                  try {
+                    // On a refused or failed save the title stays for a retry.
+                    if (await act({ type: "task.add", projectId: p.id, title, ownerId: owner })) {
+                      setTitle("");
+                      setCreating(false);
+                    }
+                  } finally {
+                    setAdding(false);
+                  }
+                }}
+              />
+            }
+          >
+            <FormError message={taskError} />
+            <Field label={t("Task title", "عنوان المهمة")} value={title} onChangeText={setTitle} />
+            <AppText variant="label" tone="strong">
+              {t("Assign to", "إسناد إلى")}
+            </AppText>
+            <Chips
+              value={owner}
+              onChange={setOwner}
+              accessibilityLabel={t("Assign to", "إسناد إلى")}
+              options={p.studentIds.map((id) => ({
+                id,
+                label: state.users.find((u) => u.id === id)!.name,
+              }))}
+            />
+          </FormSheet>
         </>
       )}
       {state.tasks
@@ -148,7 +154,7 @@ export function IssuesPanel({ readonly = false }: { readonly?: boolean }) {
           onChange={setTeam}
           options={projects.map((p) => ({ id: p.id, label: p.title }))}
         />
-      )}{" "}
+      )}
       {!readonly && (
         <Panel>
           <Field
@@ -455,7 +461,8 @@ export function ProjectDetails({
         <Panel title={t("Submission windows", "فتح التسليم")}>
           <View style={kit.row}>
             <AppText style={kit.grow}>{t("Final report", "التقرير النهائي")}</AppText>
-            <Switch
+            <ToggleSwitch
+              accessibilityLabel={t("Final report", "التقرير النهائي")}
               value={project.finalOpen}
               onValueChange={async (open) => {
                 await act({ type: "project.gate", id: project.id, kind: "final", open });
@@ -464,7 +471,8 @@ export function ProjectDetails({
           </View>
           <View style={kit.row}>
             <AppText style={kit.grow}>{t("Presentation", "العرض التقديمي")}</AppText>
-            <Switch
+            <ToggleSwitch
+              accessibilityLabel={t("Presentation", "العرض التقديمي")}
               value={project.presentationOpen}
               onValueChange={async (open) => {
                 await act({ type: "project.gate", id: project.id, kind: "presentation", open });

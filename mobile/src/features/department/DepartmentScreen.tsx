@@ -1,18 +1,37 @@
-import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import { MobileInput as TextInput } from "@/components/MobileInput";
-import { LabAssistBrand } from "@/components/LabAssistBrand";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { Disclosure } from "@/components/Disclosure";
 import { MobileModal as Modal } from "@/components/MobileModal";
-import { SignOutButton } from "@/components/SignOutButton";
-import { useRef, useState, type ReactNode } from "react";
-import { ImageBackground, ScrollView, View } from "react-native";
+import { MessageBubble } from "@/components/MessageBubble";
+import {
+  ConversationInboxRow,
+  ConversationHeader,
+  ConversationComposer,
+  ConversationComposerRow,
+  ConversationText,
+} from "@/components/ConversationUI";
+import { useCallback, useEffect, useRef, useState, type ComponentRef, type ReactNode } from "react";
+import { Platform, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Menu, X, Users, FolderKanban, MessageSquare, Home } from "lucide-react-native";
-import { AppText, Button, LanguageToggle } from "@/components";
-import { Chips, Field, Panel, kit, useCopy } from "@/components/MobileKit";
-import { useLanguage } from "@/i18n";
+import { AppText, Button } from "@/components";
+import { AppHeader, MoreMenu, NotificationsButton, ShellFrame, TabBar } from "@/native/AppShell";
+import { findNavItem, roleTabs } from "@/native/navigationItems";
+import {
+  Chips,
+  Field,
+  Panel,
+  kit,
+  useCopy,
+  errorText,
+  SearchField,
+  ActionSheet,
+  FormSheet,
+  Greeting,
+  StatGrid,
+} from "@/components/MobileKit";
+import { directionStyle, useLanguage } from "@/i18n";
 import { useWorkspace } from "@/state/WorkspaceProvider";
+import { useLocalPreview } from "@/lib/useLocalPreview";
 import {
   accountHasHistory,
   effectiveAccountStatus,
@@ -29,53 +48,57 @@ import {
 } from "../../../../shared/department/records";
 import { mobileAccounts, webAccounts, type Account, type Group } from "./departmentData";
 import { useDepartmentStore } from "./useDepartmentStore";
+import { departmentHead } from "./departmentIdentity";
+import { ProfilePanel } from "@/features/shared/AccountPanels";
+import { StudentSettings } from "@/features/student/StudentSettings";
 import { DepartmentImport } from "./DepartmentImport";
-import { AccountCard, GroupCard, PersonRow, readableNumber } from "./DepartmentCards";
+import {
+  AccountAssignments,
+  AccountRow,
+  GroupRow,
+  GroupPeople,
+  PersonRow,
+  PersonAvatar,
+  readableNumber,
+  statusLabel,
+} from "./DepartmentCards";
+import {
+  Ban,
+  GraduationCap,
+  LayoutGrid,
+  MessageSquare,
+  Pencil,
+  RotateCcw,
+  Trash2,
+  UserRound,
+} from "lucide-react-native";
 
+/** Department forms use the shared FormSheet: close X, one scrolling body, save footer. */
 function Sheet({
   visible,
   title,
   children,
   onClose,
   busy,
+  footer,
 }: {
   visible: boolean;
   title: string;
   children: ReactNode;
   onClose: () => void;
   busy: boolean;
+  footer?: ReactNode;
 }) {
-  const t = useCopy();
-  const { isRTL } = useLanguage();
   return (
-    <Modal
-      visible={visible}
-      onRequestClose={() => {
-        if (!busy) onClose();
-      }}
-    >
-      <SafeAreaView
-        style={{ flex: 1, backgroundColor: "#fafbf7", ...layoutDirection(isRTL ? "rtl" : "ltr") }}
-        {...directionProps(isRTL ? "rtl" : "ltr")}
-      >
-        <ScrollView
-          automaticallyAdjustKeyboardInsets
-          keyboardDismissMode="on-drag"
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ padding: 20, gap: 14 }}
-        >
-          <Button title={t("Close", "إغلاق")} variant="ghost" disabled={busy} onPress={onClose} />
-          <AppText variant="title">{title}</AppText>
-          {children}
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
+    <FormSheet visible={visible} title={title} busy={busy} onClose={onClose} footer={footer}>
+      {children}
+    </FormSheet>
   );
 }
 export default function DepartmentScreen() {
   const { state, retryLoading, storageRevision } = useWorkspace();
   const t = useCopy();
-  const { isRTL } = useLanguage();
+  const { isRTL, language, ltr, formatDateTime } = useLanguage();
   const store = useDepartmentStore({
     accounts: state.users.map((u, i) => ({
       ...u,
@@ -97,8 +120,23 @@ export default function DepartmentScreen() {
   });
   const { accounts, groups, messages, saving, ready, commit } = store;
   const [conversationOpen, setConversationOpen] = useState(false);
-  const [page, setPage] = useState("Overview"),
-    [menu, setMenu] = useState(false);
+  const conversationScroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const departmentHistory = useCallback(
+    () =>
+      conversationScroll.current ??
+      (Platform.OS === "web"
+        ? (document.querySelector('[data-testid="department-history"]') as unknown as ComponentRef<
+            typeof ScrollView
+          > | null)
+        : null),
+    [],
+  );
+  const conversationNearBottom = useRef(true);
+  const conversationInitialScroll = useRef(true);
+  const [newConversationMessages, setNewConversationMessages] = useState(false);
+  const [page, setPage] = useState("Overview");
+  const [notificationReturn, setNotificationReturn] = useState("Overview");
+  const subPage = page === "profile" || page === "settings" || page === "notifications";
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
     [groupQuery, setGroupQuery] = useState("");
@@ -111,14 +149,47 @@ export default function DepartmentScreen() {
   const setTransfers = (confirmed: boolean) => setTransferConsent(confirmed ? transferKey : null);
   const [error, setError] = useState(""),
     [notice, setNotice] = useState("");
+  const [accountMenu, setAccountMenu] = useState<string | null>(null),
+    [assignmentsFor, setAssignmentsFor] = useState<string | null>(null);
+  const [groupMenu, setGroupMenu] = useState<string | null>(null),
+    [groupDetails, setGroupDetails] = useState<string | null>(null);
   const [change, setChange] = useState<{ id: string; action: "remove" | "access" } | null>(null);
   const [recipient, setRecipient] = useState(""),
     [body, setBody] = useState(""),
     [contactQuery, setContactQuery] = useState(""),
     [messageQuery, setMessageQuery] = useState(""),
-    [starred, setStarred] = useState<string[]>([]),
     [contactFilter, setContactFilter] = useState("all"),
     [info, setInfo] = useState(false);
+  const {
+    value: starred,
+    setValue: setStarred,
+    ready: starsReady,
+    error: starsError,
+  } = useLocalPreview<string[]>("labassist.mobile.department.contact-stars.v1", []);
+  const conversationMessageCount = messages.filter(
+    (message) => message.person === recipient,
+  ).length;
+  const previousConversation = useRef({ recipient: "", count: 0 });
+  useEffect(() => {
+    const previous = previousConversation.current;
+    if (
+      previous.recipient === recipient &&
+      conversationMessageCount > previous.count &&
+      !conversationNearBottom.current
+    )
+      setNewConversationMessages(true);
+    previousConversation.current = { recipient, count: conversationMessageCount };
+  }, [recipient, conversationMessageCount]);
+  useEffect(() => {
+    if (!conversationOpen || !recipient) return;
+    conversationInitialScroll.current = true;
+    conversationNearBottom.current = true;
+    const timer = setTimeout(() => {
+      departmentHistory()?.scrollToEnd({ animated: false });
+      conversationInitialScroll.current = false;
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [conversationOpen, recipient, departmentHistory]);
   const pending = useRef(false);
   const roleName = (role: Account["role"]) =>
     role === "student"
@@ -130,6 +201,10 @@ export default function DepartmentScreen() {
     `${account.name} ${account.number} ${account.email}`
       .toLowerCase()
       .includes(value.trim().toLowerCase());
+  const menuAccount = accounts.find((a) => a.id === accountMenu);
+  const menuGroup = groups.find((g) => g.id === groupMenu);
+  const detailsGroup = groups.find((g) => g.id === groupDetails);
+  const assignmentsAccount = accounts.find((a) => a.id === assignmentsFor);
   const linked = (id: string) =>
     accounts.find((a) => a.id === id)?.linked ||
     accountHasHistory(id, groups) ||
@@ -299,9 +374,7 @@ export default function DepartmentScreen() {
         next.filter((a) => a.role === "workshop" && effectiveAccountStatus(a) !== "DISABLED")
           .length > 1
       ) {
-        setError(
-          t("Disable the current workshop manager first.", "عطّل مدير الورشة الحالي أولًا."),
-        );
+        setError(t("Disable the current workshop manager first.", "عطّل مدير الورشة الحالي أولًا."));
         return;
       }
       if (await commit({ accounts: next })) {
@@ -338,13 +411,6 @@ export default function DepartmentScreen() {
       .toLowerCase()
       .includes(groupQuery.trim().toLowerCase()),
   );
-  const pageName = (name: string) =>
-    ({
-      Overview: t("Overview", "نظرة عامة"),
-      Accounts: t("Accounts", "الحسابات"),
-      Teams: t("Groups", "المجموعات"),
-      Messages: t("Communication", "التواصل"),
-    })[name] ?? name;
   const retry = (
     <Button
       title={t("Retry loading", "إعادة التحميل")}
@@ -354,42 +420,77 @@ export default function DepartmentScreen() {
     />
   );
   return (
-    <ImageBackground
-      source={require("../../../assets/web/team-worktable-background.png")}
-      style={{ flex: 1, overflow: "hidden" }}
+    <ShellFrame
+      backgroundColor="#f7f6ef"
+      header={
+        subPage ? (
+          <AppHeader
+            title={
+              page === "notifications"
+                ? t("Notifications", "الإشعارات")
+                : (findNavItem("department", page)?.[language] ?? page)
+            }
+            onBack={() => setPage(page === "notifications" ? notificationReturn : "more")}
+          />
+        ) : (
+          <AppHeader
+            brand
+            title={findNavItem("department", page)?.[language] ?? page}
+            trailing={
+              <NotificationsButton
+                role="department"
+                onPress={() => {
+                  setNotificationReturn(page);
+                  setPage("notifications");
+                }}
+              />
+            }
+          />
+        )
+      }
+      tabBar={
+        <TabBar
+          items={roleTabs.department}
+          active={page === "notifications" ? notificationReturn : subPage ? "more" : page}
+          onSelect={(id) => {
+            setPage(id);
+            setError("");
+          }}
+        />
+      }
     >
-      <SafeAreaView
-        style={{ flex: 1, backgroundColor: "#ffffffb8", ...layoutDirection(isRTL ? "rtl" : "ltr") }}
-        {...directionProps(isRTL ? "rtl" : "ltr")}
-      >
-        <View style={[kit.row, { padding: 12, flexWrap: "nowrap", gap: 8 }]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("Open navigation", "فتح القائمة")}
-            onPress={() => setMenu(true)}
-            style={{ minWidth: 48, minHeight: 48, alignItems: "center", justifyContent: "center" }}
-          >
-            <Menu color="#526443" />
-          </Pressable>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <LabAssistBrand size={18} />
-          </View>
-          <LanguageToggle compact />
-        </View>
+      {page === "more" ? (
+        // Department sections are tabs; More holds the account rows and Log out.
+        <MoreMenu role="department" onOpen={setPage} />
+      ) : subPage ? (
+        // Profile and Settings for the Department Head only (no workspace account data).
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 28 }}>
+          {page === "notifications" ? (
+            <Panel>
+              <AppText>
+                {t("No Department notifications are available.", "لا توجد إشعارات متاحة للقسم.")}
+              </AppText>
+            </Panel>
+          ) : page === "profile" ? (
+            <ProfilePanel identity={departmentHead} />
+          ) : (
+            <StudentSettings identity={false} />
+          )}
+        </ScrollView>
+      ) : (
         <ScrollView
           automaticallyAdjustKeyboardInsets
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ padding: 18, gap: 14 }}
+          contentContainerStyle={{ padding: 18, gap: 14, paddingBottom: 28 }}
         >
-          <AppText variant="heading">{pageName(page)}</AppText>
           {!ready && !store.error && (
             <AppText>{t("Loading saved records…", "جارٍ تحميل السجلات…")}</AppText>
           )}
           {!!store.error && (
             <View>
               <AppText tone="danger" accessibilityRole="alert">
-                {store.error}
+                {errorText(t, store.error)}
               </AppText>
               {retry}
             </View>
@@ -405,39 +506,44 @@ export default function DepartmentScreen() {
           )}
           {page === "Overview" && (
             <>
-              <View style={kit.wrap}>
-                {[
-                  [t("Students", "الطلاب"), accounts.filter((a) => a.role === "student").length],
-                  [
-                    t("Supervisors", "المشرفون"),
-                    accounts.filter((a) => a.role === "supervisor").length,
-                  ],
-                  [t("Groups", "المجموعات"), groups.length],
-                ].map(([label, count]) => (
-                  <View key={label} style={{ width: "46%" }}>
-                    <Panel>
-                      <AppText variant="title">{count}</AppText>
-                      <AppText>{label}</AppText>
-                    </Panel>
-                  </View>
-                ))}
-              </View>
-              <Panel title={t("Manage the department", "إدارة القسم")}>
-                <Button
-                  title={t("Manage accounts", "إدارة الحسابات")}
-                  onPress={() => setPage("Accounts")}
-                />
-                <Button
-                  title={t("Manage groups", "إدارة المجموعات")}
-                  variant="soft"
-                  onPress={() => setPage("Teams")}
-                />
-                <Button
-                  title={t("Messages", "الرسائل")}
-                  variant="ghost"
-                  onPress={() => setPage("Messages")}
-                />
-              </Panel>
+              <Greeting
+                name={departmentHead.name?.trim() || t("Department Head", "رئيس القسم")}
+                subtitle={t("Accounts, groups and messages", "الحسابات والمجموعات والرسائل")}
+              />
+              <StatGrid
+                items={[
+                  {
+                    id: "students",
+                    icon: GraduationCap,
+                    tone: "olive",
+                    label: t("Students", "الطلاب"),
+                    value: accounts.filter((a) => a.role === "student").length,
+                    onPress: () => {
+                      setFilter("student");
+                      setPage("Accounts");
+                    },
+                  },
+                  {
+                    id: "supervisors",
+                    icon: UserRound,
+                    tone: "blue",
+                    label: t("Supervisors", "المشرفون"),
+                    value: accounts.filter((a) => a.role === "supervisor").length,
+                    onPress: () => {
+                      setFilter("supervisor");
+                      setPage("Accounts");
+                    },
+                  },
+                  {
+                    id: "groups",
+                    icon: LayoutGrid,
+                    tone: "violet",
+                    label: t("Groups", "المجموعات"),
+                    value: groups.length,
+                    onPress: () => setPage("Teams"),
+                  },
+                ]}
+              />
             </>
           )}
           {(page === "Accounts" || page === "Teams") && (
@@ -446,7 +552,7 @@ export default function DepartmentScreen() {
               groups={groups}
               ready={ready}
               saving={saving}
-              storageError={store.error}
+              storageError={errorText(t, store.error)}
               onRetry={retryLoading}
               revision={storageRevision}
               onConfirm={async (book, mapping, keep, move) => {
@@ -487,8 +593,9 @@ export default function DepartmentScreen() {
                   )
                 }
               />
-              <Field
+              <SearchField
                 label={t("Search accounts", "بحث في الحسابات")}
+                placeholder={t("Search name, number or email…", "ابحث بالاسم أو الرقم أو البريد…")}
                 value={query}
                 onChangeText={setQuery}
               />
@@ -508,61 +615,98 @@ export default function DepartmentScreen() {
                   {t("No matching accounts.", "لا توجد حسابات مطابقة.")}
                 </AppText>
               )}
-              {filteredAccounts.map((a) => (
-                <AccountCard
-                  key={a.id}
-                  account={a}
-                  accounts={accounts}
-                  groups={groups}
-                  actions={
-                    <>
-                      <Button
-                        title={t("Edit", "تعديل")}
-                        size="sm"
-                        variant="soft"
-                        disabled={!ready || saving}
-                        onPress={() => openAccount(a)}
-                      />
-                      <Button
-                        title={t("Message", "رسالة")}
-                        size="sm"
-                        variant="ghost"
-                        onPress={() => {
-                          setRecipient(a.id);
-                          setConversationOpen(true);
-                          setPage("Messages");
-                        }}
-                      />
-                      <Button
-                        title={
-                          effectiveAccountStatus(a) === "DISABLED"
-                            ? t("Reactivate", "إعادة تفعيل")
-                            : t("Disable", "تعطيل")
-                        }
-                        size="sm"
-                        variant="ghost"
-                        disabled={!ready || saving}
-                        onPress={() => {
-                          setChange({ id: a.id, action: "access" });
-                          setError("");
-                        }}
-                      />
-                      {!linked(a.id) && (
-                        <Button
-                          title={t("Delete", "حذف")}
-                          size="sm"
-                          variant="danger"
-                          disabled={!ready || saving}
-                          onPress={() => {
-                            setChange({ id: a.id, action: "remove" });
-                            setError("");
-                          }}
-                        />
-                      )}
-                    </>
-                  }
-                />
-              ))}
+              <View style={kit.list}>
+                {filteredAccounts.map((a) => (
+                  <AccountRow
+                    key={a.id}
+                    account={a}
+                    groups={groups}
+                    onOpen={() => {
+                      setAccountMenu(a.id);
+                      setError("");
+                    }}
+                  />
+                ))}
+              </View>
+              <ActionSheet
+                visible={!!menuAccount}
+                title={menuAccount?.name ?? ""}
+                subtitle={
+                  menuAccount
+                    ? `${roleName(menuAccount.role)} · ${statusLabel(menuAccount, t)}`
+                    : undefined
+                }
+                onClose={() => setAccountMenu(null)}
+                actions={
+                  menuAccount
+                    ? [
+                        {
+                          label: t("Edit", "تعديل"),
+                          icon: Pencil,
+                          disabled: !ready || saving,
+                          onPress: () => openAccount(menuAccount),
+                        },
+                        {
+                          label: t("Message", "رسالة"),
+                          icon: MessageSquare,
+                          onPress: () => {
+                            setRecipient(menuAccount.id);
+                            conversationInitialScroll.current = true;
+                            conversationNearBottom.current = true;
+                            setNewConversationMessages(false);
+                            setConversationOpen(true);
+                            setPage("Messages");
+                          },
+                        },
+                        {
+                          label: t("Assignments", "التعيينات"),
+                          icon: LayoutGrid,
+                          onPress: () => setAssignmentsFor(menuAccount.id),
+                        },
+                        effectiveAccountStatus(menuAccount) === "DISABLED"
+                          ? {
+                              label: t("Restore access", "استعادة الوصول"),
+                              icon: RotateCcw,
+                              disabled: !ready || saving,
+                              onPress: () => setChange({ id: menuAccount.id, action: "access" }),
+                            }
+                          : {
+                              label: t("Disable", "تعطيل"),
+                              icon: Ban,
+                              destructive: true,
+                              disabled: !ready || saving,
+                              onPress: () => setChange({ id: menuAccount.id, action: "access" }),
+                            },
+                        // Delete stays limited to accounts without links or history.
+                        ...(!linked(menuAccount.id)
+                          ? [
+                              {
+                                label: t("Delete", "حذف"),
+                                icon: Trash2,
+                                destructive: true,
+                                disabled: !ready || saving,
+                                onPress: () => setChange({ id: menuAccount.id, action: "remove" }),
+                              },
+                            ]
+                          : []),
+                      ]
+                    : []
+                }
+              />
+              <FormSheet
+                visible={!!assignmentsAccount}
+                title={t("Assignments", "التعيينات")}
+                subtitle={assignmentsAccount?.name}
+                onClose={() => setAssignmentsFor(null)}
+              >
+                {assignmentsAccount && (
+                  <AccountAssignments
+                    account={assignmentsAccount}
+                    groups={groups}
+                    accounts={accounts}
+                  />
+                )}
+              </FormSheet>
             </>
           )}
           {page === "Teams" && (
@@ -572,8 +716,12 @@ export default function DepartmentScreen() {
                 disabled={!ready || saving}
                 onPress={() => openGroup()}
               />
-              <Field
+              <SearchField
                 label={t("Search groups", "بحث في المجموعات")}
+                placeholder={t(
+                  "Search group, member or number…",
+                  "ابحث بالمجموعة أو العضو أو الرقم…",
+                )}
                 value={groupQuery}
                 onChangeText={setGroupQuery}
               />
@@ -582,21 +730,64 @@ export default function DepartmentScreen() {
                   {t("No matching groups.", "لا توجد مجموعات مطابقة.")}
                 </AppText>
               )}
-              {filteredGroups.map((g) => (
-                <GroupCard
-                  key={g.id}
-                  group={g}
-                  accounts={accounts}
-                  saving={saving || !ready}
-                  onEdit={() => openGroup(g)}
-                />
-              ))}
+              <View style={kit.list}>
+                {filteredGroups.map((g) => (
+                  <GroupRow
+                    key={g.id}
+                    group={g}
+                    accounts={accounts}
+                    onOpen={() => setGroupMenu(g.id)}
+                  />
+                ))}
+              </View>
+              <ActionSheet
+                visible={!!menuGroup}
+                title={menuGroup?.title || t("Untitled project", "مشروع بلا اسم")}
+                onClose={() => setGroupMenu(null)}
+                actions={
+                  menuGroup
+                    ? [
+                        {
+                          label: t("Details", "التفاصيل"),
+                          icon: LayoutGrid,
+                          onPress: () => setGroupDetails(menuGroup.id),
+                        },
+                        {
+                          label: t("Edit", "تعديل"),
+                          icon: Pencil,
+                          disabled:
+                            !ready ||
+                            saving ||
+                            ["COMPLETED", "ARCHIVED"].includes(menuGroup.status ?? ""),
+                          onPress: () => openGroup(menuGroup),
+                        },
+                      ]
+                    : []
+                }
+              />
+              <FormSheet
+                visible={!!detailsGroup}
+                title={t("Group details", "تفاصيل المجموعة")}
+                subtitle={detailsGroup?.title}
+                onClose={() => setGroupDetails(null)}
+              >
+                {detailsGroup && <GroupPeople group={detailsGroup} accounts={accounts} />}
+              </FormSheet>
             </>
           )}
           {page === "Messages" && (
             <>
-              <Field
+              {!!starsError && (
+                <View>
+                  <AppText tone="danger" accessibilityRole="alert">
+                    {errorText(t, starsError)}
+                  </AppText>
+                  {retry}
+                </View>
+              )}
+              <SearchField
                 label={t("Search conversations", "بحث في المحادثات")}
+                placeholder={t("Search people by name or number…", "ابحث عن شخص بالاسم أو الرقم…")}
                 value={contactQuery}
                 onChangeText={setContactQuery}
               />
@@ -615,32 +806,34 @@ export default function DepartmentScreen() {
                     (contactFilter !== "starred" || starred.includes(a.id)),
                 )
                 .map((a) => (
-                  <Pressable
+                  <ConversationInboxRow
                     key={a.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={a.name}
+                    name={a.name}
+                    avatar={<PersonAvatar person={a} size={56} />}
+                    detail={ltr(a.number)}
+                    starred={starred.includes(a.id)}
+                    preview={
+                      messages.filter((m) => m.person === a.id).at(-1)?.body ??
+                      t("Start a conversation", "ابدأ محادثة")
+                    }
+                    time={(() => {
+                      const last = messages.filter((m) => m.person === a.id).at(-1);
+                      return last?.at
+                        ? new Date(last.at).toLocaleTimeString(
+                            language === "ar" ? "ar-u-nu-latn" : "en-US",
+                            { hour: "2-digit", minute: "2-digit" },
+                          )
+                        : last?.time;
+                    })()}
                     onPress={() => {
                       setRecipient(a.id);
                       setInfo(false);
+                      conversationInitialScroll.current = true;
+                      conversationNearBottom.current = true;
+                      setNewConversationMessages(false);
                       setConversationOpen(true);
                     }}
-                    style={{
-                      minHeight: 76,
-                      borderBottomWidth: 1,
-                      borderColor: "#e5eadf",
-                      paddingVertical: 12,
-                      gap: 4,
-                    }}
-                  >
-                    <PersonRow person={a} compact />
-                    <AppText numberOfLines={1} variant="caption" tone="muted">
-                      {messages.filter((m) => m.person === a.id).at(-1)?.body ??
-                        t(
-                          "Start a conversation",
-                          "\u0627\u0628\u062f\u0623 \u0645\u062d\u0627\u062f\u062b\u0629",
-                        )}
-                    </AppText>
-                  </Pressable>
+                  />
                 ))}
               {!accounts.some(
                 (a) =>
@@ -653,16 +846,12 @@ export default function DepartmentScreen() {
                 onRequestClose={() => setConversationOpen(false)}
               >
                 <SafeAreaView
-                  style={{
-                    flex: 1,
-                    backgroundColor: "#fff",
-                    ...layoutDirection(isRTL ? "rtl" : "ltr"),
-                  }}
-                  {...directionProps(isRTL ? "rtl" : "ltr")}
+                  style={[
+                    { flex: 1, backgroundColor: "#fff" },
+                    directionStyle(isRTL ? "rtl" : "ltr"),
+                  ]}
                 >
-                  <View
-                    style={[kit.row, { padding: 12, borderBottomWidth: 1, borderColor: "#e5eadf" }]}
-                  >
+                  <ConversationHeader>
                     <Button
                       title={t("Back", "\u0631\u062c\u0648\u0639")}
                       variant="ghost"
@@ -671,7 +860,7 @@ export default function DepartmentScreen() {
                     <AppText variant="heading" style={{ flex: 1 }}>
                       {contact?.name}
                     </AppText>
-                  </View>
+                  </ConversationHeader>
                   {contact && (
                     <>
                       <View style={{ paddingHorizontal: 16 }}>
@@ -690,13 +879,14 @@ export default function DepartmentScreen() {
                               }
                               variant="ghost"
                               size="sm"
-                              onPress={() =>
-                                setStarred(
+                              disabled={!starsReady || starsError.startsWith("Could not load")}
+                              onPress={async () => {
+                                await setStarred(
                                   starred.includes(contact.id)
                                     ? starred.filter((id) => id !== contact.id)
                                     : [...starred, contact.id],
-                                )
-                              }
+                                );
+                              }}
                             />
                             <Button
                               title={t("Contact information", "معلومات جهة الاتصال")}
@@ -706,16 +896,42 @@ export default function DepartmentScreen() {
                             />
                           </View>
                           {info && <PersonRow person={contact} />}
-                          <Field
+                          {!!starsError && (
+                            <AppText tone="danger" accessibilityRole="alert">
+                              {errorText(t, starsError)}
+                            </AppText>
+                          )}
+                          <SearchField
                             label={t("Search messages", "بحث في الرسائل")}
+                            placeholder={t("Search this conversation…", "ابحث في هذه المحادثة…")}
                             value={messageQuery}
                             onChangeText={setMessageQuery}
                           />
                         </Disclosure>
                       </View>
                       <ScrollView
+                        ref={conversationScroll}
+                        testID="department-history"
                         keyboardShouldPersistTaps="handled"
                         contentContainerStyle={{ padding: 16, gap: 12, flexGrow: 1 }}
+                        onScroll={(event) => {
+                          if (conversationInitialScroll.current) return;
+                          const { contentOffset, contentSize, layoutMeasurement } =
+                            event.nativeEvent;
+                          conversationNearBottom.current =
+                            contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
+                          if (conversationNearBottom.current) setNewConversationMessages(false);
+                        }}
+                        scrollEventThrottle={100}
+                        onContentSizeChange={() => {
+                          if (messageQuery) return;
+                          if (
+                            !conversationInitialScroll.current &&
+                            conversationNearBottom.current
+                          ) {
+                            departmentHistory()?.scrollToEnd({ animated: false });
+                          }
+                        }}
                       >
                         {!messages.some(
                           (m) =>
@@ -733,29 +949,42 @@ export default function DepartmentScreen() {
                               m.body.toLowerCase().includes(messageQuery.toLowerCase()),
                           )
                           .map((m) => (
-                            <View
+                            <MessageBubble
                               key={m.id}
                               style={{
-                                padding: 12,
+                                alignSelf: "flex-end",
                                 backgroundColor: "#e3ecd9",
-                                borderRadius: 14,
-                                gap: 4,
                               }}
                             >
-                              <AppText>{m.body}</AppText>
-                              <AppText variant="caption">{m.time}</AppText>
-                            </View>
+                              <ConversationText>{m.body}</ConversationText>
+                              <AppText variant="caption">
+                                {m.at ? formatDateTime(m.at) : m.time}
+                              </AppText>
+                            </MessageBubble>
                           ))}
                       </ScrollView>
-                      <View
-                        style={{ padding: 12, gap: 8, borderTopWidth: 1, borderColor: "#e5eadf" }}
-                      >
+                      {newConversationMessages && (
+                        <Button
+                          title={t(
+                            "New messages · Jump to latest",
+                            "رسائل جديدة · الانتقال للأحدث",
+                          )}
+                          variant="soft"
+                          onPress={() => {
+                            conversationNearBottom.current = true;
+                            setNewConversationMessages(false);
+                            departmentHistory()?.scrollToEnd({ animated: true });
+                          }}
+                        />
+                      )}
+                      <ConversationComposer>
                         {!!(error || store.error) && (
                           <AppText tone="danger" accessibilityRole="alert">
-                            {error || store.error}
+                            {error || errorText(t, store.error)}
                           </AppText>
                         )}
-                        <View style={{ flexDirection: "row", gap: 8, alignItems: "flex-end" }}>
+                        {!!store.error && retry}
+                        <ConversationComposerRow>
                           <TextInput
                             accessibilityLabel={t(
                               "Message",
@@ -801,9 +1030,14 @@ export default function DepartmentScreen() {
                                       },
                                     ],
                                   })
-                                )
+                                ) {
                                   setBody("");
-                                else
+                                  conversationNearBottom.current = true;
+                                  setNewConversationMessages(false);
+                                  requestAnimationFrame(() =>
+                                    departmentHistory()?.scrollToEnd({ animated: true }),
+                                  );
+                                } else
                                   setError(
                                     t(
                                       "Could not send. Your message is preserved.",
@@ -815,8 +1049,8 @@ export default function DepartmentScreen() {
                               }
                             }}
                           />
-                        </View>
-                      </View>
+                        </ConversationComposerRow>
+                      </ConversationComposer>
                     </>
                   )}
                 </SafeAreaView>
@@ -829,344 +1063,245 @@ export default function DepartmentScreen() {
             </AppText>
           )}
         </ScrollView>
-        <View
-          accessibilityRole="tablist"
-          style={{
-            flexDirection: "row",
-            backgroundColor: "#fffffff5",
-            borderTopWidth: 1,
-            borderColor: "#e1e7d9",
-            padding: 4,
-          }}
-        >
-          {[
-            { name: "Overview", icon: Home },
-            { name: "Accounts", icon: Users },
-            { name: "Teams", icon: FolderKanban },
-            { name: "Messages", icon: MessageSquare },
-          ].map(({ name, icon: Icon }) => (
-            <Pressable
-              key={name}
-              accessibilityRole="tab"
-              accessibilityLabel={
-                name === "Messages"
-                  ? t("Messages", "\u0627\u0644\u0631\u0633\u0627\u0626\u0644")
-                  : pageName(name)
-              }
-              accessibilityState={{ selected: page === name }}
-              onPress={() => {
-                setPage(name);
-                setError("");
-              }}
-              style={{
-                flex: 1,
-                minHeight: 56,
-                justifyContent: "center",
-                alignItems: "center",
-                borderRadius: 12,
-                gap: 3,
-                backgroundColor: page === name ? "#edf2e5" : "transparent",
-              }}
-            >
-              <Icon color="#526443" size={21} />
-              <AppText align="center" style={{ fontSize: 12 }}>
-                {name === "Messages"
-                  ? t("Messages", "\u0627\u0644\u0631\u0633\u0627\u0626\u0644")
-                  : pageName(name)}
-              </AppText>
-            </Pressable>
-          ))}
-        </View>
-        <Modal
-          visible={menu}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setMenu(false)}
-        >
-          <View
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              backgroundColor: "#14261755",
-              ...layoutDirection(isRTL ? "rtl" : "ltr"),
-            }}
-            {...directionProps(isRTL ? "rtl" : "ltr")}
-          >
-            <SafeAreaView
-              style={{
-                width: "85%",
-                maxWidth: 330,
-                backgroundColor: "#f6f7ee",
-                padding: 22,
-                gap: 20,
-              }}
-            >
-              <View style={kit.row}>
-                <AppText variant="title" style={{ flex: 1 }}>
-                  LabAssist
-                </AppText>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("Close navigation", "إغلاق القائمة")}
-                  onPress={() => setMenu(false)}
-                >
-                  <X color="#526443" />
-                </Pressable>
-              </View>
-              <ScrollView
-                automaticallyAdjustKeyboardInsets
-                keyboardDismissMode="on-drag"
-                contentContainerStyle={{ gap: 12 }}
-              >
-                {["Overview", "Accounts", "Teams", "Messages"].map((name) => (
-                  <Button
-                    key={name}
-                    title={pageName(name)}
-                    variant={page === name ? "primary" : "ghost"}
-                    onPress={() => {
-                      setPage(name);
-                      setMenu(false);
-                      setError("");
-                    }}
-                  />
-                ))}
-                <SignOutButton />
-              </ScrollView>
-            </SafeAreaView>
-            <Pressable
-              accessibilityLabel={t("Close navigation", "إغلاق القائمة")}
-              style={{ flex: 1 }}
-              onPress={() => setMenu(false)}
+      )}
+      <Sheet
+        visible={!!accountDraft}
+        title={t("Account details", "تفاصيل الحساب")}
+        busy={saving}
+        onClose={() => setAccountDraft(null)}
+        footer={
+          accountDraft ? (
+            <Button
+              title={t("Save account", "حفظ الحساب")}
+              disabled={!ready}
+              loading={saving}
+              onPress={saveAccount}
             />
-          </View>
-        </Modal>
-        <Sheet
-          visible={!!accountDraft}
-          title={t("Account details", "تفاصيل الحساب")}
-          busy={saving}
-          onClose={() => setAccountDraft(null)}
-        >
-          {!!accountDraft && (
-            <>
-              <Chips
-                value={accountDraft.role ?? "supervisor"}
-                onChange={(role) => {
-                  if (!accountDraft.id)
-                    setAccountDraft({ ...accountDraft, role: role as Account["role"] });
-                }}
-                options={(["student", "supervisor", "workshop"] as const).map((role) => ({
-                  id: role,
-                  label: roleName(role),
-                }))}
-              />
-              <Field
-                label={t("Full name", "الاسم الكامل")}
-                value={accountDraft.name ?? ""}
-                onChangeText={(name) => setAccountDraft({ ...accountDraft, name })}
-              />
-              <Field
-                label={t("University / employee number", "الرقم الجامعي / الوظيفي")}
-                value={accountDraft.number ?? ""}
-                editable={!accountDraft.id || accountDraft.role !== "student"}
-                keyboardType="number-pad"
-                maxLength={
-                  accountDraft.role === "student" ? 8 : accountDraft.role === "supervisor" ? 4 : 5
-                }
-                onChangeText={(number) => setAccountDraft({ ...accountDraft, number })}
-              />
-              {accountDraft.role === "student" ? (
-                <AppText>
-                  {accountDraft.number
-                    ? `s${accountDraft.number}@stu.najah.edu`
-                    : t(
-                        "University email is generated from the student number.",
-                        "يُنشأ البريد الجامعي من رقم الطالب.",
-                      )}
-                </AppText>
-              ) : (
-                <Field
-                  label={t("Email", "البريد الإلكتروني")}
-                  value={accountDraft.email ?? ""}
-                  editable={!accountDraft.id}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  onChangeText={(email) => setAccountDraft({ ...accountDraft, email })}
-                />
-              )}
-              {!!error && (
-                <AppText tone="danger" accessibilityRole="alert">
-                  {error}
-                </AppText>
-              )}
-              {!!store.error && (
-                <>
-                  <AppText tone="danger">{store.error}</AppText>
-                  {retry}
-                </>
-              )}
-              <Button
-                title={t("Save account", "حفظ الحساب")}
-                disabled={!ready}
-                loading={saving}
-                onPress={saveAccount}
-              />
-            </>
-          )}
-        </Sheet>
-        <Sheet
-          visible={!!groupDraft && !accountDraft}
-          title={t("Group details", "تفاصيل المجموعة")}
-          busy={saving}
-          onClose={() => setGroupDraft(null)}
-        >
-          {!!groupDraft && (
-            <>
-              <Field
-                label={t("Project number", "رقم المشروع")}
-                value={groupDraft.projectNumber ?? readableNumber(groupDraft)}
-                onChangeText={(projectNumber) => setGroupDraft({ ...groupDraft, projectNumber })}
-              />
-              <Field
-                label={t("Project name (optional)", "اسم المشروع (اختياري)")}
-                value={groupDraft.title ?? ""}
-                onChangeText={(title) => setGroupDraft({ ...groupDraft, title })}
-              />
-              <Field
-                label={t("Find people", "البحث عن أشخاص")}
-                value={peopleQuery}
-                onChangeText={setPeopleQuery}
-              />
-              {(["student", "supervisor"] as const).map((role) => {
-                const key = role === "student" ? "studentIds" : "supervisorIds";
-                const eligible = accounts.filter(
-                  (a) =>
-                    a.role === role &&
-                    matches(a, peopleQuery) &&
-                    (groupDraft[key].includes(a.id) ||
-                      effectiveAccountStatus(a) === "ACTIVE" ||
-                      ((groupDraft.status ?? "DRAFT") === "DRAFT" &&
-                        effectiveAccountStatus(a) === "PENDING_ACTIVATION")),
-                );
-                return (
-                  <View key={role} style={{ gap: 8 }}>
-                    <AppText weight="bold">
-                      {roleName(role)} · {groupDraft[key].length}
-                      {role === "student" ? "/3" : ""}
-                    </AppText>
-                    <Button
-                      title={t("Create missing account", "إنشاء حساب جديد")}
-                      variant="soft"
-                      size="sm"
-                      onPress={() => openAccount(undefined, role)}
-                    />
-                    {!eligible.length && (
-                      <AppText>{t("No matching accounts.", "لا توجد حسابات مطابقة.")}</AppText>
+          ) : undefined
+        }
+      >
+        {!!accountDraft && (
+          <>
+            <Chips
+              value={accountDraft.role ?? "supervisor"}
+              onChange={(role) => {
+                if (!accountDraft.id)
+                  setAccountDraft({ ...accountDraft, role: role as Account["role"] });
+              }}
+              options={(["student", "supervisor", "workshop"] as const).map((role) => ({
+                id: role,
+                label: roleName(role),
+              }))}
+            />
+            <Field
+              label={t("Full name", "الاسم الكامل")}
+              value={accountDraft.name ?? ""}
+              onChangeText={(name) => setAccountDraft({ ...accountDraft, name })}
+            />
+            <Field
+              label={t("University / employee number", "الرقم الجامعي / الوظيفي")}
+              value={accountDraft.number ?? ""}
+              editable={!accountDraft.id || accountDraft.role !== "student"}
+              keyboardType="number-pad"
+              maxLength={
+                accountDraft.role === "student" ? 8 : accountDraft.role === "supervisor" ? 4 : 5
+              }
+              onChangeText={(number) => setAccountDraft({ ...accountDraft, number })}
+            />
+            {accountDraft.role === "student" ? (
+              <AppText>
+                {accountDraft.number
+                  ? `s${accountDraft.number}@stu.najah.edu`
+                  : t(
+                      "University email is generated from the student number.",
+                      "يُنشأ البريد الجامعي من رقم الطالب.",
                     )}
-                    {eligible.map((a) => (
-                      <Button
-                        key={a.id}
-                        title={`${groupDraft[key].includes(a.id) ? "✓ " : ""}${a.name} · ${a.number}`}
-                        accessibilityState={{ selected: groupDraft[key].includes(a.id) }}
-                        variant={groupDraft[key].includes(a.id) ? "soft" : "ghost"}
-                        disabled={
-                          role === "student" &&
-                          groupDraft.studentIds.length >= 3 &&
-                          !groupDraft.studentIds.includes(a.id)
-                        }
-                        onPress={() => {
-                          setGroupDraft({
-                            ...groupDraft,
-                            [key]: groupDraft[key].includes(a.id)
-                              ? groupDraft[key].filter((id) => id !== a.id)
-                              : [...groupDraft[key], a.id],
-                          });
-                          setTransfers(false);
-                        }}
-                      />
-                    ))}
-                  </View>
-                );
-              })}
-              {sources.length > 0 && (
-                <Panel title={t("Confirm student transfers", "تأكيد نقل الطلاب")}>
-                  {sources.map((source) => (
-                    <AppText key={source.id}>
-                      {readableNumber(source) ||
-                        source.title ||
-                        t("Untitled project", "مشروع بلا اسم")}
-                      :{" "}
-                      {source.studentIds
-                        .filter((id) => groupDraft.studentIds.includes(id))
-                        .map((id) => accounts.find((a) => a.id === id)?.name)
-                        .join(", ")}
-                    </AppText>
-                  ))}
-                  <Button
-                    title={
-                      transfers
-                        ? t("Transfers confirmed", "تم تأكيد النقل")
-                        : t("Confirm transfers", "تأكيد النقل")
-                    }
-                    variant="soft"
-                    onPress={() => setTransfers(!transfers)}
-                  />
-                </Panel>
-              )}
-              {!!error && (
-                <AppText tone="danger" accessibilityRole="alert">
-                  {error}
-                </AppText>
-              )}
-              {!!store.error && (
-                <>
-                  <AppText tone="danger">{store.error}</AppText>
-                  {retry}
-                </>
-              )}
-              <Button
-                title={t("Save group", "حفظ المجموعة")}
-                disabled={!ready}
-                loading={saving}
-                onPress={saveGroup}
+              </AppText>
+            ) : (
+              <Field
+                label={t("Email", "البريد الإلكتروني")}
+                value={accountDraft.email ?? ""}
+                editable={!accountDraft.id}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                onChangeText={(email) => setAccountDraft({ ...accountDraft, email })}
               />
-            </>
-          )}
-        </Sheet>
-        <Sheet
-          visible={!!change}
-          title={
-            change?.action === "remove"
-              ? t("Delete account?", "حذف الحساب؟")
-              : t("Change account availability?", "تغيير حالة الحساب؟")
-          }
-          busy={saving}
-          onClose={() => setChange(null)}
-        >
-          <AppText>
-            {t(
-              "Existing group and message records will be preserved.",
-              "ستبقى سجلات المجموعات والرسائل محفوظة.",
             )}
+            {!!error && (
+              <AppText tone="danger" accessibilityRole="alert">
+                {error}
+              </AppText>
+            )}
+            {!!store.error && (
+              <>
+                <AppText tone="danger">{errorText(t, store.error)}</AppText>
+                {retry}
+              </>
+            )}
+          </>
+        )}
+      </Sheet>
+      <Sheet
+        visible={!!groupDraft && !accountDraft}
+        title={t("Group details", "تفاصيل المجموعة")}
+        busy={saving}
+        onClose={() => setGroupDraft(null)}
+        footer={
+          groupDraft ? (
+            <Button
+              title={t("Save group", "حفظ المجموعة")}
+              disabled={!ready}
+              loading={saving}
+              onPress={saveGroup}
+            />
+          ) : undefined
+        }
+      >
+        {!!groupDraft && (
+          <>
+            <Field
+              label={t("Project number", "رقم المشروع")}
+              value={groupDraft.projectNumber ?? readableNumber(groupDraft)}
+              onChangeText={(projectNumber) => setGroupDraft({ ...groupDraft, projectNumber })}
+            />
+            <Field
+              label={t("Project name (optional)", "اسم المشروع (اختياري)")}
+              value={groupDraft.title ?? ""}
+              onChangeText={(title) => setGroupDraft({ ...groupDraft, title })}
+            />
+            <Field
+              label={t("Find people", "البحث عن أشخاص")}
+              value={peopleQuery}
+              onChangeText={setPeopleQuery}
+            />
+            {(["student", "supervisor"] as const).map((role) => {
+              const key = role === "student" ? "studentIds" : "supervisorIds";
+              const eligible = accounts.filter(
+                (a) =>
+                  a.role === role &&
+                  matches(a, peopleQuery) &&
+                  (groupDraft[key].includes(a.id) ||
+                    effectiveAccountStatus(a) === "ACTIVE" ||
+                    ((groupDraft.status ?? "DRAFT") === "DRAFT" &&
+                      effectiveAccountStatus(a) === "PENDING_ACTIVATION")),
+              );
+              return (
+                <View key={role} style={{ gap: 8 }}>
+                  <AppText weight="bold">
+                    {roleName(role)} · {groupDraft[key].length}
+                    {role === "student" ? "/3" : ""}
+                  </AppText>
+                  <Button
+                    title={t("Create missing account", "إنشاء حساب جديد")}
+                    variant="soft"
+                    size="sm"
+                    onPress={() => openAccount(undefined, role)}
+                  />
+                  {!eligible.length && (
+                    <AppText>{t("No matching accounts.", "لا توجد حسابات مطابقة.")}</AppText>
+                  )}
+                  {eligible.map((a) => (
+                    <Button
+                      key={a.id}
+                      title={`${groupDraft[key].includes(a.id) ? "✓ " : ""}${a.name} · ${a.number}`}
+                      accessibilityState={{ selected: groupDraft[key].includes(a.id) }}
+                      variant={groupDraft[key].includes(a.id) ? "soft" : "ghost"}
+                      disabled={
+                        role === "student" &&
+                        groupDraft.studentIds.length >= 3 &&
+                        !groupDraft.studentIds.includes(a.id)
+                      }
+                      onPress={() => {
+                        setGroupDraft({
+                          ...groupDraft,
+                          [key]: groupDraft[key].includes(a.id)
+                            ? groupDraft[key].filter((id) => id !== a.id)
+                            : [...groupDraft[key], a.id],
+                        });
+                        setTransfers(false);
+                      }}
+                    />
+                  ))}
+                </View>
+              );
+            })}
+            {sources.length > 0 && (
+              <Panel title={t("Confirm student transfers", "تأكيد نقل الطلاب")}>
+                {sources.map((source) => (
+                  <AppText key={source.id}>
+                    {readableNumber(source) ||
+                      source.title ||
+                      t("Untitled project", "مشروع بلا اسم")}
+                    :{" "}
+                    {source.studentIds
+                      .filter((id) => groupDraft.studentIds.includes(id))
+                      .map((id) => accounts.find((a) => a.id === id)?.name)
+                      .join(", ")}
+                  </AppText>
+                ))}
+                <Button
+                  title={
+                    transfers
+                      ? t("Transfers confirmed", "تم تأكيد النقل")
+                      : t("Confirm transfers", "تأكيد النقل")
+                  }
+                  variant="soft"
+                  onPress={() => setTransfers(!transfers)}
+                />
+              </Panel>
+            )}
+            {!!error && (
+              <AppText tone="danger" accessibilityRole="alert">
+                {error}
+              </AppText>
+            )}
+            {!!store.error && (
+              <>
+                <AppText tone="danger">{errorText(t, store.error)}</AppText>
+                {retry}
+              </>
+            )}
+          </>
+        )}
+      </Sheet>
+      <Sheet
+        visible={!!change}
+        title={
+          change?.action === "remove"
+            ? t("Delete account?", "حذف الحساب؟")
+            : t("Change account availability?", "تغيير حالة الحساب؟")
+        }
+        busy={saving}
+        onClose={() => setChange(null)}
+        footer={
+          change ? (
+            <Button
+              title={t("Confirm", "تأكيد")}
+              disabled={!ready}
+              loading={saving}
+              onPress={confirmChange}
+            />
+          ) : undefined
+        }
+      >
+        <AppText>
+          {t(
+            "Existing group and message records will be preserved.",
+            "ستبقى سجلات المجموعات والرسائل محفوظة.",
+          )}
+        </AppText>
+        {!!error && (
+          <AppText tone="danger" accessibilityRole="alert">
+            {error}
           </AppText>
-          {!!error && (
-            <AppText tone="danger" accessibilityRole="alert">
-              {error}
-            </AppText>
-          )}
-          {!!store.error && (
-            <>
-              <AppText tone="danger">{store.error}</AppText>
-              {retry}
-            </>
-          )}
-          <Button
-            title={t("Confirm", "تأكيد")}
-            disabled={!ready}
-            loading={saving}
-            onPress={confirmChange}
-          />
-        </Sheet>
-      </SafeAreaView>
-    </ImageBackground>
+        )}
+        {!!store.error && (
+          <>
+            <AppText tone="danger">{errorText(t, store.error)}</AppText>
+            {retry}
+          </>
+        )}
+      </Sheet>
+    </ShellFrame>
   );
 }

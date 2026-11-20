@@ -1,24 +1,20 @@
-import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import { useLanguage } from "@/i18n";
-import { LabAssistBrand } from "@/components/LabAssistBrand";
 import { MobileInput as TextInput } from "@/components/MobileInput";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { MobileModal as Modal } from "@/components/MobileModal";
-import { WorkspaceNavigation } from "./WorkspaceNavigation";
+import { AppHeader, NotificationsButton, RoleTabBar, ShellFrame } from "./AppShell";
 import { useState, type ReactNode } from "react";
-import { Image, ImageBackground, ScrollView, StyleSheet, View } from "react-native";
+import { Image, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ArrowRight,
   ArrowUpRight,
-  Bell,
   CalendarDays,
   Check,
   CircleAlert,
   CircuitBoard,
   FileText,
   FolderKanban,
-  Menu,
   MessageSquare,
   Package,
   Plus,
@@ -29,13 +25,14 @@ import {
   Zap,
 } from "lucide-react-native";
 import { AppText, Button } from "@/components";
+import { Greeting, StatGrid, useCopy } from "@/components/MobileKit";
 import { BuildCard } from "@/features/student/BuildCard";
 import { ProjectPhoto } from "@/components/ProjectPhoto";
 import { project, teammates, deadlines, useProjectWorkspace } from "./StudentReference";
 import { ReferenceProject } from "./ProjectDetails";
 import { studentDestinations } from "./Destinations";
 import { router } from "./router";
-import { useRole } from "@/state/WorkspaceProvider";
+import { useRole, useWorkspace } from "@/state/WorkspaceProvider";
 
 const stock = [
   {
@@ -86,6 +83,51 @@ const navigation = [
   "My Profile",
   "Settings",
 ];
+/** Display names for the workspace destinations used by search and quick links. */
+const navigationLabels: Record<string, [string, string]> = {
+  Dashboard: ["Home", "الرئيسية"],
+  "My Project": ["My Project", "مشروعي"],
+  "3D Lab": ["3D Lab", "المختبر ثلاثي الأبعاد"],
+  "Component Catalog": ["Component Catalog", "دليل المكونات"],
+  "My Circuits": ["My Circuits", "دوائري"],
+  Inventory: ["Workshop Inventory", "مخزون الورشة"],
+  Team: ["Team", "الفريق"],
+  "Learning Hub": ["Learning Hub", "مركز التعلم"],
+  Messages: ["Messages", "الرسائل"],
+  Meetings: ["Meetings", "الاجتماعات"],
+  Reports: ["Reports", "التقارير"],
+  "My Profile": ["My Profile", "ملفي الشخصي"],
+  Settings: ["Settings", "الإعدادات"],
+  Notifications: ["Notifications", "الإشعارات"],
+  "Add issue": ["Add issue", "إضافة مشكلة"],
+  "View BOM": ["View BOM", "عرض قائمة المواد"],
+  "Weekly report": ["Weekly report", "التقرير الأسبوعي"],
+  Components: ["Components", "المكونات"],
+};
+const months: Record<string, string> = {
+  JAN: "يناير",
+  FEB: "فبراير",
+  MAR: "مارس",
+  APR: "أبريل",
+  MAY: "مايو",
+  JUN: "يونيو",
+  JUL: "يوليو",
+  AUG: "أغسطس",
+  SEP: "سبتمبر",
+  OCT: "أكتوبر",
+  NOV: "نوفمبر",
+  DEC: "ديسمبر",
+};
+const monthLabel = (month: string, t: (en: string, ar: string) => string) =>
+  t(month, months[month.toUpperCase()] ?? month);
+const typeLabels: Record<string, string> = {
+  Design: "تصميم",
+  Report: "تقرير",
+  Testing: "اختبار",
+  Meeting: "اجتماع",
+};
+const typeLabel = (type: string, t: (en: string, ar: string) => string) =>
+  t(type, typeLabels[type] ?? type);
 type Icon = typeof Users;
 function Paper({
   children,
@@ -110,17 +152,22 @@ function Paper({
 }
 export default function StudentDashboard() {
   const ready = useRole("student");
-  const { isRTL } = useLanguage();
+  const { ltr } = useLanguage();
+  const t = useCopy();
   const workspace = useProjectWorkspace();
-  const [menu, setMenu] = useState(false),
-    [query, setQuery] = useState(""),
+  const { state, actorId } = useWorkspace();
+  const userName = state.users.find((user) => user.id === actorId)?.name ?? "";
+  const navLabel = (name: string) => {
+    const [en, ar] = navigationLabels[name] ?? [name, name];
+    return t(en, ar);
+  };
+  const [query, setQuery] = useState(""),
     [destination, setDestination] = useState("");
   const [purchase, setPurchase] = useState<(typeof stock)[number] | null>(null),
     [quantity, setQuantity] = useState("1"),
     [requests, setRequests] = useState<Record<string, number>>({});
   const [issue, setIssue] = useState("");
   const open = (name: string) => {
-    setMenu(false);
     const page = studentDestinations[name];
     if (page) {
       router.push(`/native/student/${page}` as import("expo-router").Href);
@@ -131,38 +178,34 @@ export default function StudentDashboard() {
   const metrics = [
     {
       icon: Zap,
-      label: "Current milestone",
-      value: "3 / 5",
-      note: "Prototype testing",
-      color: "#526443",
-      wash: "#e5ebdb",
+      label: t("Current milestone", "المرحلة الحالية"),
+      value: ltr("3 / 5"),
+      note: t("Prototype testing", "اختبار النموذج"),
+      tone: "olive" as const,
       target: "My Project",
     },
     {
       icon: Users,
-      label: "Working together",
+      label: t("Working together", "نعمل معًا"),
       value: "3",
-      note: "Equal teammates",
-      color: "#527c9d",
-      wash: "#e2edf6",
+      note: t("Equal teammates", "زملاء متساوون"),
+      tone: "blue" as const,
       target: "Team",
     },
     {
       icon: CircleAlert,
-      label: "Open issues",
-      value: String(3 + workspace.issues.length),
-      note: "1 needs attention",
-      color: "#b57b4a",
-      wash: "#f8eadd",
+      label: t("Open issues", "مشكلات مفتوحة"),
+      value: String(workspace.openIssues.length),
+      note: t("1 needs attention", "1 بحاجة إلى اهتمام"),
+      tone: "orange" as const,
       target: "Add issue",
     },
     {
       icon: Wallet,
-      label: "Budget remaining",
+      label: t("Budget remaining", "الميزانية المتبقية"),
       value: "$66",
-      note: "$184 of $250 used",
-      color: "#81699e",
-      wash: "#eee7f6",
+      note: t("$184 of $250 used", "استُخدم $184 من $250"),
+      tone: "violet" as const,
       target: "Components",
     },
   ];
@@ -172,324 +215,308 @@ export default function StudentDashboard() {
   const completedToday = ownTasks.filter((task) => workspace.completed.includes(task.id)).length;
   if (!ready) return null;
   return (
-    <SafeAreaView
-      style={[s.root, { ...layoutDirection(isRTL ? "rtl" : "ltr") }]}
-      edges={["top", "bottom"]}
-      {...directionProps(isRTL ? "rtl" : "ltr")}
+    <ShellFrame
+      background={require("../../assets/web/project-white-background.png")}
+      header={
+        <AppHeader brand title="LabAssist" trailing={<NotificationsButton role="student" />} />
+      }
+      tabBar={<RoleTabBar role="student" page="dashboard" />}
     >
-      <ImageBackground
-        source={require("../../assets/web/project-white-background.png")}
-        style={s.fill}
-        resizeMode="cover"
+      <ScrollView
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={s.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={s.wash} />
-        <View style={s.topbar}>
-          <Pressable accessibilityLabel="Open menu" onPress={() => setMenu(true)} style={s.icon}>
-            <Menu color="#526443" size={22} />
-          </Pressable>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <LabAssistBrand size={18} />
-          </View>
-          <Pressable
-            accessibilityLabel="Notifications, 8 unread"
-            onPress={() => open("Notifications")}
-            style={s.icon}
-          >
-            <Bell size={21} color="#526443" />
-            <View style={s.badge}>
-              <AppText style={{ fontSize: 9, color: "white" }}>8</AppText>
-            </View>
-          </Pressable>
-          <Pressable
-            accessibilityLabel="NOOR OWASSI Student workspace"
-            onPress={() => open("My Profile")}
-          >
-            <Image source={require("../../assets/web/student-avatar.jpg")} style={s.avatar} />
-          </Pressable>
-        </View>
-        <ScrollView
-          automaticallyAdjustKeyboardInsets
-          keyboardDismissMode="on-drag"
-          contentContainerStyle={s.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={s.search}>
-            <Search size={19} color="#7b886e" />
-            <TextInput
-              accessibilityLabel="Search your workspace"
-              placeholder="Search your workspace"
-              value={query}
-              onChangeText={setQuery}
-              style={s.searchInput}
-            />
-          </View>
-          {!!query.trim() && (
-            <Paper>
-              {navigation
-                .filter((x) => x.toLowerCase().includes(query.toLowerCase()))
-                .map((name) => (
-                  <Pressable
-                    key={name}
-                    onPress={() => {
-                      setQuery("");
-                      open(name);
-                    }}
-                    style={s.link}
-                  >
-                    <AppText>{name}</AppText>
-                    <ArrowUpRight size={15} />
-                  </Pressable>
-                ))}
-            </Paper>
-          )}
-          <View style={{ gap: 4 }}>
-            <AppText variant="heading">
-              {isRTL ? "\u0645\u0633\u0627\u062d\u0629 \u0639\u0645\u0644\u0643" : "Your workspace"}
-            </AppText>
-            <AppText variant="caption" tone="muted">
-              {workspace.details.title}
-            </AppText>
-          </View>
-          <BuildCard
-            value={workspace.progress}
-            completed={workspace.completedCount}
-            total={workspace.taskCount}
-            onOpen={() => open("My Project")}
+        <Greeting name={userName} subtitle={workspace.details.title} />
+        <StatGrid
+          items={metrics.map((item) => ({
+            id: item.target,
+            icon: item.icon,
+            tone: item.tone,
+            label: item.label,
+            value: item.value,
+            note: item.note,
+            onPress: () => open(item.target),
+          }))}
+        />
+        <View style={s.search}>
+          <Search size={19} color="#7b886e" />
+          <TextInput
+            accessibilityLabel={t("Search your workspace", "ابحث في مساحة عملك")}
+            placeholder={t("Search pages and tools…", "ابحث في الصفحات والأدوات…")}
+            value={query}
+            onChangeText={setQuery}
+            style={s.searchInput}
           />
-          <View style={s.metrics}>
-            {metrics.map((item) => (
-              <Pressable key={item.label} onPress={() => open(item.target)} style={s.metric}>
-                <View style={[s.metricIcon, { backgroundColor: item.wash }]}>
-                  <item.icon size={20} color={item.color} />
-                </View>
-                <AppText style={{ fontSize: 11, color: "#737f69" }}>{item.label}</AppText>
-                <AppText weight="bold" style={{ fontSize: 26, color: item.color }}>
-                  {item.value}
-                </AppText>
-                <AppText variant="caption" tone="muted" style={{ fontSize: 11 }}>
-                  {item.note}
-                </AppText>
-              </Pressable>
-            ))}
-          </View>
+        </View>
+        {!!query.trim() && (
           <Paper>
-            <AppText style={s.eyebrow}>ONE PROJECT. A LOT OF POSSIBILITIES.</AppText>
-            <AppText style={s.projectTitle}>{workspace.details.title}</AppText>
-            <AppText tone="muted" style={{ fontSize: 19 }}>
-              {project.subtitle}
-            </AppText>
-            <AppText style={s.pill}>● In Progress</AppText>
-            <View style={s.row}>
-              {teammates.map((person, i) =>
-                i === 0 ? (
-                  <Image
-                    key={person.name}
-                    source={require("../../assets/web/student-avatar.jpg")}
-                    style={s.avatar}
-                  />
-                ) : (
-                  <View
-                    key={person.name}
-                    style={[s.initials, { backgroundColor: i === 1 ? "#deebf8" : "#f0e5ed" }]}
-                  >
-                    <AppText variant="caption" weight="bold">
-                      {person.initials}
-                    </AppText>
-                  </View>
-                ),
-              )}
-              <AppText variant="caption" tone="muted">
-                Built together
-              </AppText>
-            </View>
-            <Button title="Open My Project" onPress={() => open("My Project")} />
-            <ProjectPhoto projectId="reference-smart-car" />
-          </Paper>
-          <Paper>
-            <View style={s.between}>
-              <View>
-                {!!workspace.error && (
-                  <View>
-                    <AppText accessibilityRole="alert">{workspace.error}</AppText>
-                    <Button title="Retry loading" onPress={workspace.retryLoading} />
-                  </View>
-                )}
-                <AppText style={s.eyebrow}>MAKE TODAY COUNT</AppText>
-                <AppText variant="heading">Your focus today</AppText>
-              </View>
-              <AppText style={s.pill}>
-                {completedToday} / {ownTasks.length}
-              </AppText>
-            </View>
-            {ownTasks.map((task, i) => {
-              const done = workspace.completed.includes(task.id);
-              return (
+            {navigation
+              .filter((x) =>
+                `${x} ${navLabel(x)}`.toLowerCase().includes(query.trim().toLowerCase()),
+              )
+              .map((name) => (
                 <Pressable
-                  key={task.id}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: done }}
-                  onPress={async () => {
-                    if (!(await workspace.toggleTask(task.id))) return;
-                    workspace.logTeamActivity(
-                      0,
-                      `${done ? "Reopened" : "Completed"} “${task.title}”`,
-                    );
+                  key={name}
+                  onPress={() => {
+                    setQuery("");
+                    open(name);
                   }}
-                  style={s.task}
+                  style={s.link}
                 >
-                  <View style={[s.check, done && { backgroundColor: "#526443" }]}>
-                    {done && <Check size={15} color="white" />}
-                  </View>
-                  <View style={s.fill}>
-                    <AppText
-                      style={
-                        done ? { textDecorationLine: "line-through", color: "#8a927f" } : undefined
-                      }
-                    >
-                      {task.title}
-                    </AppText>
-                    <AppText variant="caption" tone="muted">
-                      {i === 0 ? "Design" : "Documentation"} · My assigned task
-                    </AppText>
-                  </View>
-                  <ArrowUpRight size={15} color="#839276" />
+                  <AppText>{navLabel(name)}</AppText>
+                  <ArrowUpRight size={15} />
                 </Pressable>
-              );
-            })}
-            <Pressable onPress={() => open("Team")} style={s.link}>
-              <AppText tone="primary">See the whole team’s tasks</AppText>
-              <ArrowRight size={15} color="#526443" />
-            </Pressable>
+              ))}
           </Paper>
-          <Paper title="Available in the Workshop" icon={Package}>
-            <AppText tone="muted" variant="caption">
-              Parts you can request for your next build.
-            </AppText>
-            <AppText style={s.pill}>Sample inventory</AppText>
-            <AppText style={s.note}>
-              Sample availability · confirm stock with the workshop assistant.
-            </AppText>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12 }}
-            >
-              {stock.map((item) => (
-                <View key={item.id} style={s.product}>
-                  <View style={s.productArt}>
-                    <CircuitBoard size={42} color="#758961" />
-                    <AppText style={s.stock}>In stock</AppText>
-                  </View>
-                  <AppText weight="bold" style={{ fontSize: 12, minHeight: 36 }}>
-                    {item.name}
+        )}
+        <BuildCard
+          value={workspace.progress}
+          completed={workspace.completedCount}
+          total={workspace.taskCount}
+          onOpen={() => open("My Project")}
+        />
+        <Paper>
+          <AppText style={s.eyebrow}>
+            {t("ONE PROJECT. A LOT OF POSSIBILITIES.", "مشروع واحد. إمكانيات كثيرة.")}
+          </AppText>
+          <AppText style={s.projectTitle}>{workspace.details.title}</AppText>
+          <AppText tone="muted" style={{ fontSize: 19 }}>
+            {project.subtitle}
+          </AppText>
+          <AppText style={s.pill}>● {t("In Progress", "قيد التنفيذ")}</AppText>
+          <View style={s.row}>
+            {teammates.map((person, i) =>
+              i === 0 ? (
+                <Image
+                  key={person.name}
+                  source={require("../../assets/web/student-avatar.jpg")}
+                  style={s.avatar}
+                />
+              ) : (
+                <View
+                  key={person.name}
+                  style={[s.initials, { backgroundColor: i === 1 ? "#deebf8" : "#f0e5ed" }]}
+                >
+                  <AppText variant="caption" weight="bold">
+                    {person.initials}
                   </AppText>
-                  <AppText variant="caption" tone="muted" style={{ fontSize: 10 }}>
-                    {item.location}
-                  </AppText>
-                  <View style={s.between}>
-                    <AppText weight="bold" tone="primary">
-                      ${item.price}
-                      <AppText style={{ fontSize: 10 }}> / unit</AppText>
-                    </AppText>
-                    <AppText style={{ fontSize: 10 }}>{item.stock} available</AppText>
-                  </View>
+                </View>
+              ),
+            )}
+            <AppText variant="caption" tone="muted">
+              {t("Built together", "نبنيه معًا")}
+            </AppText>
+          </View>
+          <Button title={t("Open My Project", "فتح مشروعي")} onPress={() => open("My Project")} />
+          <ProjectPhoto projectId="reference-smart-car" />
+        </Paper>
+        <Paper>
+          <View style={s.between}>
+            <View>
+              {!!workspace.error && (
+                <View>
+                  <AppText accessibilityRole="alert">{workspace.error}</AppText>
                   <Button
-                    size="sm"
-                    title={
-                      requests[item.id] ? `Draft request · ${requests[item.id]}` : "Request to Buy"
-                    }
-                    onPress={() => {
-                      setPurchase(item);
-                      setQuantity(String(requests[item.id] ?? item.need));
-                    }}
+                    title={t("Retry loading", "إعادة التحميل")}
+                    onPress={workspace.retryLoading}
                   />
                 </View>
-              ))}
-            </ScrollView>
-            {Object.keys(requests).length > 0 && (
-              <AppText style={s.note}>
-                {Object.keys(requests).length} purchase drafts · $
-                {stock.reduce((n, x) => n + (requests[x.id] ?? 0) * x.price, 0).toFixed(2)}{" "}
-                estimated
-              </AppText>
-            )}
-          </Paper>
-          <Paper title="Coming up" icon={CalendarDays}>
-            {deadlines.map((item) => (
+              )}
+              <AppText style={s.eyebrow}>{t("MAKE TODAY COUNT", "اجعل يومك مثمرًا")}</AppText>
+              <AppText variant="heading">{t("Your focus today", "تركيزك اليوم")}</AppText>
+            </View>
+            <AppText style={s.pill}>
+              {completedToday} / {ownTasks.length}
+            </AppText>
+          </View>
+          {ownTasks.map((task, i) => {
+            const done = workspace.completed.includes(task.id);
+            return (
               <Pressable
-                key={item.name}
-                onPress={() => open(item.type === "Report" ? "Reports" : "Team")}
+                key={task.id}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: done }}
+                onPress={async () => {
+                  if (!(await workspace.toggleTask(task.id))) return;
+                  workspace.logTeamActivity(
+                    0,
+                    `${done ? "Reopened" : "Completed"} “${task.title}”`,
+                  );
+                }}
                 style={s.task}
               >
-                <View style={s.date}>
-                  <AppText style={{ fontSize: 10, color: "#849271" }}>{item.month}</AppText>
-                  <AppText weight="bold" style={{ fontSize: 23, color: "#526443" }}>
-                    {item.day}
-                  </AppText>
+                <View style={[s.check, done && { backgroundColor: "#526443" }]}>
+                  {done && <Check size={15} color="white" />}
                 </View>
                 <View style={s.fill}>
-                  <AppText weight="semibold">{item.name}</AppText>
+                  <AppText
+                    style={
+                      done ? { textDecorationLine: "line-through", color: "#8a927f" } : undefined
+                    }
+                  >
+                    {task.title}
+                  </AppText>
                   <AppText variant="caption" tone="muted">
-                    {item.type} · {item.owner}
+                    {i === 0 ? t("Design", "التصميم") : t("Documentation", "التوثيق")} ·{" "}
+                    {t("My assigned task", "مهمتي المسندة")}
                   </AppText>
                 </View>
+                <ArrowUpRight size={15} color="#839276" />
               </Pressable>
-            ))}
-          </Paper>
-          <View style={[s.paper, { backgroundColor: "#e7eef5eb" }]}>
-            <FileText color="#678cab" size={24} />
-            <AppText style={s.eyebrow}>NEEDS YOUR ATTENTION</AppText>
-            <AppText variant="heading">
-              {workspace.submitted ? "Report submitted." : "Your week, ready to share?"}
+            );
+          })}
+          <Pressable onPress={() => open("Team")} style={s.link}>
+            <AppText tone="primary">
+              {t("See the whole team’s tasks", "عرض مهام الفريق كاملة")}
             </AppText>
-            <AppText tone="muted">
-              {workspace.submitted
-                ? "Your report is marked as submitted for this session."
-                : "The weekly report is due Oct 09. Capture your progress and blockers."}
-            </AppText>
-            <Button
-              title={workspace.submitted ? "View report" : "Prepare report"}
-              onPress={() => open("Reports")}
-            />
-          </View>
-          <Paper title="Latest activity" icon={MessageSquare}>
-            {workspace.teamActivity.map((item) => (
-              <View key={item.id} style={s.task}>
-                <View style={s.metricIcon}>
-                  <CircuitBoard size={18} color="#526443" />
+            <ArrowRight size={15} color="#526443" />
+          </Pressable>
+        </Paper>
+        <Paper title={t("Available in the Workshop", "متوفر في الورشة")} icon={Package}>
+          <AppText tone="muted" variant="caption">
+            {t("Parts you can request for your next build.", "قطع يمكنك طلبها لمشروعك القادم.")}
+          </AppText>
+          <AppText style={s.pill}>{t("Sample inventory", "مخزون تجريبي")}</AppText>
+          <AppText style={s.note}>
+            {t(
+              "Sample availability · confirm stock with the workshop assistant.",
+              "توفر تجريبي · تأكد من المخزون مع مسؤول الورشة.",
+            )}
+          </AppText>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 12 }}
+          >
+            {stock.map((item) => (
+              <View key={item.id} style={s.product}>
+                <View style={s.productArt}>
+                  <CircuitBoard size={42} color="#758961" />
+                  <AppText style={s.stock}>{t("In stock", "متوفر")}</AppText>
                 </View>
-                <View style={s.fill}>
-                  <AppText weight="semibold">{item.text}</AppText>
-                  <AppText variant="caption" tone="muted">
-                    {teammates[item.owner].name} · {item.time}
+                <AppText weight="bold" style={{ fontSize: 12, minHeight: 36 }}>
+                  {item.name}
+                </AppText>
+                <AppText variant="caption" tone="muted" style={{ fontSize: 10 }}>
+                  {item.location}
+                </AppText>
+                <View style={s.between}>
+                  <AppText weight="bold" tone="primary">
+                    {ltr(`$${item.price}`)}
+                    <AppText style={{ fontSize: 12 }}> {t("/ unit", "/ للقطعة")}</AppText>
+                  </AppText>
+                  <AppText style={{ fontSize: 12 }}>
+                    {item.stock} {t("available", "متاحة")}
                   </AppText>
                 </View>
+                <Button
+                  size="sm"
+                  title={
+                    requests[item.id]
+                      ? `${t("Draft request", "مسودة طلب")} · ${requests[item.id]}`
+                      : t("Request to Buy", "طلب شراء")
+                  }
+                  onPress={() => {
+                    setPurchase(item);
+                    setQuantity(String(requests[item.id] ?? item.need));
+                  }}
+                />
               </View>
             ))}
-          </Paper>
-          <Paper title="Jump into your workspace">
-            {[
-              { name: "3D Lab", icon: FolderKanban },
-              { name: "Add issue", icon: Plus },
-              { name: "View BOM", icon: Wallet },
-              { name: "Weekly report", icon: FileText },
-            ].map((x) => (
-              <Pressable key={x.name} onPress={() => open(x.name)} style={s.link}>
-                <x.icon size={18} color="#526443" />
-                <AppText style={s.fill}>{x.name}</AppText>
-                <ArrowUpRight size={14} color="#839276" />
-              </Pressable>
-            ))}
-          </Paper>
-        </ScrollView>
-        <WorkspaceNavigation
-          role="student"
-          page="dashboard"
-          moreOpen={menu}
-          onClose={() => setMenu(false)}
-        />
-      </ImageBackground>
+          </ScrollView>
+          {Object.keys(requests).length > 0 && (
+            <AppText style={s.note}>
+              {Object.keys(requests).length} {t("purchase drafts", "مسودات شراء")} ·{" "}
+              {ltr(`$${stock.reduce((n, x) => n + (requests[x.id] ?? 0) * x.price, 0).toFixed(2)}`)}{" "}
+              {t("estimated", "تقديريًا")}
+            </AppText>
+          )}
+        </Paper>
+        <Paper title={t("Coming up", "القادم")} icon={CalendarDays}>
+          {deadlines.map((item) => (
+            <Pressable
+              key={item.name}
+              onPress={() => open(item.type === "Report" ? "Reports" : "Team")}
+              style={s.task}
+            >
+              <View style={s.date}>
+                <AppText style={{ fontSize: 12, color: "#849271" }}>
+                  {monthLabel(item.month, t)}
+                </AppText>
+                <AppText weight="bold" style={{ fontSize: 23, color: "#526443" }}>
+                  {item.day}
+                </AppText>
+              </View>
+              <View style={s.fill}>
+                <AppText weight="semibold">{item.name}</AppText>
+                <AppText variant="caption" tone="muted">
+                  {typeLabel(item.type, t)} · {item.owner}
+                </AppText>
+              </View>
+            </Pressable>
+          ))}
+        </Paper>
+        <View style={[s.paper, { backgroundColor: "#e7eef5eb" }]}>
+          <FileText color="#678cab" size={24} />
+          <AppText style={s.eyebrow}>{t("NEEDS YOUR ATTENTION", "يحتاج إلى اهتمامك")}</AppText>
+          <AppText variant="heading">
+            {workspace.submitted
+              ? t("Report submitted.", "تم تسليم التقرير.")
+              : t("Your week, ready to share?", "أسبوعك جاهز للمشاركة؟")}
+          </AppText>
+          <AppText tone="muted">
+            {workspace.submitted
+              ? t(
+                  "Your report is marked as submitted for this session.",
+                  "تقريرك مُعلّم كمسلَّم في هذه الجلسة.",
+                )
+              : t(
+                  "The weekly report is due Oct 09. Capture your progress and blockers.",
+                  "موعد التقرير الأسبوعي 9 أكتوبر. سجّل تقدمك والعوائق.",
+                )}
+          </AppText>
+          <Button
+            title={
+              workspace.submitted
+                ? t("View report", "عرض التقرير")
+                : t("Prepare report", "تحضير التقرير")
+            }
+            onPress={() => open("Reports")}
+          />
+        </View>
+        <Paper title={t("Latest activity", "آخر النشاطات")} icon={MessageSquare}>
+          {workspace.teamActivity.map((item) => (
+            <View key={item.id} style={s.task}>
+              <View style={s.metricIcon}>
+                <CircuitBoard size={18} color="#526443" />
+              </View>
+              <View style={s.fill}>
+                <AppText weight="semibold">{item.text}</AppText>
+                <AppText variant="caption" tone="muted">
+                  {teammates[item.owner].name} · {item.time}
+                </AppText>
+              </View>
+            </View>
+          ))}
+        </Paper>
+        <Paper title={t("Jump into your workspace", "انتقل إلى مساحة عملك")}>
+          {[
+            { name: "3D Lab", icon: FolderKanban },
+            { name: "Add issue", icon: Plus },
+            { name: "View BOM", icon: Wallet },
+            { name: "Weekly report", icon: FileText },
+          ].map((x) => (
+            <Pressable key={x.name} onPress={() => open(x.name)} style={s.link}>
+              <x.icon size={18} color="#526443" />
+              <AppText style={s.fill}>{navLabel(x.name)}</AppText>
+              <ArrowUpRight size={14} color="#839276" />
+            </Pressable>
+          ))}
+        </Paper>
+      </ScrollView>
       <Modal
         visible={!!purchase || !!destination}
         animationType="slide"
@@ -501,10 +528,13 @@ export default function StudentDashboard() {
         <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f8f1" }}>
           <View style={[s.between, { padding: 20 }]}>
             <AppText variant="heading">
-              {purchase ? "Workshop Purchase Request" : destination}
+              {purchase
+                ? t("Workshop Purchase Request", "طلب شراء من الورشة")
+                : navLabel(destination)}
             </AppText>
             <Pressable
-              accessibilityLabel="Close details"
+              accessibilityRole="button"
+              accessibilityLabel={t("Close", "إغلاق")}
               onPress={() => {
                 setPurchase(null);
                 setDestination("");
@@ -522,24 +552,29 @@ export default function StudentDashboard() {
               <Paper>
                 <AppText weight="bold">{purchase.name}</AppText>
                 <AppText>
-                  ${purchase.price} per unit · {purchase.stock} available
+                  {ltr(`$${purchase.price}`)} {t("per unit", "للقطعة")} · {purchase.stock}{" "}
+                  {t("available", "متاحة")}
                 </AppText>
-                <AppText>Quantity</AppText>
+                <AppText variant="label">{t("Quantity", "الكمية")}</AppText>
                 <TextInput
-                  accessibilityLabel="Quantity"
+                  accessibilityLabel={t("Quantity", "الكمية")}
                   keyboardType="number-pad"
                   value={quantity}
                   onChangeText={setQuantity}
                   style={s.input}
                 />
                 <AppText>
-                  Estimated total ${(Number(quantity) * purchase.price || 0).toFixed(2)}
+                  {t("Estimated total", "الإجمالي التقديري")}{" "}
+                  {ltr(`$${(Number(quantity) * purchase.price || 0).toFixed(2)}`)}
                 </AppText>
                 <AppText tone="muted">
-                  Prepare a local draft. No purchase or stock reservation is made.
+                  {t(
+                    "Prepare a local draft. No purchase or stock reservation is made.",
+                    "جهّز مسودة محلية. لا يتم شراء أو حجز أي مخزون.",
+                  )}
                 </AppText>
                 <Button
-                  title="Save Purchase Draft"
+                  title={t("Save Purchase Draft", "حفظ مسودة الشراء")}
                   disabled={
                     !Number.isInteger(Number(quantity)) ||
                     Number(quantity) < 1 ||
@@ -574,14 +609,14 @@ export default function StudentDashboard() {
             ) : destination === "Add issue" ? (
               <Paper>
                 <TextInput
-                  accessibilityLabel="Issue description"
-                  placeholder="Describe the issue"
+                  accessibilityLabel={t("Issue description", "وصف المشكلة")}
+                  placeholder={t("Describe the issue", "صف المشكلة")}
                   value={issue}
                   onChangeText={setIssue}
                   style={s.input}
                 />
                 <Button
-                  title="Add issue"
+                  title={t("Add issue", "إضافة مشكلة")}
                   disabled={!issue.trim()}
                   onPress={async () => {
                     if (!(await workspace.addIssue(issue.trim()))) return;
@@ -593,18 +628,23 @@ export default function StudentDashboard() {
             ) : (
               <Paper>
                 <AppText>
-                  This destination is still being matched to the original screen in Native.
+                  {t(
+                    "This destination is still being matched to the original screen in Native.",
+                    "ما زالت هذه الوجهة قيد المطابقة مع الشاشة الأصلية.",
+                  )}
                 </AppText>
                 <AppText tone="muted">
-                  The original website remains available for comparison. This is not a completed
-                  screen yet.
+                  {t(
+                    "The original website remains available for comparison. This is not a completed screen yet.",
+                    "يبقى الموقع الأصلي متاحًا للمقارنة. هذه الشاشة غير مكتملة بعد.",
+                  )}
                 </AppText>
               </Paper>
             )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </ShellFrame>
   );
 }
 const s = StyleSheet.create({

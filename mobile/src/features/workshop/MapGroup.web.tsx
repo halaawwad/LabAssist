@@ -4,21 +4,23 @@ import type { ReactNode } from "react";
 export function MapGroup({
   label,
   onPress,
+  enabled = true,
   children,
 }: {
   label: string;
   onPress: () => void;
+  enabled?: boolean;
   children: ReactNode;
 }) {
   return (
     <g
-      role="button"
-      aria-label={label}
-      tabIndex={0}
-      style={{ cursor: "pointer" }}
-      onClick={onPress}
+      role={enabled ? "button" : undefined}
+      aria-label={enabled ? label : undefined}
+      tabIndex={enabled ? 0 : undefined}
+      style={{ cursor: enabled ? "pointer" : "default" }}
+      onClick={enabled ? onPress : undefined}
       onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
+        if (enabled && (event.key === "Enter" || event.key === " ")) {
           event.preventDefault();
           onPress();
         }

@@ -10,6 +10,8 @@ import Svg, { Line, Pattern, Rect, Defs, Circle } from "react-native-svg";
 import * as DocumentPicker from "expo-document-picker";
 import { AppText, Button } from "@/components";
 import { Chips, Panel, Portrait, Ring, kit, useCopy } from "@/components/MobileKit";
+import { useStatusLabel } from "@/features/shared/reportLabels";
+import { useLanguage } from "@/i18n";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import type { Report, ReportAttachment } from "@/domain/workspace";
 import { attachmentURI, downloadAttachment } from "./attachments";
@@ -24,6 +26,8 @@ export function WeeklyReportEditor({
 }) {
   const { state, act, error: saveError } = useWorkspace();
   const t = useCopy();
+  const statusLabel = useStatusLabel();
+  const { formatDateTime } = useLanguage();
   const project = state.projects.find((p) => p.id === report.projectId)!;
   const draftFields =
     report.status === "submitted" && !report.openedBy.length
@@ -73,44 +77,62 @@ export function WeeklyReportEditor({
   const entries = [
     {
       key: "completed",
-      label: "Completed Work",
-      prompt: "What did your team build, test, or document this week?",
+      label: t("Completed Work", "العمل المنجز"),
+      prompt: t(
+        "What did your team build, test, or document this week?",
+        "ماذا بنى فريقك أو اختبر أو وثّق هذا الأسبوع؟",
+      ),
     },
     {
       key: "tasks",
-      label: "Tasks Completed",
-      prompt: "List completed tasks, one per line. Write None if no tasks were completed.",
+      label: t("Tasks Completed", "المهام المنجزة"),
+      prompt: t(
+        "List completed tasks, one per line. Write None if no tasks were completed.",
+        "اذكر المهام المنجزة، مهمة في كل سطر. اكتب لا شيء إن لم تُنجز مهام.",
+      ),
     },
     {
       key: "progress",
-      label: "Progress Description",
-      prompt: "Explain the progress represented by this percentage.",
+      label: t("Progress Description", "وصف التقدم"),
+      prompt: t(
+        "Explain the progress represented by this percentage.",
+        "اشرح التقدم الذي تمثله هذه النسبة.",
+      ),
     },
     {
       key: "delays",
-      label: "Delay Reason",
-      prompt: "What caused the delay and which work was affected?",
+      label: t("Delay Reason", "سبب التأخير"),
+      prompt: t(
+        "What caused the delay and which work was affected?",
+        "ما سبب التأخير وما العمل الذي تأثر؟",
+      ),
     },
     {
       key: "recovery",
-      label: "Recovery Plan",
-      prompt: "How will you get back on track?",
+      label: t("Recovery Plan", "خطة التعافي"),
+      prompt: t("How will you get back on track?", "كيف ستعودون إلى المسار؟"),
       optional: true,
     },
     {
       key: "problems",
-      label: "Problems",
-      prompt: "Describe technical or other blockers. Write None if there were no problems.",
+      label: t("Problems", "المشكلات"),
+      prompt: t(
+        "Describe technical or other blockers. Write None if there were no problems.",
+        "صف العوائق التقنية أو غيرها. اكتب لا شيء إن لم توجد مشكلات.",
+      ),
     },
     {
       key: "plan",
-      label: "Next Week Plan",
-      prompt: "What will you work on, who will do it, and what outcome do you expect?",
+      label: t("Next Week Plan", "خطة الأسبوع القادم"),
+      prompt: t(
+        "What will you work on, who will do it, and what outcome do you expect?",
+        "على ماذا ستعملون، ومن سينفذ، وما النتيجة المتوقعة؟",
+      ),
     },
   ];
   const validate = () => {
     if (!Number.isFinite(percent) || percent < 0 || percent > 100)
-      return "Progress must be between 0 and 100%.";
+      return t("Progress must be between 0 and 100%.", "يجب أن يكون التقدم بين 0 و100%.");
     const missing = entries
       .filter(
         (e) =>
@@ -119,7 +141,9 @@ export function WeeklyReportEditor({
           !fields[e.key]?.trim(),
       )
       .map((e) => e.label);
-    return missing.length ? `Please complete: ${missing.join(", ")}.` : "";
+    return missing.length
+      ? t(`Please complete: ${missing.join(", ")}.`, `يرجى إكمال: ${missing.join("، ")}.`)
+      : "";
   };
   async function save() {
     if (!editable) return false;
@@ -153,14 +177,24 @@ export function WeeklyReportEditor({
       return;
     }
     if (editing && !canChange) {
-      setNotice("This report has been opened for review and can no longer be edited.");
+      setNotice(
+        t(
+          "This report has been opened for review and can no longer be edited.",
+          "فُتح هذا التقرير للمراجعة ولم يعد بالإمكان تعديله.",
+        ),
+      );
       setPreview(false);
       return;
     }
     if (await act({ type: "report.publish", id: report.id, fields, attachments })) {
       setPreview(false);
       setEditing(false);
-      setNotice("Report submitted. You can edit or withdraw it until supervisor review.");
+      setNotice(
+        t(
+          "Report submitted. You can edit or withdraw it until supervisor review.",
+          "تم تسليم التقرير. يمكنك تعديله أو سحبه حتى مراجعة المشرف.",
+        ),
+      );
     }
   }
   async function attach() {
@@ -176,7 +210,12 @@ export function WeeklyReportEditor({
         (file.size ?? 0) > 5 * 1024 * 1024 ||
         !["image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain"].includes(mime)
       ) {
-        setNotice("Choose a JPG, PNG, WebP, PDF or text file under 5 MB.");
+        setNotice(
+          t(
+            "Choose a JPG, PNG, WebP, PDF or text file under 5 MB.",
+            "اختر ملف JPG أو PNG أو WebP أو PDF أو نصًا بحجم أقل من 5 MB.",
+          ),
+        );
         return;
       }
       setAttachments([
@@ -189,7 +228,7 @@ export function WeeklyReportEditor({
         },
       ]);
     } catch {
-      setNotice("Could not read this attachment.");
+      setNotice(t("Could not read this attachment.", "تعذرت قراءة هذا المرفق."));
     }
   }
   const input = (key: string) => {
@@ -198,7 +237,7 @@ export function WeeklyReportEditor({
       <View key={key} style={{ gap: 8 }}>
         <AppText weight="semibold">
           {item.label}
-          {item.optional ? " · Optional" : ""}
+          {item.optional ? ` · ${t("Optional", "اختياري")}` : ""}
         </AppText>
         <TextInput
           accessibilityLabel={item.label}
@@ -231,7 +270,7 @@ export function WeeklyReportEditor({
             {remove ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Remove ${a.name}`}
+                accessibilityLabel={t(`Remove ${a.name}`, `إزالة ${a.name}`)}
                 onPress={() => setAttachments(attachments.filter((x) => x.id !== a.id))}
                 style={s.icon}
               >
@@ -240,7 +279,7 @@ export function WeeklyReportEditor({
             ) : (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Download ${a.name}`}
+                accessibilityLabel={t(`Download ${a.name}`, `تنزيل ${a.name}`)}
                 onPress={() => downloadAttachment(a).catch((e) => setNotice(String(e)))}
                 style={s.icon}
               >
@@ -250,7 +289,7 @@ export function WeeklyReportEditor({
           </View>
         ))
       ) : (
-        <AppText tone="muted">No attachments added.</AppText>
+        <AppText tone="muted">{t("No attachments added.", "لا توجد مرفقات.")}</AppText>
       )}
     </View>
   );
@@ -284,24 +323,24 @@ export function WeeklyReportEditor({
         </View>
         <View style={s.stamp}>
           <AppText weight="bold" tone="primary">
-            {editable ? "READY TO SUBMIT" : report.status.toUpperCase()}
+            {editable ? t("READY TO SUBMIT", "جاهز للتسليم") : statusLabel(report.status)}
           </AppText>
         </View>
         <View style={s.metrics}>
           <Ring value={Number.isFinite(percent) ? percent : 0} />
           <View style={s.stats}>
             <View style={s.stat}>
-              <AppText style={s.statLabel}>Tasks reported</AppText>
+              <AppText style={s.statLabel}>{t("Tasks reported", "المهام المذكورة")}</AppText>
               <AppText style={s.number}>{tasks.length}</AppText>
             </View>
             <View style={s.stat}>
-              <AppText style={s.statLabel}>Delays</AppText>
+              <AppText style={s.statLabel}>{t("Delays", "التأخيرات")}</AppText>
               <AppText style={s.number}>
                 {fields.hasDelays === "true" ? "Reported" : "None"}
               </AppText>
             </View>
             <View style={s.stat}>
-              <AppText style={s.statLabel}>Attachments</AppText>
+              <AppText style={s.statLabel}>{t("Attachments", "المرفقات")}</AppText>
               <AppText style={s.number}>{attachments.length}</AppText>
             </View>
           </View>
@@ -325,7 +364,7 @@ export function WeeklyReportEditor({
             <AppText style={s.serif}>{item.text || "—"}</AppText>
           </View>
         ))}
-        <AppText style={s.sectionHeading}>Attached Files</AppText>
+        <AppText style={s.sectionHeading}>{t("Attached Files", "الملفات المرفقة")}</AppText>
         {files(false)}
         {report.submittedAt && (
           <AppText variant="caption" tone="muted">
@@ -334,7 +373,7 @@ export function WeeklyReportEditor({
         )}
         {report.feedback.map((f) => (
           <View key={f.id} style={{ gap: 10 }}>
-            <AppText style={s.sectionHeading}>Supervisor Feedback</AppText>
+            <AppText style={s.sectionHeading}>{t("Supervisor Feedback", "ملاحظات المشرف")}</AppText>
             <AppText style={[s.serif, { fontStyle: "italic" }]}>{f.body}</AppText>
             <AppText variant="caption" tone="muted">
               {state.users.find((u) => u.id === f.authorId)?.name} ·{" "}
@@ -347,15 +386,20 @@ export function WeeklyReportEditor({
   );
   return (
     <View style={kit.stack}>
-      <Disclosure title="Choose week & drafts">
+      <Disclosure title={t("Choose week & drafts", "اختر الأسبوع والمسودات")}>
         <Panel tint="#eef2e7">
           <View style={kit.row}>
             <CalendarDays color="#728b5d" />
-            <AppText variant="heading">Your weeks</AppText>
+            <AppText variant="heading">{t("Your weeks", "أسابيعك")}</AppText>
           </View>
-          <AppText tone="muted">One shared report per project, each week.</AppText>
+          <AppText tone="muted">
+            {t(
+              "One shared report per project, each week.",
+              "تقرير مشترك واحد لكل مشروع، كل أسبوع.",
+            )}
+          </AppText>
           <Button
-            title={`Saved Drafts (${drafts.length})`}
+            title={`${t("Saved Drafts", "المسودات المحفوظة")} (${drafts.length})`}
             variant="soft"
             onPress={() => setDraftsOpen(!draftsOpen)}
           />
@@ -364,23 +408,29 @@ export function WeeklyReportEditor({
               drafts.map((d) => (
                 <Button
                   key={d.id}
-                  title={`Week ${d.week} · Saved ${new Date(d.savedAt!).toLocaleString()}`}
+                  title={`${t("Week", "الأسبوع")} ${d.week} · ${t("Saved", "حُفظ")} ${formatDateTime(d.savedAt!)}`}
                   variant="ghost"
                   onPress={() => onSelect(d.id)}
                 />
               ))
             ) : (
               <AppText tone="muted">
-                Saved reports will appear here when you choose Save as Draft.
+                {t(
+                  "Saved reports will appear here when you choose Save as Draft.",
+                  "تظهر التقارير المحفوظة هنا عند اختيار حفظ كمسودة.",
+                )}
               </AppText>
             ))}
           <Chips
             value={report.id}
-            options={all.map((r) => ({ id: r.id, label: `Week ${r.week} · ${r.status}` }))}
+            options={all.map((r) => ({
+              id: r.id,
+              label: `${t("Week", "الأسبوع")} ${r.week} · ${statusLabel(r.status)}`,
+            }))}
             onChange={onSelect}
           />
           <Button
-            title="Start next weekly report"
+            title={t("Start next weekly report", "بدء التقرير الأسبوعي التالي")}
             variant="soft"
             onPress={async () => {
               const week = Math.max(...all.map((r) => r.week)) + 1;
@@ -391,22 +441,22 @@ export function WeeklyReportEditor({
       </Disclosure>
       <Panel>
         <AppText variant="caption" tone="primary">
-          {project.title} / WEEKLY UPDATE
+          {project.title} / {t("WEEKLY UPDATE", "التحديث الأسبوعي")}
         </AppText>
         <View style={kit.row}>
           <AppText variant="title" style={kit.grow}>
-            Week {report.week}
+            {t("Week", "الأسبوع")} {report.week}
           </AppText>
           <AppText weight="semibold" tone="primary">
-            {report.status}
+            {statusLabel(report.status)}
           </AppText>
         </View>
         <AppText tone="muted">
           {report.submittedAt
-            ? `Submitted ${new Date(report.submittedAt).toLocaleString()}`
+            ? `${t("Submitted", "سُلّم")} ${formatDateTime(report.submittedAt)}`
             : report.savedAt
-              ? `Last saved: ${new Date(report.savedAt).toLocaleString()}`
-              : "Not saved yet"}
+              ? `${t("Last saved:", "آخر حفظ:")} ${formatDateTime(report.savedAt)}`
+              : t("Not saved yet", "لم يُحفظ بعد")}
         </AppText>
       </Panel>
       {!!notice && (
@@ -417,17 +467,25 @@ export function WeeklyReportEditor({
       {canChange && (
         <Panel tint="#eaf0f7">
           <AppText weight="bold">
-            {editing ? "Editing your submitted report" : "You can still make a change"}
+            {editing
+              ? t("Editing your submitted report", "تعديل تقريرك المسلَّم")
+              : t("You can still make a change", "ما زال بإمكانك التعديل")}
           </AppText>
           <AppText tone="muted">
-            Available until supervisor review. Your submitted version stays unchanged until you
-            confirm edits.
+            {t(
+              "Available until supervisor review. Your submitted version stays unchanged until you confirm edits.",
+              "متاح حتى مراجعة المشرف. تبقى نسختك المسلّمة كما هي حتى تؤكد التعديلات.",
+            )}
           </AppText>
           {!editing && (
             <View style={kit.wrap}>
-              <Button title="Edit Submission" variant="soft" onPress={() => setEditing(true)} />
               <Button
-                title="Withdraw Submission"
+                title={t("Edit Submission", "تعديل التسليم")}
+                variant="soft"
+                onPress={() => setEditing(true)}
+              />
+              <Button
+                title={t("Withdraw Submission", "سحب التسليم")}
                 variant="ghost"
                 onPress={() => setWithdraw(true)}
               />
@@ -436,7 +494,7 @@ export function WeeklyReportEditor({
         </Panel>
       )}
       <Panel tint="#eef3e6">
-        <AppText variant="heading">Report readiness</AppText>
+        <AppText variant="heading">{t("Report readiness", "جاهزية التقرير")}</AppText>
         <View style={kit.wrap}>
           {entries
             .filter((e) => !e.optional && e.key !== "delays")
@@ -448,24 +506,36 @@ export function WeeklyReportEditor({
             ))}
         </View>
         <AppText weight="bold">
-          {Number.isFinite(percent) ? percent : 0}% · Reported project progress
+          {Number.isFinite(percent) ? percent : 0}% ·{" "}
+          {t("Reported project progress", "تقدم المشروع المذكور")}
         </AppText>
         <AppText tone="muted">
           {previousPercent !== null
-            ? `${percent - previousPercent >= 0 ? "+" : ""}${percent - previousPercent} points since the previous submitted report.`
-            : "A weekly change will appear once a previous report is submitted."}
+            ? t(
+                `${percent - previousPercent >= 0 ? "+" : ""}${percent - previousPercent} points since the previous submitted report.`,
+                `${percent - previousPercent >= 0 ? "+" : ""}${percent - previousPercent} نقطة منذ التقرير السابق المسلّم.`,
+              )
+            : t(
+                "A weekly change will appear once a previous report is submitted.",
+                "سيظهر التغير الأسبوعي بعد تسليم تقرير سابق.",
+              )}
         </AppText>
       </Panel>
       {editable ? (
         <>
           <Panel tint="#f4f7ed">
             <AppText style={s.ordinal}>01</AppText>
-            <AppText variant="heading">What we achieved</AppText>
-            <AppText tone="muted">The work, the outcomes, and the steps you finished.</AppText>
+            <AppText variant="heading">{t("What we achieved", "ما أنجزناه")}</AppText>
+            <AppText tone="muted">
+              {t(
+                "The work, the outcomes, and the steps you finished.",
+                "العمل والنتائج والخطوات التي أنهيتموها.",
+              )}
+            </AppText>
             {input("completed")}
             <View style={kit.wrap}>
               <Button
-                title="Import completed team tasks"
+                title={t("Import completed team tasks", "استيراد مهام الفريق المنجزة")}
                 variant="soft"
                 onPress={() => {
                   const completed = state.tasks.filter(
@@ -473,7 +543,10 @@ export function WeeklyReportEditor({
                   );
                   if (!completed.length) {
                     setNotice(
-                      "No completed team tasks recorded yet. You can write other completed work below.",
+                      t(
+                        "No completed team tasks recorded yet. You can write other completed work below.",
+                        "لا توجد مهام فريق منجزة بعد. يمكنك كتابة أعمال منجزة أخرى بالأسفل.",
+                      ),
                     );
                     return;
                   }
@@ -481,11 +554,16 @@ export function WeeklyReportEditor({
                     "tasks",
                     [...new Set([...tasks, ...completed.map((task) => task.title)])].join("\n"),
                   );
-                  setNotice(`${completed.length} completed team tasks imported.`);
+                  setNotice(
+                    t(
+                      `${completed.length} completed team tasks imported.`,
+                      `تم استيراد ${completed.length} من مهام الفريق المكتملة.`,
+                    ),
+                  );
                 }}
               />
               <Button
-                title="View team"
+                title={t("View team", "عرض الفريق")}
                 variant="ghost"
                 onPress={() => router.push("/native/student/team")}
               />
@@ -494,12 +572,22 @@ export function WeeklyReportEditor({
           </Panel>
           <Panel tint="#eef3f9">
             <AppText style={[s.ordinal, { color: "#6389a5" }]}>02</AppText>
-            <AppText variant="heading">Progress & blockers</AppText>
-            <AppText tone="muted">Show what moved forward, and what needs attention.</AppText>
-            <AppText weight="semibold">Project progress at week end</AppText>
+            <AppText variant="heading">{t("Progress & blockers", "التقدم والعوائق")}</AppText>
+            <AppText tone="muted">
+              {t(
+                "Show what moved forward, and what needs attention.",
+                "وضّح ما تقدّم وما يحتاج إلى اهتمام.",
+              )}
+            </AppText>
+            <AppText weight="semibold">
+              {t("Project progress at week end", "تقدم المشروع في نهاية الأسبوع")}
+            </AppText>
             <View style={kit.row}>
               <TextInput
-                accessibilityLabel="Project progress at week end"
+                accessibilityLabel={t(
+                  "Project progress at week end",
+                  "تقدم المشروع في نهاية الأسبوع",
+                )}
                 keyboardType="numeric"
                 value={fields.progressPercent}
                 onChangeText={(value) => change("progressPercent", value)}
@@ -512,12 +600,17 @@ export function WeeklyReportEditor({
             <Pressable
               accessibilityRole="checkbox"
               accessibilityState={{ checked: fields.hasDelays === "true" }}
-              accessibilityLabel="We experienced a delay this week"
+              accessibilityLabel={t(
+                "We experienced a delay this week",
+                "واجهنا تأخيرًا هذا الأسبوع",
+              )}
               onPress={() => change("hasDelays", fields.hasDelays === "true" ? "false" : "true")}
               style={kit.row}
             >
               <CheckCircle2 size={22} color={fields.hasDelays === "true" ? "#6389a5" : "#aab4bb"} />
-              <AppText style={kit.grow}>We experienced a delay this week</AppText>
+              <AppText style={kit.grow}>
+                {t("We experienced a delay this week", "واجهنا تأخيرًا هذا الأسبوع")}
+              </AppText>
             </Pressable>
             {fields.hasDelays === "true" && (
               <>
@@ -529,21 +622,37 @@ export function WeeklyReportEditor({
           </Panel>
           <Panel tint="#f5f0e8">
             <AppText style={[s.ordinal, { color: "#a58a61" }]}>03</AppText>
-            <AppText variant="heading">Next week’s plan</AppText>
-            <AppText tone="muted">Make your next steps practical and specific.</AppText>
+            <AppText variant="heading">{t("Next week’s plan", "خطة الأسبوع القادم")}</AppText>
+            <AppText tone="muted">
+              {t(
+                "Make your next steps practical and specific.",
+                "اجعل خطواتك التالية عملية ومحددة.",
+              )}
+            </AppText>
             {input("plan")}
-            <Button title="Attach evidence" variant="soft" onPress={attach} />
+            <Button title={t("Attach evidence", "إرفاق دليل")} variant="soft" onPress={attach} />
             <AppText variant="caption" tone="muted">
-              Optional · JPG, PNG, WebP, PDF or text · up to 5 MB per file
+              {t(
+                "Optional · JPG, PNG, WebP, PDF or text · up to 5 MB per file",
+                "اختياري · JPG أو PNG أو WebP أو PDF أو نص · حتى 5 MB لكل ملف",
+              )}
             </AppText>
             {files(true)}
           </Panel>
-          <AppText tone="muted">This report belongs to the whole team.</AppText>
+          <AppText tone="muted">
+            {t("This report belongs to the whole team.", "هذا التقرير للفريق كله.")}
+          </AppText>
           <View style={kit.wrap}>
-            {editing && <Button title="Save editable draft" variant="soft" onPress={save} />}
+            {editing && (
+              <Button
+                title={t("Save editable draft", "حفظ مسودة قابلة للتعديل")}
+                variant="soft"
+                onPress={save}
+              />
+            )}
             {editing ? (
               <Button
-                title="Cancel editing"
+                title={t("Cancel editing", "إلغاء التعديل")}
                 variant="soft"
                 onPress={() => {
                   setFields({
@@ -557,29 +666,39 @@ export function WeeklyReportEditor({
                 }}
               />
             ) : (
-              <Button title="Save as Draft" variant="soft" onPress={save} />
+              <Button title={t("Save as Draft", "حفظ كمسودة")} variant="soft" onPress={save} />
             )}
-            <Button title="Preview" variant="soft" onPress={review} />
-            <Button title={editing ? "Review Changes" : "Submit Report"} onPress={review} />
+            <Button title={t("Preview", "معاينة")} variant="soft" onPress={review} />
+            <Button
+              title={
+                editing
+                  ? t("Review Changes", "مراجعة التغييرات")
+                  : t("Submit Report", "تسليم التقرير")
+              }
+              onPress={review}
+            />
           </View>
         </>
       ) : (
         paper
       )}
       {!report.feedback.length && (
-        <Panel title="Supervisor Feedback">
+        <Panel title={t("Supervisor Feedback", "ملاحظات المشرف")}>
           <FileText size={24} color="#879b70" />
           <AppText tone="muted">
             {editable
-              ? "Feedback will appear here after your report is submitted and reviewed."
-              : "Waiting for supervisor review."}
+              ? t(
+                  "Feedback will appear here after your report is submitted and reviewed.",
+                  "ستظهر الملاحظات هنا بعد تسليم تقريرك ومراجعته.",
+                )
+              : t("Waiting for supervisor review.", "بانتظار مراجعة المشرف.")}
           </AppText>
         </Panel>
       )}
       {(report.history?.length ?? 0) > 1 && (
         <Panel>
           <Button
-            title={`Previous submissions (${report.history!.length - 1})`}
+            title={`${t("Previous submissions", "التسليمات السابقة")} (${report.history!.length - 1})`}
             variant="ghost"
             onPress={() => setHistory(!history)}
           />
@@ -587,7 +706,7 @@ export function WeeklyReportEditor({
             report.history!.slice(0, -1).map((v, i) => (
               <View key={v.id} style={{ gap: 8 }}>
                 <AppText weight="bold">
-                  Version {i + 1} · {new Date(v.submittedAt).toLocaleString()}
+                  {t("Version", "النسخة")} {i + 1} · {formatDateTime(v.submittedAt)}
                 </AppText>
                 <AppText>{v.fields.completed}</AppText>
               </View>
@@ -603,11 +722,11 @@ export function WeeklyReportEditor({
         <SafeAreaView style={s.modal}>
           <View style={s.modalHeading}>
             <AppText variant="heading" style={kit.grow}>
-              Review weekly report
+              {t("Review weekly report", "مراجعة التقرير الأسبوعي")}
             </AppText>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Close weekly preview"
+              accessibilityLabel={t("Close weekly preview", "إغلاق المعاينة")}
               onPress={() => setPreview(false)}
               style={s.icon}
             >
@@ -627,8 +746,19 @@ export function WeeklyReportEditor({
             {paper}
           </ScrollView>
           <View style={s.modalFooter}>
-            <Button title="Back to editing" variant="soft" onPress={() => setPreview(false)} />
-            <Button title={editing ? "Confirm Changes" : "Confirm Submission"} onPress={submit} />
+            <Button
+              title={t("Back to editing", "العودة إلى التعديل")}
+              variant="soft"
+              onPress={() => setPreview(false)}
+            />
+            <Button
+              title={
+                editing
+                  ? t("Confirm Changes", "تأكيد التغييرات")
+                  : t("Confirm Submission", "تأكيد التسليم")
+              }
+              onPress={submit}
+            />
           </View>
         </SafeAreaView>
       </Modal>
@@ -640,18 +770,32 @@ export function WeeklyReportEditor({
       >
         <View style={s.overlay}>
           <Panel>
-            <AppText variant="heading">Withdraw this submission?</AppText>
-            <AppText>
-              Your report will return to Draft. Your writing and attachments will stay.
+            <AppText variant="heading">
+              {t("Withdraw this submission?", "سحب هذا التسليم؟")}
             </AppText>
-            <Button title="Keep submission" variant="soft" onPress={() => setWithdraw(false)} />
+            <AppText>
+              {t(
+                "Your report will return to Draft. Your writing and attachments will stay.",
+                "سيعود تقريرك إلى مسودة، وتبقى كتابتك ومرفقاتك.",
+              )}
+            </AppText>
             <Button
-              title="Confirm withdrawal"
+              title={t("Keep submission", "الإبقاء على التسليم")}
+              variant="soft"
+              onPress={() => setWithdraw(false)}
+            />
+            <Button
+              title={t("Confirm withdrawal", "تأكيد السحب")}
               onPress={async () => {
                 if (await act({ type: "report.withdraw", id: report.id })) {
                   setWithdraw(false);
                   setEditing(false);
-                  setNotice("Submission withdrawn. Your report is saved as a draft.");
+                  setNotice(
+                    t(
+                      "Submission withdrawn. Your report is saved as a draft.",
+                      "تم سحب التسليم وحفظ تقريرك كمسودة.",
+                    ),
+                  );
                 }
               }}
             />
