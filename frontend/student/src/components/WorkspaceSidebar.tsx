@@ -1,3 +1,4 @@
+import { apiMode, logoutWeb } from "../../../../shared/auth/web-session";
 import { NotificationBell } from "@/components/NotificationsPanel";
 import { LabAssistBrand } from "../../../../shared/web/LabAssistBrand";
 import { useNavigate } from "@tanstack/react-router";
@@ -100,6 +101,10 @@ export function WorkspaceSidebar({
           variant="ghost"
           className="w-full justify-start gap-3 text-muted-foreground"
           onClick={() => {
+            if (apiMode(import.meta.env)) {
+              void logoutWeb(import.meta.env);
+              return;
+            }
             endDemoSession("student");
             window.location.assign(sharedLoginUrl("student", import.meta.env, true).href);
           }}
