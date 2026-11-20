@@ -1,3 +1,4 @@
+import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import type { ReactElement, ReactNode } from "react";
 import {
   KeyboardAvoidingView,
@@ -62,9 +63,10 @@ export function ScreenContainer({
       edges={/^\/native\/(student|supervisor|workshop)\//.test(path) ? [] : edges}
       style={[
         styles.safeArea,
-        { direction: dir },
+        { ...layoutDirection(dir) },
         path.startsWith("/native/") && { backgroundColor: "transparent" },
       ]}
+      {...directionProps(dir)}
     >
       {path.startsWith("/student") && (
         <>

@@ -1,3 +1,4 @@
+import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { MobileModal as Modal } from "@/components/MobileModal";
 import { useState } from "react";
@@ -85,7 +86,11 @@ export function WorkspaceNavigation({
   ];
   return (
     <>
-      <View accessibilityRole="tablist" style={[s.tabs, isRTL && s.reverse]}>
+      <View
+        {...directionProps("ltr")}
+        accessibilityRole="tablist"
+        style={[s.tabs, isRTL && s.reverse]}
+      >
         {tabs.map((item) => (
           <Pressable
             key={item.id}
@@ -157,7 +162,7 @@ export function WorkspaceNavigation({
 }
 const s = StyleSheet.create({
   tabs: {
-    direction: "ltr",
+    ...layoutDirection("ltr"),
     flexDirection: "row",
     flexShrink: 0,
     backgroundColor: "#fffffff5",
@@ -165,7 +170,7 @@ const s = StyleSheet.create({
     borderColor: "#e1e7d9",
     padding: 4,
   },
-  reverse: { direction: "ltr", flexDirection: "row-reverse" },
+  reverse: { ...layoutDirection("ltr"), flexDirection: "row-reverse" },
   tab: {
     flex: 1,
     minHeight: 56,

@@ -1,3 +1,4 @@
+import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import { LabAssistBrand } from "@/components/LabAssistBrand";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { WorkspaceNavigation, navigationLabel } from "./WorkspaceNavigation";
@@ -65,11 +66,18 @@ export function NativeScreen({ role, page }: { role: Role; page: string }) {
       </View>
     );
   return (
-    <SafeAreaView style={[s.root, { direction: isRTL ? "rtl" : "ltr" }]} edges={["top", "bottom"]}>
+    <SafeAreaView
+      style={[s.root, { ...layoutDirection(isRTL ? "rtl" : "ltr") }]}
+      edges={["top", "bottom"]}
+      {...directionProps(isRTL ? "rtl" : "ltr")}
+    >
       <ImageBackground source={preferences.background ? background : undefined} style={s.fill}>
         <View style={s.wash} />
         {page !== "messages" && (
-          <View style={[s.header, isRTL && { flexDirection: "row-reverse" }]}>
+          <View
+            {...directionProps("ltr")}
+            style={[s.header, isRTL && { flexDirection: "row-reverse" }]}
+          >
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={language === "ar" ? "رجوع" : "Back"}
@@ -160,7 +168,7 @@ const s = StyleSheet.create({
   fill: { flex: 1, minWidth: 0 },
   wash: { position: "absolute", inset: 0, backgroundColor: "#f7f8f159" },
   header: {
-    direction: "ltr",
+    ...layoutDirection("ltr"),
     flexDirection: "row",
     alignItems: "center",
     padding: 12,

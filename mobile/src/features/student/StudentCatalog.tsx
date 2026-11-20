@@ -1,3 +1,4 @@
+import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import { MobileInput as TextInput } from "@/components/MobileInput";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { MobileModal as Modal } from "@/components/MobileModal";
@@ -116,7 +117,7 @@ export function CatalogPanel() {
     router.push("/native/student/lab");
   };
   return (
-    <View style={[s.stack, { direction: dir }]}>
+    <View style={[s.stack, { ...layoutDirection(dir) }]} {...directionProps(dir)}>
       <View style={s.search}>
         <Search size={21} color={colors.primary} />
         <TextInput
@@ -319,7 +320,10 @@ export function CatalogPanel() {
         onRequestClose={close}
       >
         {selected && (
-          <SafeAreaView style={[s.detailRoot, { direction: dir }]}>
+          <SafeAreaView
+            style={[s.detailRoot, { ...layoutDirection(dir) }]}
+            {...directionProps(dir)}
+          >
             <View style={s.detailHeader}>
               <Pressable
                 accessibilityRole="button"

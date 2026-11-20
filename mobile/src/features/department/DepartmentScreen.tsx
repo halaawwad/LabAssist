@@ -1,3 +1,4 @@
+import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import { MobileInput as TextInput } from "@/components/MobileInput";
 import { LabAssistBrand } from "@/components/LabAssistBrand";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
@@ -54,7 +55,8 @@ function Sheet({
       }}
     >
       <SafeAreaView
-        style={{ flex: 1, backgroundColor: "#fafbf7", direction: isRTL ? "rtl" : "ltr" }}
+        style={{ flex: 1, backgroundColor: "#fafbf7", ...layoutDirection(isRTL ? "rtl" : "ltr") }}
+        {...directionProps(isRTL ? "rtl" : "ltr")}
       >
         <ScrollView
           automaticallyAdjustKeyboardInsets
@@ -297,7 +299,9 @@ export default function DepartmentScreen() {
         next.filter((a) => a.role === "workshop" && effectiveAccountStatus(a) !== "DISABLED")
           .length > 1
       ) {
-        setError(t("Disable the current workshop manager first.", "عطّل مدير الورشة الحالي أولًا."));
+        setError(
+          t("Disable the current workshop manager first.", "عطّل مدير الورشة الحالي أولًا."),
+        );
         return;
       }
       if (await commit({ accounts: next })) {
@@ -355,7 +359,8 @@ export default function DepartmentScreen() {
       style={{ flex: 1, overflow: "hidden" }}
     >
       <SafeAreaView
-        style={{ flex: 1, backgroundColor: "#ffffffb8", direction: isRTL ? "rtl" : "ltr" }}
+        style={{ flex: 1, backgroundColor: "#ffffffb8", ...layoutDirection(isRTL ? "rtl" : "ltr") }}
+        {...directionProps(isRTL ? "rtl" : "ltr")}
       >
         <View style={[kit.row, { padding: 12, flexWrap: "nowrap", gap: 8 }]}>
           <Pressable
@@ -648,7 +653,12 @@ export default function DepartmentScreen() {
                 onRequestClose={() => setConversationOpen(false)}
               >
                 <SafeAreaView
-                  style={{ flex: 1, backgroundColor: "#fff", direction: isRTL ? "rtl" : "ltr" }}
+                  style={{
+                    flex: 1,
+                    backgroundColor: "#fff",
+                    ...layoutDirection(isRTL ? "rtl" : "ltr"),
+                  }}
+                  {...directionProps(isRTL ? "rtl" : "ltr")}
                 >
                   <View
                     style={[kit.row, { padding: 12, borderBottomWidth: 1, borderColor: "#e5eadf" }]}
@@ -878,8 +888,9 @@ export default function DepartmentScreen() {
               flex: 1,
               flexDirection: "row",
               backgroundColor: "#14261755",
-              direction: isRTL ? "rtl" : "ltr",
+              ...layoutDirection(isRTL ? "rtl" : "ltr"),
             }}
+            {...directionProps(isRTL ? "rtl" : "ltr")}
           >
             <SafeAreaView
               style={{

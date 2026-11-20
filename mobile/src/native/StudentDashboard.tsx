@@ -1,3 +1,4 @@
+import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import { useLanguage } from "@/i18n";
 import { LabAssistBrand } from "@/components/LabAssistBrand";
 import { MobileInput as TextInput } from "@/components/MobileInput";
@@ -171,7 +172,11 @@ export default function StudentDashboard() {
   const completedToday = ownTasks.filter((task) => workspace.completed.includes(task.id)).length;
   if (!ready) return null;
   return (
-    <SafeAreaView style={[s.root, { direction: isRTL ? "rtl" : "ltr" }]} edges={["top", "bottom"]}>
+    <SafeAreaView
+      style={[s.root, { ...layoutDirection(isRTL ? "rtl" : "ltr") }]}
+      edges={["top", "bottom"]}
+      {...directionProps(isRTL ? "rtl" : "ltr")}
+    >
       <ImageBackground
         source={require("../../assets/web/project-white-background.png")}
         style={s.fill}

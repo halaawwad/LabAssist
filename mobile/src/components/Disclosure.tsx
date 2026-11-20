@@ -1,3 +1,4 @@
+import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { useState, type ReactNode } from "react";
 import { View } from "react-native";
@@ -41,7 +42,7 @@ export function Disclosure({
         }}
         style={{
           minHeight: 48,
-          direction: "ltr",
+          ...layoutDirection("ltr"),
           flexDirection: isRTL ? "row-reverse" : "row",
           alignItems: "center",
           gap: 12,
@@ -49,6 +50,7 @@ export function Disclosure({
           borderColor: "#e7ece2",
           paddingVertical: 8,
         }}
+        {...directionProps("ltr")}
       >
         <AppText weight="semibold" style={{ flex: 1, minWidth: 0 }}>
           {label}

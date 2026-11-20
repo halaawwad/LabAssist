@@ -1,3 +1,4 @@
+import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import { MobileModal as Modal } from "@/components/MobileModal";
 import { useMemo, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
@@ -147,7 +148,8 @@ export function DepartmentImport({
         }}
       >
         <SafeAreaView
-          style={{ flex: 1, backgroundColor: "#fafbf7", direction: isRTL ? "rtl" : "ltr" }}
+          style={{ flex: 1, backgroundColor: "#fafbf7", ...layoutDirection(isRTL ? "rtl" : "ltr") }}
+          {...directionProps(isRTL ? "rtl" : "ltr")}
         >
           <ScrollView
             automaticallyAdjustKeyboardInsets

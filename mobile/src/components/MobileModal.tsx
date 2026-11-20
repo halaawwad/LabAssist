@@ -1,3 +1,4 @@
+import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import { KeyboardAvoidingView, Modal, Platform, View, type ModalProps } from "react-native";
 import { useLanguage } from "@/i18n";
 
@@ -15,8 +16,9 @@ export function MobileModal({ children, ...props }: ModalProps) {
             flex: 1,
             minHeight: 0,
             backgroundColor: props.transparent ? "transparent" : "#fff",
-            direction: dir,
+            ...layoutDirection(dir),
           }}
+          {...directionProps(dir)}
         >
           {children}
         </View>

@@ -1,3 +1,4 @@
+import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import { useLanguage } from "@/i18n";
 import { MobileInput as TextInput } from "@/components/MobileInput";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
@@ -363,8 +364,9 @@ export function NativeMessages({
   );
   return (
     <SafeAreaView
-      style={[s.root, { direction: isRTL ? "rtl" : "ltr" }]}
+      style={[s.root, { ...layoutDirection(isRTL ? "rtl" : "ltr") }]}
       edges={embedded ? [] : ["top", "bottom"]}
+      {...directionProps(isRTL ? "rtl" : "ltr")}
     >
       <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ImageBackground
