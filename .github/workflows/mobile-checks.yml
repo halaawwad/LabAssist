@@ -31,6 +31,8 @@ jobs:
           cache: npm
           cache-dependency-path: mobile/package-lock.json
       - run: npm ci --workspaces=false
+      - name: Resolve dependencies for shared sources
+        run: ln -s "$PWD/node_modules" ../node_modules
       - run: npm run typecheck
       - run: npm test
       - name: Verify iOS JavaScript bundle
