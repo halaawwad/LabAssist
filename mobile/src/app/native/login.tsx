@@ -1,3 +1,4 @@
+import { layoutDirection, directionProps } from "@/i18n/layoutDirection";
 import { MobileInput as TextInput } from "@/components/MobileInput";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { MobileModal as Modal } from "@/components/MobileModal";
@@ -38,6 +39,7 @@ import { router } from "@/native/router";
 import { LabAssistBrand } from "@/components/LabAssistBrand";
 import { sessionHome, useNativeSession } from "@/state/NativeSession";
 import { demoStudents } from "../../../../shared/web/domain";
+import { authMessage, demoMode } from "@/features/auth/client";
 const roles = [
   {
     id: "student",
@@ -117,12 +119,13 @@ export default function NativeLogin() {
     animation.start();
     return () => animation.stop();
   }, [glow, preferences.motion]);
+  const availableRoles = demoMode ? roles : roles.filter((r) => r.id !== "department");
   const selected = roles.find((r) => r.id === role)!,
     RoleIcon = selected.icon;
   async function login() {
     if (submitting.current) return;
     const identifier = account.trim().toLowerCase();
-    const legacyStudentDemo = role === "student" && identifier === "noor@demo.com";
+    const legacyStudentDemo = demoMode && role === "student" && identifier === "noor@demo.com";
     if (
       (role === "student" && !legacyStudentDemo && !/^s\d{8}@stu\.najah\.edu$/.test(identifier)) ||
       (role === "supervisor" && !/^\d{4}$/.test(identifier)) ||
@@ -146,7 +149,10 @@ export default function NativeLogin() {
       );
       return;
     }
-    if ((!legacyStudentDemo && identifier !== selected.account) || password !== "Noor123!") {
+    if (
+      demoMode &&
+      ((!legacyStudentDemo && identifier !== selected.account) || password !== "Noor123!")
+    ) {
       setError(
         copy(
           "Check your sign-in details and selected role.",
@@ -159,13 +165,17 @@ export default function NativeLogin() {
     setBusy(true);
     setError("");
     try {
-      await signIn(role as Parameters<typeof signIn>[0]);
+      await signIn(role as Parameters<typeof signIn>[0], identifier, password);
       if (role !== "department") selectRole(role as "student" | "supervisor" | "workshop");
       Keyboard.dismiss();
       router.replace(
         sessionHome(role as Parameters<typeof signIn>[0]) as import("expo-router").Href,
       );
-    } catch {
+    } catch (error) {
+      if (!demoMode) {
+        setError(authMessage(error, ar));
+        return;
+      }
       setError(
         copy("Could not save your sign-in. Please retry.", "تعذّر حفظ تسجيل الدخول. أعد المحاولة."),
       );
@@ -187,7 +197,7 @@ export default function NativeLogin() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={s.content}
         >
-          <View style={[s.top, ar && s.reverse]}>
+          <View {...directionProps("ltr")} style={[s.top, ar && s.reverse]}>
             <LabAssistBrand />
             <LanguageToggle compact />
           </View>
@@ -261,6 +271,7 @@ export default function NativeLogin() {
               accessibilityLabel={copy("Choose your role", "اختيار الدور")}
               disabled={busy}
               onPress={() => setPicker(true)}
+              {...directionProps("ltr")}
               style={[s.role, ar && s.reverse]}
             >
               <View style={s.roleIcon}>
@@ -381,26 +392,36 @@ export default function NativeLogin() {
                 style={ar ? { transform: [{ rotate: "180deg" }] } : undefined}
               />
             </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy}
-              onPress={() => {
-                setAccount(selected.account);
-                setPassword("Noor123!");
-                setError("");
-              }}
-              style={s.demo}
-            >
-              <AppText style={{ fontSize: 13, color: "#60734e" }}>
-                {copy("Try with demo details", "جرّب بيانات الدخول التجريبية")}
+            {demoMode && (
+              <Pressable
+                accessibilityRole="button"
+                disabled={busy}
+                onPress={() => {
+                  setAccount(selected.account);
+                  setPassword("Noor123!");
+                  setError("");
+                }}
+                style={s.demo}
+              >
+                <AppText style={{ fontSize: 13, color: "#60734e" }}>
+                  {copy("Try with demo details", "جرّب بيانات الدخول التجريبية")}
+                </AppText>
+              </Pressable>
+            )}
+            <Pressable onPress={() => router.push("/native/forgot-password")}>
+              <AppText style={{ color: "#526443", textAlign: "center", padding: 10 }}>
+                {copy("Forgot password?", "نسيت كلمة المرور؟")}
               </AppText>
             </Pressable>
-            <AppText variant="caption" tone="muted">
-              {copy(
-                `Demo access: ${selected.account} · Noor123!`,
-                `دخول تجريبي: ${selected.account} · Noor123!`,
-              )}
-            </AppText>
+
+            {demoMode && (
+              <AppText variant="caption" tone="muted">
+                {copy(
+                  `Demo access: ${selected.account} · Noor123!`,
+                  `دخول تجريبي: ${selected.account} · Noor123!`,
+                )}
+              </AppText>
+            )}
           </View>
           <View style={s.footer}>
             <View style={s.dot} />
@@ -429,7 +450,7 @@ export default function NativeLogin() {
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ gap: 13 }}
             >
-              <View style={[s.top, ar && s.reverse]}>
+              <View {...directionProps("ltr")} style={[s.top, ar && s.reverse]}>
                 <AppText variant="heading">
                   {copy("Choose your workspace", "اختار مساحة عملك")}
                 </AppText>
@@ -447,7 +468,7 @@ export default function NativeLogin() {
                   <X color="#526443" size={22} />
                 </Pressable>
               </View>
-              {roles.map((r) => {
+              {availableRoles.map((r) => {
                 const Icon = r.icon;
                 return (
                   <Pressable
@@ -494,7 +515,7 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f7f7f0" },
   content: { flexGrow: 1, padding: 22, gap: 22, paddingBottom: 20 },
   top: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
-  reverse: { direction: "ltr", flexDirection: "row-reverse" },
+  reverse: { ...layoutDirection("ltr"), flexDirection: "row-reverse" },
   brand: { flexDirection: "row", alignItems: "center", gap: 9 },
   logo: {
     width: 36,
