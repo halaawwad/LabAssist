@@ -1,4 +1,4 @@
-﻿import { identity, Role } from "../src/common/security/identity";
+import { identity, Role } from "../../src/common/security/identity";
 describe("Account identity rules", () => {
   it("derives the exact student email from eight digits", () =>
     expect(

@@ -11,11 +11,14 @@
     "prisma:generate": "prisma generate",
     "db:baseline": "node tools/baseline.cjs",
     "db:bootstrap": "tsx tools/bootstrap.ts",
-    "test:unit": "jest --runInBand test/identity.spec.ts",
+    "test:unit": "jest --runInBand test/unit",
     "db:prepare": "node tools/prepare.cjs",
     "db:migrate": "prisma migrate deploy",
     "db:verify-baseline": "node tools/verify-baseline.cjs",
-    "db:demo:create": "node tools/demo.cjs"
+    "db:demo:create": "node tools/demo.cjs",
+    "test:contracts": "jest --runInBand test/contracts",
+    "test:integration": "node tools/test.cjs --runTestsByPath test/integration/auth.spec.ts",
+    "test:load": "k6 run test/load/auth.k6.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.10",

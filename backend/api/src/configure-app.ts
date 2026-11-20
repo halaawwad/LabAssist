@@ -1,12 +1,22 @@
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import helmet from "helmet";
+import type { ServerResponse } from "node:http";
 import { ApiErrors } from "./common/filters/api-errors.filter";
-export function configureApp(app: INestApplication) {
+import { requestTracing } from "./common/middleware/request-tracing";
+export function configureApp(
+  app: INestApplication,
+  options: { origins?: string[]; logRequest?: (line: string) => void } = {},
+) {
   app.setGlobalPrefix("v1");
   app.use(helmet());
+  app.use(requestTracing(options.logRequest));
+  app.use((_request: unknown, response: ServerResponse, next: () => void) => {
+    response.setHeader("Cache-Control", "no-store");
+    next();
+  });
   app.enableCors({
-    origin: (process.env.CORS_ORIGINS ?? "http://localhost:8081").split(","),
+    origin: options.origins ?? (process.env.CORS_ORIGINS ?? "http://localhost:8081").split(","),
     credentials: false,
   });
   app.useGlobalPipes(

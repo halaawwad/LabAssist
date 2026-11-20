@@ -1,12 +1,12 @@
-﻿import "reflect-metadata";
+import "reflect-metadata";
 import request from "supertest";
 import { randomBytes, createHash } from "node:crypto";
 import * as argon2 from "argon2";
 import { Test } from "@nestjs/testing";
-import { AppModule } from "../src/app.module";
-import { configureApp } from "../src/configure-app";
-import { Database } from "../src/database/database.service";
-import { Mailer } from "../src/mail/services/mailer.service";
+import { AppModule } from "../../src/app.module";
+import { configureApp } from "../../src/configure-app";
+import { Database } from "../../src/database/database.service";
+import { Mailer } from "../../src/mail/services/mailer.service";
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 const password = "Noor123!Secure";
 describe("Sprint 1 real PostgreSQL API", () => {
@@ -23,7 +23,7 @@ describe("Sprint 1 real PostgreSQL API", () => {
         },
       })
       .compile();
-    app = configureApp(module.createNestApplication());
+    app = configureApp(module.createNestApplication(), { logRequest: () => {} });
     await app.init();
     db = app.get(Database);
     await db.$executeRawUnsafe("TRUNCATE labassist_student.accounts CASCADE");
@@ -235,5 +235,161 @@ describe("Sprint 1 real PostgreSQL API", () => {
     expect(
       (await post("/auth/activate", { token, email: pending.body.email, password })).status,
     ).toBe(201);
+  });
+  it("expired access requires refresh, rotation invalidates old access, and expired refresh is refused", async () => {
+    const login = await post("/auth/login", { role: "SUPERVISOR", identifier: "1024", password });
+    expect(login.status).toBe(201);
+    await db.$executeRaw`UPDATE labassist_student.auth_sessions SET access_expires_at=now()-interval '1 minute' WHERE access_hash=${hash(login.body.accessToken)}`;
+    await request(app.getHttpServer())
+      .get("/v1/auth/me")
+      .set("Authorization", "Bearer " + login.body.accessToken)
+      .expect(401);
+    const rotated = await post("/auth/refresh", { refreshToken: login.body.refreshToken });
+    expect(rotated.status).toBe(201);
+    await request(app.getHttpServer())
+      .get("/v1/auth/me")
+      .set("Authorization", "Bearer " + rotated.body.accessToken)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get("/v1/auth/me")
+      .set("Authorization", "Bearer " + login.body.accessToken)
+      .expect(401);
+    await db.$executeRaw`UPDATE labassist_student.auth_sessions SET expires_at=now()-interval '1 minute' WHERE refresh_hash=${hash(rotated.body.refreshToken)}`;
+    expect((await post("/auth/refresh", { refreshToken: rotated.body.refreshToken })).status).toBe(
+      401,
+    );
+  });
+  it("all three non-head roles are denied account administration even with valid sessions", async () => {
+    for (const [role, identifier, pw] of [
+      ["STUDENT", student.email, "NewPassword123!"],
+      ["SUPERVISOR", "1024", password],
+      ["WORKSHOP_MANAGER", "10001", password],
+    ]) {
+      const login = await post("/auth/login", { role, identifier, password: pw });
+      expect(login.status).toBe(201);
+      const bearer = "Bearer " + login.body.accessToken;
+      await request(app.getHttpServer())
+        .get("/v1/accounts")
+        .set("Authorization", bearer)
+        .expect(403);
+      await request(app.getHttpServer())
+        .patch("/v1/accounts/" + student.id + "/status")
+        .set("Authorization", bearer)
+        .send({ status: "DISABLED" })
+        .expect(403);
+      expect(
+        (await post("/accounts/" + student.id + "/invitation", {}, login.body.accessToken)).status,
+      ).toBe(403);
+    }
+  });
+  it("disabling an account revokes all sessions and re-enabling never revives them", async () => {
+    const sessions = await Promise.all(
+      [1, 2].map(() =>
+        post("/auth/login", {
+          role: "SUPERVISOR",
+          identifier: "1024",
+          password,
+        }),
+      ),
+    );
+    const id = sessions[0].body.account.id;
+    await request(app.getHttpServer())
+      .patch("/v1/accounts/" + id + "/status")
+      .set("Authorization", "Bearer " + headAccess)
+      .send({ status: "DISABLED" })
+      .expect(200);
+    for (const s of sessions) {
+      await request(app.getHttpServer())
+        .get("/v1/auth/me")
+        .set("Authorization", "Bearer " + s.body.accessToken)
+        .expect(401);
+      expect((await post("/auth/refresh", { refreshToken: s.body.refreshToken })).status).toBe(401);
+    }
+    await request(app.getHttpServer())
+      .patch("/v1/accounts/" + id + "/status")
+      .set("Authorization", "Bearer " + headAccess)
+      .send({ status: "ACTIVE" })
+      .expect(200);
+    expect(
+      (await post("/auth/refresh", { refreshToken: sessions[0].body.refreshToken })).status,
+    ).toBe(401);
+    expect(
+      (await post("/auth/login", { role: "SUPERVISOR", identifier: "1024", password })).status,
+    ).toBe(201);
+  });
+  it("concurrent password-reset consumers have one winner and revoke every prior session", async () => {
+    const login = await post("/auth/login", { role: "SUPERVISOR", identifier: "1024", password });
+    const email = login.body.account.email;
+    await post("/auth/forgot-password", { email });
+    const token = new URL(mail.filter((m) => m.email === email).at(-1)!.url).searchParams.get(
+      "token",
+    );
+    const passwords = ["WinnerPassword123!", "OtherPassword123!"];
+    const results = await Promise.all(
+      passwords.map((password) => post("/auth/reset-password", { token, password })),
+    );
+    expect(results.map((r) => r.status).sort()).toEqual([201, 400]);
+    const winner = results.findIndex((r) => r.status === 201);
+    const [saved] = await db.$queryRaw<
+      any[]
+    >`SELECT password_hash FROM labassist_student.accounts WHERE id=${login.body.account.id}::uuid`;
+    expect(await argon2.verify(saved.password_hash, passwords[winner])).toBe(true);
+    expect(await argon2.verify(saved.password_hash, passwords[1 - winner])).toBe(false);
+    expect((await post("/auth/refresh", { refreshToken: login.body.refreshToken })).status).toBe(
+      401,
+    );
+    expect(
+      (
+        await post("/auth/login", {
+          role: "SUPERVISOR",
+          identifier: "1024",
+          password: passwords[winner],
+        })
+      ).status,
+    ).toBe(201);
+  });
+  it("sets browser security headers and only grants CORS to configured origins", async () => {
+    const origin = (process.env.CORS_ORIGINS ?? "http://localhost:8081").split(",")[0];
+    const allowed = await request(app.getHttpServer())
+      .get("/v1/health")
+      .set("Origin", origin)
+      .expect(200);
+    expect(allowed.headers["access-control-allow-origin"]).toBe(origin);
+    expect(allowed.headers["x-content-type-options"]).toBe("nosniff");
+    expect(allowed.headers["content-security-policy"]).toContain("default-src 'self'");
+    const blocked = await request(app.getHttpServer())
+      .get("/v1/health")
+      .set("Origin", "https://untrusted.invalid");
+    expect(blocked.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+  it("prevents browsers from caching account identities and authentication failures", async () => {
+    await request(app.getHttpServer())
+      .get("/v1/auth/me")
+      .set("Authorization", "Bearer " + headAccess)
+      .expect(200)
+      .expect("Cache-Control", "no-store");
+    await request(app.getHttpServer())
+      .get("/v1/auth/me")
+      .expect(401)
+      .expect("Cache-Control", "no-store");
+  });
+  it("correlates API errors with a safe request ID and documents response DTOs in Swagger", async () => {
+    const id = "7c195459-977d-449d-aab2-5cc71a724574";
+    const invalid = await request(app.getHttpServer())
+      .post("/v1/auth/login")
+      .set("X-Request-ID", id)
+      .send({ password: "do-not-echo-this" })
+      .expect(400);
+    expect(invalid.headers["x-request-id"]).toBe(id);
+    expect(invalid.body.requestId).toBe(id);
+    expect(JSON.stringify(invalid.body)).not.toContain("do-not-echo-this");
+    const docs = await request(app.getHttpServer()).get("/docs-json").expect(200);
+    expect(
+      docs.body.components.schemas.AccountResponseDto.properties.password_hash,
+    ).toBeUndefined();
+    expect(
+      docs.body.paths["/v1/auth/login"].post.responses["201"].content["application/json"].schema
+        .$ref,
+    ).toContain("SessionResponseDto");
   });
 });
