@@ -1,5 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiTags, ApiCreatedResponse, ApiOkResponse } from "@nestjs/swagger";
+import { AccountResponseDto } from "../../common/dto/account-response.dto";
+import { SessionResponseDto } from "../dto/session-response.dto";
 import { SessionGuard } from "../../auth/guards/session.guard";
 
 import { AuthService } from "../services/auth.service";
@@ -8,13 +10,15 @@ import { ActivateDto, ForgotDto, LoginDto, PasswordDto, RefreshDto } from "../dt
 @Controller("auth")
 export class AuthController {
   constructor(private auth: AuthService) {}
-  @Post("login") login(@Body() body: LoginDto) {
+  @ApiCreatedResponse({ type: SessionResponseDto }) @Post("login") login(@Body() body: LoginDto) {
     return this.auth.login(body);
   }
   @Post("activate") activate(@Body() body: ActivateDto) {
     return this.auth.activate(body);
   }
-  @Post("refresh") refresh(@Body() body: RefreshDto) {
+  @ApiCreatedResponse({ type: SessionResponseDto }) @Post("refresh") refresh(
+    @Body() body: RefreshDto,
+  ) {
     return this.auth.refresh(body.refreshToken);
   }
   @Post("forgot-password") @HttpCode(202) forgot(@Body() body: ForgotDto) {
@@ -26,7 +30,11 @@ export class AuthController {
   @ApiBearerAuth() @UseGuards(SessionGuard) @Post("logout") logout(@Req() req: any) {
     return this.auth.logout(req.sessionId);
   }
-  @ApiBearerAuth() @UseGuards(SessionGuard) @Get("me") me(@Req() req: any) {
+  @ApiOkResponse({ type: AccountResponseDto })
+  @ApiBearerAuth()
+  @UseGuards(SessionGuard)
+  @Get("me")
+  me(@Req() req: any) {
     return req.actor;
   }
 }

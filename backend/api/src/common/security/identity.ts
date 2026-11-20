@@ -1,33 +1,19 @@
 ﻿import { BadRequestException } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
+import { AccountResponseDto } from "../dto/account-response.dto";
+import type { AccountResponse } from "../../../../../shared/contracts/auth";
 export enum Role {
   STUDENT = "STUDENT",
   SUPERVISOR = "SUPERVISOR",
   WORKSHOP_MANAGER = "WORKSHOP_MANAGER",
   DEPARTMENT_HEAD = "DEPARTMENT_HEAD",
 }
-export type Actor = {
-  id: string;
-  role: Role;
-  fullName: string;
-  email: string;
-  universityNumber: string | null;
-  employeeNumber: string | null;
-  status: string;
-};
+export type Actor = AccountResponse;
 export const digest = (value: string) => createHash("sha256").update(value).digest("hex");
 export const secret = () => randomBytes(32).toString("base64url");
 export const safeColumns = "id,role,full_name,email,university_number,employee_number,status";
 export function actor(row: any): Actor {
-  return {
-    id: row.id,
-    role: row.role,
-    fullName: row.full_name,
-    email: row.email,
-    universityNumber: row.university_number,
-    employeeNumber: row.employee_number,
-    status: row.status,
-  };
+  return AccountResponseDto.from(row);
 }
 export function identity(input: {
   role: Role;

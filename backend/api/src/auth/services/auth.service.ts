@@ -4,6 +4,7 @@ import { MailQueue } from "../../mail/services/mail-queue.service";
 import { actor, digest, secret } from "../../common/security/identity";
 import { ActivateDto, LoginDto, PasswordDto } from "../dto/auth.dto";
 import { AuthRepository } from "../repositories/auth.repository";
+import { SessionResponseDto } from "../dto/session-response.dto";
 const invalid = () => new UnauthorizedException("Invalid sign-in details or session.");
 @Injectable()
 export class AuthService {
@@ -53,7 +54,12 @@ export class AuthService {
         this.refreshTime(),
         tx,
       );
-      return { accessToken, refreshToken, accessExpiresAt, account: actor(locked[0]) };
+      return SessionResponseDto.create({
+        accessToken,
+        refreshToken,
+        accessExpiresAt,
+        account: actor(locked[0]),
+      });
     });
   }
   async authenticate(token: string) {
@@ -79,7 +85,12 @@ export class AuthService {
         session.id,
         tx,
       );
-      return { accessToken, refreshToken, accessExpiresAt, account: actor(accounts[0]) };
+      return SessionResponseDto.create({
+        accessToken,
+        refreshToken,
+        accessExpiresAt,
+        account: actor(accounts[0]),
+      });
     });
   }
   async logout(sessionId: string) {
