@@ -34,7 +34,7 @@ export function portalUrl(role: WebRole, env: Environment, path = "login") {
     typeof configured === "string" && configured ? configured : window.location.origin,
   );
   if (!configured) {
-    if (!env.DEV && role !== "student") throw Error("Configure the portal URL");
+    if (!env.DEV) throw Error("Configure the portal URL");
     base.port = { student: "8080", supervisor: "5174", workshop: "5175" }[role];
   }
   if (!["http:", "https:"].includes(base.protocol) || base.username || base.password)

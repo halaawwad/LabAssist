@@ -1,34 +1,35 @@
-export type ApiRole = "STUDENT" | "SUPERVISOR" | "WORKSHOP_MANAGER" | "DEPARTMENT_HEAD";
-export type Account = {
-  id: string;
-  role: ApiRole;
-  fullName: string;
-  email: string;
-  status: string;
-  universityNumber?: string | null;
-  employeeNumber?: string | null;
-};
+import type {
+  ApiRole,
+  AccountResponse as Account,
+  SessionResponse as Session,
+  LoginRequest,
+  RefreshRequest,
+} from "../contracts/auth";
+export type { ApiRole, AccountResponse as Account } from "../contracts/auth";
 export type TokenStore = {
   read(): Promise<string | null>;
   write(value: string): Promise<void>;
   clear(): Promise<void>;
 };
-type Session = { accessToken: string; refreshToken: string; account: Account };
 type Transport = (
   url: string,
   options: RequestInit,
 ) => Promise<Pick<Response, "ok" | "status" | "json">>;
 export class ApiError extends Error {
   status: number;
-  constructor(status: number) {
+  requestId?: string;
+  constructor(status: number, requestId?: string) {
     super(status === 0 ? "Connection unavailable" : `Account request failed (${status})`);
     this.status = status;
+    if (requestId && /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(requestId))
+      this.requestId = requestId;
   }
 }
 export class SessionClient {
   account: Account | null = null;
   private access: string | null = null;
   private refreshFlight: Promise<Account | null> | null = null;
+  private logoutFlight: Promise<void> | null = null;
   private epoch = 0;
   private base: string;
   private store: TokenStore;
@@ -56,7 +57,22 @@ export class SessionClient {
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         signal: abort.signal,
       });
-      if (!res.ok) throw new ApiError(res.status);
+      if (!res.ok) {
+        let requestId: string | undefined;
+        try {
+          const detail: unknown = await res.json();
+          if (
+            detail &&
+            typeof detail === "object" &&
+            "requestId" in detail &&
+            typeof detail.requestId === "string"
+          )
+            requestId = detail.requestId;
+        } catch {
+          /* Non-JSON failures still retain their HTTP status. */
+        }
+        throw new ApiError(res.status, requestId);
+      }
       return await res.json();
     } catch (error) {
       if (error instanceof ApiError) throw error;
@@ -87,8 +103,10 @@ export class SessionClient {
     return session.account;
   }
   async login(role: ApiRole, identifier: string, password: string) {
+    if (this.logoutFlight) await this.logoutFlight;
     const epoch = ++this.epoch;
-    const session = await this.request("/auth/login", { role, identifier, password });
+    const input: LoginRequest = { role, identifier, password };
+    const session = await this.request("/auth/login", input);
     return this.accept(session, epoch);
   }
   restore(): Promise<Account | null> {
@@ -99,7 +117,7 @@ export class SessionClient {
       if (!token) return null;
       try {
         return await this.accept(
-          await this.request("/auth/refresh", { refreshToken: token }),
+          await this.request("/auth/refresh", { refreshToken: token } satisfies RefreshRequest),
           epoch,
         );
       } catch (error) {
@@ -128,18 +146,24 @@ export class SessionClient {
       return this.request("/auth/me", undefined, this.access);
     }
   }
-  async logout() {
+  logout(): Promise<void> {
+    if (this.logoutFlight) return this.logoutFlight;
     ++this.epoch;
     const access = this.access;
     this.access = null;
     this.account = null;
-    await this.store.clear();
-    if (access) {
-      try {
-        await this.request("/auth/logout", {}, access);
-      } catch {
-        /* Local logout remains available offline. */
+    this.logoutFlight = (async () => {
+      await this.store.clear();
+      if (access) {
+        try {
+          await this.request("/auth/logout", {}, access);
+        } catch {
+          /* Local logout remains available offline. */
+        }
       }
-    }
+    })().finally(() => {
+      this.logoutFlight = null;
+    });
+    return this.logoutFlight;
   }
 }

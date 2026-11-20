@@ -9,8 +9,10 @@
     "ios": "expo start --ios",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "test": "node --test tests/*.test.cjs",
-    "build:ios:preview": "expo export --platform ios --output-dir .expo-preview"
+    "test": "node --test tests/*.test.cjs tests/unit/*.test.cjs",
+    "test:e2e:auth": "node tests/e2e/auth.browser.cjs",
+    "build:ios:preview": "expo export --platform ios --output-dir .expo-preview",
+    "test:unit": "node --test tests/*.test.cjs tests/unit/*.test.cjs"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

@@ -8,7 +8,7 @@ const { test } = require("node:test"),
 function load() {
   const m = { exports: {} };
   const code = ts.transpileModule(
-    fs.readFileSync(path.join(__dirname, "../../shared/auth/session-client.ts"), "utf8"),
+    fs.readFileSync(path.join(__dirname, "../../../shared/auth/session-client.ts"), "utf8"),
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
   ).outputText;
   vm.runInThisContext(`(function(module,exports){${code}})`)(m, m.exports);
@@ -64,6 +64,77 @@ test("wrong credentials never persist a session", async () => {
   const f = fixture(async () => response(401, {}));
   await assert.rejects(f.client.login("STUDENT", "wrong", "wrong"), (e) => e.status === 401);
   assert.equal(f.saved, null);
+});
+
+test("API errors retain a safe reference ID without exposing response internals", async () => {
+  const id = "7c195459-977d-449d-aab2-5cc71a724574";
+  const f = fixture(async () =>
+    response(500, { requestId: id, message: "PRIVATE_BACKEND_DETAIL" }),
+  );
+  await assert.rejects(f.client.login("STUDENT", "id", "pw"), (error) => {
+    assert.equal(error.status, 500);
+    assert.equal(error.requestId, id);
+    assert.equal(error.message.includes("PRIVATE_BACKEND_DETAIL"), false);
+    return true;
+  });
+});
+
+test("malformed error payloads keep the HTTP status and ignore unsafe reference IDs", async () => {
+  const f = fixture(async () => response(429, { requestId: "PRIVATE_TOKEN\nforged-log" }));
+  await assert.rejects(
+    f.client.login("STUDENT", "id", "pw"),
+    (error) => error.status === 429 && error.requestId === undefined,
+  );
+});
+
+test("two logout clicks both wait for revocation instead of redirecting early", async () => {
+  let release,
+    revocations = 0;
+  const pending = new Promise((resolve) => {
+    release = resolve;
+  });
+  const f = fixture(async (url) => {
+    if (url.endsWith("/login")) return response(201, tokens());
+    revocations++;
+    await pending;
+    return response(201, { ok: true });
+  });
+  await f.client.login("STUDENT", "id", "pw");
+  const first = f.client.logout();
+  let secondDone = false;
+  const second = f.client.logout().then(() => {
+    secondDone = true;
+  });
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const completedBeforeRevocation = secondDone;
+  release();
+  await Promise.all([first, second]);
+  assert.equal(completedBeforeRevocation, false);
+  assert.equal(revocations, 1);
+  assert.equal(f.saved, null);
+});
+
+test("a new login waits until the previous logout has finished", async () => {
+  let release,
+    logins = 0;
+  const pending = new Promise((resolve) => {
+    release = resolve;
+  });
+  const f = fixture(async (url) => {
+    if (url.endsWith("/login")) return response(201, tokens(++logins));
+    await pending;
+    return response(201, { ok: true });
+  });
+  await f.client.login("STUDENT", "id", "pw");
+  const leaving = f.client.logout();
+  const entering = f.client.login("STUDENT", "id", "pw");
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const startedBeforeRevocation = logins;
+  release();
+  await Promise.all([leaving, entering]);
+  assert.equal(startedBeforeRevocation, 1);
+  assert.equal(logins, 2);
+  assert.equal(f.saved, "refresh2");
 });
 test("parallel expired requests share one refresh and retry with rotated access", async () => {
   let refreshes = 0;
