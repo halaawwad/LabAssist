@@ -19,7 +19,6 @@ jobs:
     env:
       CI: "1"
       EXPO_NO_TELEMETRY: "1"
-      NPM_CONFIG_WORKSPACES: "false"
     defaults:
       run:
         working-directory: mobile
