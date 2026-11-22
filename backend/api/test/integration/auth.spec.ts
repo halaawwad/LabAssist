@@ -392,4 +392,56 @@ describe("Sprint 1 real PostgreSQL API", () => {
         .$ref,
     ).toContain("SessionResponseDto");
   });
+  it("head updates an account name without changing login identity or activation", async () => {
+    const created = await post(
+      "/accounts",
+      { role: "STUDENT", fullName: "Original Name", universityNumber: "99112233" },
+      headAccess,
+    );
+    expect(created.status).toBe(201);
+    await request(app.getHttpServer())
+      .patch(`/v1/accounts/${created.body.id}`)
+      .set("Authorization", "Bearer " + headAccess)
+      .send({ fullName: "  Updated Name  " })
+      .expect(200);
+    const rows = await db.$queryRaw<
+      any[]
+    >`SELECT full_name,email,university_number,status,password_hash FROM labassist_student.accounts WHERE id=${created.body.id}::uuid`;
+    expect(rows[0]).toMatchObject({
+      full_name: "Updated Name",
+      email: "s99112233@stu.najah.edu",
+      university_number: "99112233",
+      status: "PENDING_ACTIVATION",
+      password_hash: null,
+    });
+    const audit = await db.$queryRaw<
+      any[]
+    >`SELECT actor_id FROM labassist_student.audit_events WHERE event_key='ACCOUNT_NAME_CHANGED' AND subject_id=${created.body.id}::uuid`;
+    expect(audit).toEqual([{ actor_id: head.id }]);
+    for (const body of [
+      { fullName: " " },
+      { fullName: "Another Name", role: "DEPARTMENT_HEAD" },
+      { fullName: "Another Name", email: "other@najah.edu" },
+    ])
+      await request(app.getHttpServer())
+        .patch(`/v1/accounts/${created.body.id}`)
+        .set("Authorization", "Bearer " + headAccess)
+        .send(body)
+        .expect(400);
+    await request(app.getHttpServer())
+      .patch(`/v1/accounts/${head.id}`)
+      .set("Authorization", "Bearer " + headAccess)
+      .send({ fullName: "Other Head" })
+      .expect(400);
+    await request(app.getHttpServer())
+      .patch(`/v1/accounts/${created.body.id}`)
+      .send({ fullName: "Unauthorized" })
+      .expect(401);
+    const list = await request(app.getHttpServer())
+      .get("/v1/accounts")
+      .set("Authorization", "Bearer " + headAccess)
+      .expect(200);
+    expect(list.body.find((a: any) => a.id === created.body.id).fullName).toBe("Updated Name");
+    expect(JSON.stringify(list.body)).not.toContain("password_hash");
+  });
 });

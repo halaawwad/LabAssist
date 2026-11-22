@@ -14,13 +14,20 @@ import { AccountResponseDto } from "../../common/dto/account-response.dto";
 import { SessionGuard } from "../../auth/guards/session.guard";
 import { DepartmentGuard } from "../../common/guards/department.guard";
 import { AccountsService } from "../services/accounts.service";
-import { AccountDto, StatusDto } from "../dto/account.dto";
+import { AccountDto, StatusDto, AccountNameDto } from "../dto/account.dto";
 @ApiTags("Accounts")
 @ApiBearerAuth()
 @UseGuards(SessionGuard, DepartmentGuard)
 @Controller("accounts")
 export class AccountsController {
   constructor(private accounts: AccountsService) {}
+  @Patch(":id") rename(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() body: AccountNameDto,
+    @Req() req: any,
+  ) {
+    return this.accounts.rename(id, body.fullName, req.actor);
+  }
   @ApiOkResponse({ type: AccountResponseDto, isArray: true }) @Get() list() {
     return this.accounts.list();
   }

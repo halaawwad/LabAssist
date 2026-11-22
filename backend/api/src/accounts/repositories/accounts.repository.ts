@@ -46,7 +46,11 @@ export class AccountsRepository {
   listAccounts(tx: Prisma.TransactionClient = this.db) {
     return tx.$queryRaw<
       any[]
-    >`SELECT id,role,full_name,email,university_number,employee_number,status FROM labassist_student.accounts ORDER BY created_at DESC LIMIT 100`;
+    >`SELECT id,role,full_name,email,university_number,employee_number,status FROM labassist_student.accounts ORDER BY created_at DESC,id`;
+  }
+  async rename(id: string, name: string, headId: string, tx: Prisma.TransactionClient) {
+    await tx.$executeRaw`UPDATE labassist_student.accounts SET full_name=${name},updated_at=now() WHERE id=${id}::uuid`;
+    await tx.$executeRaw`INSERT INTO labassist_student.audit_events(actor_id,event_key,subject_id) VALUES(${headId}::uuid,'ACCOUNT_NAME_CHANGED',${id}::uuid)`;
   }
   lockStatusAccount(accountId: string, tx: Prisma.TransactionClient = this.db) {
     return tx.$queryRaw<

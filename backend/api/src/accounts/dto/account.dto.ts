@@ -14,3 +14,6 @@ export class StatusDto {
   @ApiProperty({ enum: ["ACTIVE", "DISABLED"] }) @IsIn(["ACTIVE", "DISABLED"]) status!:
     "ACTIVE" | "DISABLED";
 }
+export class AccountNameDto {
+  @ApiProperty() @IsString() @Length(1, 160) fullName!: string;
+}

@@ -49,6 +49,17 @@ export class AccountsService {
     const rows = await this.repository.listAccounts();
     return rows.map(actor);
   }
+  async rename(id: string, fullName: string, head: Actor) {
+    const name = fullName.trim();
+    if (!name) throw new BadRequestException("Enter a full name.");
+    await this.repository.transaction(async (tx) => {
+      const rows = await this.repository.lockStatusAccount(id, tx);
+      if (!rows.length || rows[0].role === Role.DEPARTMENT_HEAD)
+        throw new BadRequestException("A non-head account is required.");
+      await this.repository.rename(id, name, head.id, tx);
+    });
+    return { ok: true };
+  }
   async status(id: string, status: string, head: Actor) {
     if (id === head.id) throw new BadRequestException("Cannot disable your own account.");
     await this.repository.transaction(async (tx) => {
