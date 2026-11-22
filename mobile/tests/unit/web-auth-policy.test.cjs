@@ -28,7 +28,7 @@ function policy() {
 
 test("every production role destination must be explicitly configured", () => {
   const { portalUrl } = policy();
-  for (const role of ["student", "supervisor", "workshop"]) {
+  for (const role of ["student", "supervisor", "workshop", "department"]) {
     assert.throws(() => portalUrl(role, { DEV: false }), /Configure the portal URL/);
   }
 });
@@ -55,4 +55,6 @@ test("mock mode is explicit and the signed-in account must match its portal role
   assert.equal(matchesRole(null, "student"), false);
   assert.equal(matchesRole({ role: "SUPERVISOR" }, "student"), false);
   assert.equal(matchesRole({ role: "SUPERVISOR" }, "supervisor"), true);
+  assert.equal(matchesRole({ role: "DEPARTMENT_HEAD" }, "department"), true);
+  assert.equal(matchesRole({ role: "STUDENT" }, "department"), false);
 });

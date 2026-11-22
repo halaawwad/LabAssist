@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Account as ApiAccount } from "../../../shared/auth/session-client";
+import { apiMode, logoutWeb } from "../../../shared/auth/web-session";
+import { AccountAdministration } from "./components/AccountAdministration";
 import {
   Plus,
   Search,
@@ -47,6 +50,13 @@ const initial: Account[] = [
   })),
 ];
 export default function Department() {
+  const real = apiMode(import.meta.env);
+  const [serverAccounts, setServerAccounts] = useState<ApiAccount[]>([]);
+  const showServerAccounts = useCallback((rows: ApiAccount[]) => setServerAccounts(rows), []);
+  const serverCount = (role: ApiAccount["role"], includePending = false) =>
+    serverAccounts.filter(
+      (a) => a.role === role && (includePending ? a.status !== "DISABLED" : a.status === "ACTIVE"),
+    ).length;
   const [navOpen, setNavOpen] = useState(true);
   const [groupListVersion, setGroupListVersion] = useState(0);
   const [groups, setGroups] = useState<DepartmentGroup[]>([{ ...demoTeam, status: "DRAFT" }]);
@@ -239,7 +249,16 @@ export default function Department() {
           <MessageCircle size={18} />
           Communication
         </button>
-        <a href={loginUrl()} onClick={() => endDemoSession("department")} className="dept-logout">
+        <a
+          href={loginUrl()}
+          onClick={(e) => {
+            if (real) {
+              e.preventDefault();
+              void logoutWeb(import.meta.env);
+            } else endDemoSession("department");
+          }}
+          className="dept-logout"
+        >
           Back to login
         </a>
       </aside>
@@ -268,22 +287,30 @@ export default function Department() {
           {[
             [
               "Active supervisors",
-              accounts.filter(
-                (a) => a.role === "Supervisor" && effectiveAccountStatus(a) === "ACTIVE",
-              ).length,
+              real
+                ? serverCount("SUPERVISOR")
+                : accounts.filter(
+                    (a) => a.role === "Supervisor" && effectiveAccountStatus(a) === "ACTIVE",
+                  ).length,
             ],
             [
               "Workshop manager",
-              accounts.filter(
-                (a) => a.role === "Workshop Manager" && effectiveAccountStatus(a) !== "DISABLED",
-              ).length,
+              real
+                ? serverCount("WORKSHOP_MANAGER", true)
+                : accounts.filter(
+                    (a) =>
+                      a.role === "Workshop Manager" && effectiveAccountStatus(a) !== "DISABLED",
+                  ).length,
             ],
             [
               "Active students",
-              accounts.filter((a) => a.role === "Student" && effectiveAccountStatus(a) === "ACTIVE")
-                .length,
+              real
+                ? serverCount("STUDENT")
+                : accounts.filter(
+                    (a) => a.role === "Student" && effectiveAccountStatus(a) === "ACTIVE",
+                  ).length,
             ],
-            ["Groups", groups.length],
+            [real ? "Groups · local workspace" : "Groups", groups.length],
           ].map(([label, n]) => (
             <article key={label}>
               <ShieldCheck size={20} />
@@ -300,7 +327,7 @@ export default function Department() {
             </button>
           </p>
         )}
-        {tab !== "messages" && (
+        {!real && tab !== "messages" && (
           <DepartmentImport
             accounts={accounts}
             groups={groups}
@@ -328,7 +355,9 @@ export default function Department() {
             }}
           />
         )}
-        {tab === "accounts" ? (
+        {tab === "accounts" && real ? (
+          <AccountAdministration onAccounts={showServerAccounts} />
+        ) : tab === "accounts" ? (
           <section className="dept-panel">
             <div className="dept-toolbar">
               <h2>

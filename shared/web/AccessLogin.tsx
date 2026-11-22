@@ -47,8 +47,8 @@ const roles = [
   {
     id: "department",
     label: "Department Head",
-    identifier: "Email",
-    example: "head@demo.com",
+    identifier: "University number",
+    example: "0",
     number: "Department administration",
   },
 ];
@@ -89,10 +89,7 @@ export function AccessLogin({ portalRole = "student" }: { portalRole?: WebRole }
   const current = roles.find((r) => r.id === role)!;
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (
-      (role === "student" || role === "department") &&
-      !/^\S+@\S+\.\S+$/.test(identifier.trim())
-    ) {
+    if (role === "student" && !/^\S+@\S+\.\S+$/.test(identifier.trim())) {
       setError(`Enter a valid ${current.identifier.toLowerCase()}.`);
       return;
     }
@@ -104,7 +101,6 @@ export function AccessLogin({ portalRole = "student" }: { portalRole?: WebRole }
       return;
     }
     if (real) {
-      if (role === "department") return;
       if (role !== portalRole) {
         window.location.assign(portalUrl(role, import.meta.env));
         return;
@@ -188,7 +184,7 @@ export function AccessLogin({ portalRole = "student" }: { portalRole?: WebRole }
             <LabAssistBrand login />
           </a>
           <nav className="access-roles" aria-label="Account role">
-            {(real ? roles.filter((r) => r.id !== "department") : roles).map((r) => (
+            {roles.map((r) => (
               <button
                 key={r.id}
                 type="button"

@@ -115,7 +115,6 @@ export function NativeSessionProvider({ children }: { children: ReactNode }) {
             await AsyncStorage.setItem(key, next);
             setRole(next);
           } else {
-            if (next === "department") throw Error("Department integration deferred");
             const a = await authClient.login(roleCodes[next], identifier ?? "", password ?? "");
             setAccount(a);
             setRole(accountRole(a));

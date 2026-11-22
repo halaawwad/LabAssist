@@ -119,7 +119,7 @@ export default function NativeLogin() {
     animation.start();
     return () => animation.stop();
   }, [glow, preferences.motion]);
-  const availableRoles = demoMode ? roles : roles.filter((r) => r.id !== "department");
+  const availableRoles = roles;
   const selected = roles.find((r) => r.id === role)!,
     RoleIcon = selected.icon;
   async function login() {
@@ -130,7 +130,7 @@ export default function NativeLogin() {
       (role === "student" && !legacyStudentDemo && !/^s\d{8}@stu\.najah\.edu$/.test(identifier)) ||
       (role === "supervisor" && !/^\d{4}$/.test(identifier)) ||
       (role === "workshop" && !/^\d{5}$/.test(identifier)) ||
-      (role === "department" && !/^\S+@\S+\.\S+$/.test(identifier))
+      (role === "department" && identifier !== "0" && !/^\S+@\S+\.\S+$/.test(identifier))
     ) {
       setError(
         role === "student"
@@ -287,7 +287,7 @@ export default function NativeLogin() {
                 {role === "student"
                   ? copy("University email", "الإيميل الجامعي")
                   : role === "department"
-                    ? copy("Email", "الإيميل")
+                    ? copy("University number or email", "الرقم الجامعي أو البريد")
                     : copy("University number", "الرقم الجامعي")}
               </AppText>
               <View style={[s.inputBox, !!error && s.invalid]}>
@@ -300,9 +300,7 @@ export default function NativeLogin() {
                   accessibilityLabel={copy("Account", "الحساب")}
                   autoCapitalize="none"
                   autoCorrect={false}
-                  keyboardType={
-                    role === "supervisor" || role === "workshop" ? "number-pad" : "email-address"
-                  }
+                  keyboardType={role === "student" ? "email-address" : "default"}
                   autoComplete="username"
                   value={account}
                   onChangeText={(v) => {
@@ -316,7 +314,7 @@ export default function NativeLogin() {
                         ? "1234"
                         : role === "workshop"
                           ? "12345"
-                          : "name@najah.edu"
+                          : "0"
                   }
                   placeholderTextColor="#8b9483"
                   style={s.input}

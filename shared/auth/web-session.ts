@@ -1,5 +1,5 @@
 import { SessionClient, type Account } from "./session-client";
-export type WebRole = "student" | "supervisor" | "workshop";
+export type WebRole = "student" | "supervisor" | "workshop" | "department";
 type Environment = { readonly DEV?: boolean; readonly [key: string]: unknown };
 const clients = new Map<string, SessionClient>();
 export const apiMode = (env: Environment) => env["VITE_AUTH_MODE"] !== "demo";
@@ -7,6 +7,7 @@ export const roleCode = {
   student: "STUDENT",
   supervisor: "SUPERVISOR",
   workshop: "WORKSHOP_MANAGER",
+  department: "DEPARTMENT_HEAD",
 } as const;
 export function webClient(env: Environment) {
   const url = String(env["VITE_API_URL"] || (env.DEV ? "http://127.0.0.1:3100/v1" : "")).replace(
@@ -35,7 +36,7 @@ export function portalUrl(role: WebRole, env: Environment, path = "login") {
   );
   if (!configured) {
     if (!env.DEV) throw Error("Configure the portal URL");
-    base.port = { student: "8080", supervisor: "5174", workshop: "5175" }[role];
+    base.port = { student: "8080", supervisor: "5174", workshop: "5175", department: "5176" }[role];
   }
   if (!["http:", "https:"].includes(base.protocol) || base.username || base.password)
     throw Error("Invalid portal URL");
@@ -43,7 +44,11 @@ export function portalUrl(role: WebRole, env: Environment, path = "login") {
   return new URL(path, base).href;
 }
 export const homePath = (role: WebRole) =>
-  role === "student" ? "/" : role === "supervisor" ? "/supervisor/dashboard" : "/dashboard";
+  role === "student" || role === "department"
+    ? "/"
+    : role === "supervisor"
+      ? "/supervisor/dashboard"
+      : "/dashboard";
 export const matchesRole = (account: Account | null, role: WebRole) =>
   account?.role === roleCode[role];
 export function webAuthMessage(error: unknown, ar = false) {

@@ -1,4 +1,8 @@
 import { MobileInput as TextInput } from "@/components/MobileInput";
+import { demoMode } from "@/features/auth/client";
+import { AccountAdministration } from "./AccountAdministration";
+import { useNativeSession } from "@/state/NativeSession";
+import type { Account as ApiAccount } from "../../../../shared/auth/session-client";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { Disclosure } from "@/components/Disclosure";
 import { MobileModal as Modal } from "@/components/MobileModal";
@@ -96,6 +100,8 @@ function Sheet({
   );
 }
 export default function DepartmentScreen() {
+  const { account: signedInAccount } = useNativeSession();
+  const [serverAccounts, setServerAccounts] = useState<ApiAccount[]>([]);
   const { state, retryLoading, storageRevision } = useWorkspace();
   const t = useCopy();
   const { isRTL, language, ltr, formatDateTime } = useLanguage();
@@ -134,7 +140,7 @@ export default function DepartmentScreen() {
   const conversationNearBottom = useRef(true);
   const conversationInitialScroll = useRef(true);
   const [newConversationMessages, setNewConversationMessages] = useState(false);
-  const [page, setPage] = useState("Overview");
+  const [page, setPage] = useState(demoMode ? "Overview" : "Accounts");
   const [notificationReturn, setNotificationReturn] = useState("Overview");
   const subPage = page === "profile" || page === "settings" || page === "notifications";
   const [query, setQuery] = useState(""),
@@ -374,7 +380,9 @@ export default function DepartmentScreen() {
         next.filter((a) => a.role === "workshop" && effectiveAccountStatus(a) !== "DISABLED")
           .length > 1
       ) {
-        setError(t("Disable the current workshop manager first.", "عطّل مدير الورشة الحالي أولًا."));
+        setError(
+          t("Disable the current workshop manager first.", "عطّل مدير الورشة الحالي أولًا."),
+        );
         return;
       }
       if (await commit({ accounts: next })) {
@@ -507,7 +515,10 @@ export default function DepartmentScreen() {
           {page === "Overview" && (
             <>
               <Greeting
-                name={departmentHead.name?.trim() || t("Department Head", "رئيس القسم")}
+                name={
+                  (!demoMode ? signedInAccount?.fullName : departmentHead.name)?.trim() ||
+                  t("Department Head", "رئيس القسم")
+                }
                 subtitle={t("Accounts, groups and messages", "الحسابات والمجموعات والرسائل")}
               />
               <StatGrid
@@ -517,7 +528,9 @@ export default function DepartmentScreen() {
                     icon: GraduationCap,
                     tone: "olive",
                     label: t("Students", "الطلاب"),
-                    value: accounts.filter((a) => a.role === "student").length,
+                    value: demoMode
+                      ? accounts.filter((a) => a.role === "student").length
+                      : serverAccounts.filter((a) => a.role === "STUDENT").length,
                     onPress: () => {
                       setFilter("student");
                       setPage("Accounts");
@@ -528,7 +541,9 @@ export default function DepartmentScreen() {
                     icon: UserRound,
                     tone: "blue",
                     label: t("Supervisors", "المشرفون"),
-                    value: accounts.filter((a) => a.role === "supervisor").length,
+                    value: demoMode
+                      ? accounts.filter((a) => a.role === "supervisor").length
+                      : serverAccounts.filter((a) => a.role === "SUPERVISOR").length,
                     onPress: () => {
                       setFilter("supervisor");
                       setPage("Accounts");
@@ -546,7 +561,7 @@ export default function DepartmentScreen() {
               />
             </>
           )}
-          {(page === "Accounts" || page === "Teams") && (
+          {demoMode && (page === "Accounts" || page === "Teams") && (
             <DepartmentImport
               accounts={accounts}
               groups={groups}
@@ -581,7 +596,10 @@ export default function DepartmentScreen() {
               }}
             />
           )}
-          {page === "Accounts" && (
+          {page === "Accounts" && !demoMode && (
+            <AccountAdministration onAccounts={setServerAccounts} />
+          )}
+          {page === "Accounts" && demoMode && (
             <>
               <Button
                 title={t("Add account", "إضافة حساب")}

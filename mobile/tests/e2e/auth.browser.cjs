@@ -17,8 +17,9 @@ async function main() {
         STUDENT: "Student",
         SUPERVISOR: "Supervisor",
         WORKSHOP_MANAGER: "Workshop Manager",
+        DEPARTMENT_HEAD: "Department Head",
       };
-      assert.ok(labels[account.role], "Expected one of the three Sprint 1 roles");
+      assert.ok(labels[account.role], "Expected a supported Sprint 1 role");
       const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
       try {
         const page = await context.newPage();
