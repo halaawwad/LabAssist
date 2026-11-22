@@ -43,13 +43,13 @@ export class SessionClient {
     this.store = store;
     this.transport = transport;
   }
-  private async request(path: string, body?: unknown, access?: string | null) {
+  private async request(path: string, body?: unknown, access?: string | null, method?: string) {
     if (!this.base) throw new ApiError(0);
     const abort = new AbortController();
     const timeout = setTimeout(() => abort.abort(), 15000);
     try {
       const res = await this.transport(this.base + path, {
-        method: body === undefined ? "GET" : "POST",
+        method: method ?? (body === undefined ? "GET" : "POST"),
         headers: {
           "Content-Type": "application/json",
           ...(access ? { Authorization: `Bearer ${access}` } : {}),
@@ -83,6 +83,26 @@ export class SessionClient {
   }
   publicRequest(path: string, body: unknown) {
     return this.request(path, body);
+  }
+  async authorizedRequest<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+    const epoch = this.epoch;
+    if (!this.access && !(await this.restore())) throw new ApiError(401);
+    const attempted = this.access;
+    const send = async (access: string | null): Promise<T> => {
+      const result = await this.request(path, body, access, method);
+      if (epoch !== this.epoch) throw new ApiError(401);
+      return result;
+    };
+    try {
+      return await send(attempted);
+    } catch (error) {
+      // A 401 is rejected by the guard before mutation. Never replay a write after
+      // a timeout, connection failure, conflict or application error.
+      if (!(error instanceof ApiError) || error.status !== 401 || epoch !== this.epoch) throw error;
+      if (this.access === attempted && !(await this.restore())) throw new ApiError(401);
+      if (epoch !== this.epoch) throw new ApiError(401);
+      return send(this.access);
+    }
   }
   private async accept(session: Session, epoch: number) {
     if (epoch !== this.epoch) throw new ApiError(401);

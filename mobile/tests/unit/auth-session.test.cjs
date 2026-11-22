@@ -46,6 +46,56 @@ const response = (status, body) => ({
   json: async () => body,
 });
 const tokens = (n = 1) => ({ accessToken: "access" + n, refreshToken: "refresh" + n, account });
+
+test("protected account requests restore once and retain PATCH method", async () => {
+  const calls = [];
+  const f = fixture(async (url, options) => {
+    calls.push({ url, ...options });
+    if (url.endsWith("/auth/login") || url.endsWith("/auth/refresh"))
+      return response(201, tokens());
+    return response(
+      calls.filter((c) => c.url.endsWith("/accounts/id/status")).length === 1 ? 401 : 200,
+      { ok: true },
+    );
+  });
+  await f.client.login("STUDENT", account.email, "secret");
+  assert.deepEqual(
+    await f.client.authorizedRequest("/accounts/id/status", "PATCH", { status: "DISABLED" }),
+    { ok: true },
+  );
+  const writes = calls.filter((c) => c.url.endsWith("/accounts/id/status"));
+  assert.equal(writes.length, 2);
+  assert.ok(writes.every((c) => c.method === "PATCH" && c.body === '{"status":"DISABLED"}'));
+  assert.equal(calls.filter((c) => c.url.endsWith("/auth/refresh")).length, 1);
+});
+
+test("network failure on account creation is never automatically replayed", async () => {
+  let attempts = 0;
+  const f = fixture(async (url) => {
+    if (url.endsWith("/auth/login")) return response(201, tokens());
+    attempts++;
+    throw new Error("offline");
+  });
+  await f.client.login("STUDENT", account.email, "secret");
+  await assert.rejects(f.client.authorizedRequest("/accounts", "POST", {}), (e) => e.status === 0);
+  assert.equal(attempts, 1);
+});
+
+test("an account response arriving after logout cannot populate the next session", async () => {
+  let finish;
+  const f = fixture(async (url) => {
+    if (url.endsWith("/auth/login")) return response(201, tokens());
+    if (url.endsWith("/auth/logout")) return response(201, { ok: true });
+    return new Promise((resolve) => {
+      finish = resolve;
+    });
+  });
+  await f.client.login("STUDENT", account.email, "secret");
+  const pending = f.client.authorizedRequest("/accounts");
+  await f.client.logout();
+  finish(response(200, [account]));
+  await assert.rejects(pending, (e) => e.status === 401);
+});
 test("login sends role and identifier; persists only refresh token", async () => {
   let request;
   const f = fixture(async (u, o) => {
