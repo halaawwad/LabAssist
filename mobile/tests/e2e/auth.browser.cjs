@@ -47,6 +47,19 @@ async function main() {
         await page.goto(base + "/", { waitUntil: "domcontentloaded" });
         await page.getByRole("tab", { name: "More", exact: true }).waitFor();
         assert.ok(!page.url().endsWith("/login"), "Restored session must leave the login screen");
+        const savedRefresh = await page.evaluate(() => sessionStorage.getItem("labassist.refresh.v1"));
+        const unavailableApi = (route) => route.abort("internetdisconnected");
+        await context.route("**/v1/auth/**", unavailableApi);
+        await page.goto(base + "/", { waitUntil: "domcontentloaded" });
+        await page.getByRole("button", { name: "Retry", exact: true }).waitFor();
+        assert.equal(
+          await page.evaluate(() => sessionStorage.getItem("labassist.refresh.v1")),
+          savedRefresh,
+          "An unavailable API must preserve the saved session",
+        );
+        await context.unroute("**/v1/auth/**", unavailableApi);
+        await page.getByRole("button", { name: "Retry", exact: true }).click();
+        await page.getByRole("tab", { name: "More", exact: true }).waitFor();
         const wrong =
           account.role === "STUDENT" ? "/native/supervisor/dashboard" : "/native/student/tasks";
         await page.goto(base + wrong, { waitUntil: "domcontentloaded" });
@@ -58,7 +71,7 @@ async function main() {
         await page.waitForURL((url) => url.pathname.endsWith("/login"));
         assert.equal(warnings.length, 0, "Unexpected direction or React hook warnings");
         console.log(
-          "PASS " + account.role + ": login, restore, role guard, logout, signed-out guard",
+          "PASS " + account.role + ": login, restore, offline retry, role guard, logout, signed-out guard",
         );
       } finally {
         await context.close();

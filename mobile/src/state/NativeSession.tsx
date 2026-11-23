@@ -134,7 +134,7 @@ export function NativeSessionProvider({ children }: { children: ReactNode }) {
         <View style={{ flex: 1, justifyContent: "center" }}>
           <ActivityIndicator color="#526443" />
         </View>
-      ) : error && !publicRoute ? (
+      ) : error && (!publicRoute || pathname === "/native/login") ? (
         <View style={{ flex: 1, justifyContent: "center", padding: 24, gap: 16 }}>
           <AppText accessibilityRole="alert">{error}</AppText>
           <Button
