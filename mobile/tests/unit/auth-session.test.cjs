@@ -226,6 +226,33 @@ test("temporary restore network failure keeps stored credential for retry", asyn
   await assert.rejects(f.client.restore());
   assert.equal(f.saved, "keep");
 });
+
+test("a lost rotation response requires sign-in after the old refresh is rejected", async () => {
+  let remote = "refresh1",
+    drop = true;
+  const transport = async (url, options) => {
+    if (url.endsWith("/login")) return response(201, tokens(3));
+    const input = JSON.parse(options.body);
+    if (input.refreshToken !== remote) return response(401, {});
+    remote = "refresh2";
+    if (drop) {
+      drop = false;
+      throw Error("response lost after server commit");
+    }
+    return response(201, tokens(2));
+  };
+  const f = fixture(transport);
+  await f.storage.write("refresh1");
+  await assert.rejects(f.client.restore());
+  assert.equal(f.saved, "refresh1");
+  assert.equal(f.client.account, null);
+  const reopened = new (load().SessionClient)("http://api.test/v1", f.storage, transport);
+  assert.equal(await reopened.restore(), null);
+  assert.equal(f.saved, null);
+  assert.equal(reopened.account, null);
+  await reopened.login("STUDENT", account.email, "new sign-in");
+  assert.equal(f.saved, "refresh3");
+});
 test("logout clears credentials even if network unavailable", async () => {
   let calls = 0;
   const f = fixture(async () => {
