@@ -282,6 +282,44 @@ describe("Sprint 1 real PostgreSQL API", () => {
       ).toBe(403);
     }
   });
+  it("a committed rotation with a lost response rejects the old tokens and permits fresh login", async () => {
+    const created = await post(
+      "/accounts",
+      { role: "STUDENT", fullName: "Rotation recovery", universityNumber: "12345990" },
+      headAccess,
+    );
+    expect(created.status).toBe(201);
+    const token = new URL(
+      mail.filter((m) => m.email === created.body.email).at(-1)!.url,
+    ).searchParams.get("token");
+    expect(
+      (await post("/auth/activate", { email: created.body.email, token, password })).status,
+    ).toBe(201);
+    const signedIn = await post("/auth/login", {
+      role: "STUDENT",
+      identifier: created.body.email,
+      password,
+    });
+    expect(signedIn.status).toBe(201);
+    // The server commits; the client is assumed to have lost this response.
+    const rotated = await post("/auth/refresh", { refreshToken: signedIn.body.refreshToken });
+    expect(rotated.status).toBe(201);
+    expect((await post("/auth/refresh", { refreshToken: signedIn.body.refreshToken })).status).toBe(
+      401,
+    );
+    await request(app.getHttpServer())
+      .get("/v1/auth/me")
+      .set("Authorization", "Bearer " + signedIn.body.accessToken)
+      .expect(401);
+    await request(app.getHttpServer())
+      .get("/v1/auth/me")
+      .set("Authorization", "Bearer " + rotated.body.accessToken)
+      .expect(200);
+    expect(
+      (await post("/auth/login", { role: "STUDENT", identifier: created.body.email, password }))
+        .status,
+    ).toBe(201);
+  });
   it("disabling an account revokes all sessions and re-enabling never revives them", async () => {
     const sessions = await Promise.all(
       [1, 2].map(() =>
