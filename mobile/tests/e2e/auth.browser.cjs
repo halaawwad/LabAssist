@@ -40,8 +40,13 @@ async function main() {
           .fill(account.password || fixtures.password);
         await page.getByRole("button", { name: "Log in", exact: true }).click();
         await page.waitForURL((url) => !url.pathname.endsWith("/login"));
+        await page.getByRole("tab", { name: "More", exact: true }).waitFor();
         await page.reload({ waitUntil: "domcontentloaded" });
         await page.getByRole("tab", { name: "More", exact: true }).waitFor();
+        // A cold Expo launch opens the entry/login route, not the last dashboard URL.
+        await page.goto(base + "/", { waitUntil: "domcontentloaded" });
+        await page.getByRole("tab", { name: "More", exact: true }).waitFor();
+        assert.ok(!page.url().endsWith("/login"), "Restored session must leave the login screen");
         const wrong =
           account.role === "STUDENT" ? "/native/supervisor/dashboard" : "/native/student/tasks";
         await page.goto(base + wrong, { waitUntil: "domcontentloaded" });
@@ -64,6 +69,6 @@ async function main() {
   }
 }
 main().catch((error) => {
-  console.error(error.message);
+  console.error(error.stack);
   process.exitCode = 1;
 });

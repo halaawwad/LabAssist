@@ -154,6 +154,8 @@ export function NativeSessionProvider({ children }: { children: ReactNode }) {
         </View>
       ) : !role && !publicRoute ? (
         <Redirect href="/native/login" />
+      ) : role && pathname === "/native/login" ? (
+        <Redirect href={sessionHome(role) as import("expo-router").Href} />
       ) : role && !publicRoute && role !== routeRole ? (
         <Redirect href={sessionHome(role) as import("expo-router").Href} />
       ) : (
