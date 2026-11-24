@@ -15,7 +15,6 @@ import {
 import "./department.css";
 import {
   accountHasHistory,
-  toggleAccountAccess,
   demoStudents,
   demoSupervisor,
   demoWorkshop,
@@ -408,26 +407,23 @@ export default function Department() {
                           <MessageCircle size={15} />
                           Message
                         </button>
-                        <button
-                          className={!a.linked || a.active ? "dept-danger" : undefined}
-                          aria-label={`${a.linked ? (effectiveAccountStatus(a) !== "DISABLED" ? "Disable" : "Reactivate") : "Delete"} ${a.name}`}
-                          onClick={() =>
-                            setConfirm({
-                              ...a,
-                              linked:
-                                a.linked ||
-                                accountHasHistory(a.id, groups) ||
-                                messages.some((m) => m.to === a.id),
-                            })
-                          }
-                        >
-                          <Trash2 size={15} />
-                          {a.linked
-                            ? effectiveAccountStatus(a) !== "DISABLED"
-                              ? "Disable"
-                              : "Reactivate"
-                            : "Delete"}
-                        </button>
+                        {!a.linked && (
+                          <button
+                            className="dept-danger"
+                            aria-label={`Delete ${a.name}`}
+                            onClick={() =>
+                              setConfirm({
+                                ...a,
+                                linked:
+                                  accountHasHistory(a.id, groups) ||
+                                  messages.some((m) => m.to === a.id),
+                              })
+                            }
+                          >
+                            <Trash2 size={15} />
+                            Delete
+                          </button>
+                        )}
                       </>
                     }
                   />
@@ -585,52 +581,32 @@ export default function Department() {
           aria-label="Confirm account change"
         >
           <div className="dept-dialog">
-            <h2>
-              {confirm.linked
-                ? effectiveAccountStatus(confirm) !== "DISABLED"
-                  ? "Disable account?"
-                  : "Reactivate account?"
-                : "Delete account?"}
-            </h2>
+            <h2>{confirm.linked ? "Account kept" : "Delete account?"}</h2>
             <p>
               {confirm.linked
-                ? "Existing records and assignments will be kept."
+                ? "This account has group or message records, so it is kept. Accounts cannot be disabled or re-enabled."
                 : "This unused account will be removed."}
             </p>
             <div className="dept-toolbar">
               <button className="dept-secondary" onClick={() => setConfirm(null)}>
-                Cancel
+                {confirm.linked ? "Close" : "Cancel"}
               </button>
+              {!confirm.linked && (
               <button
-                className={
-                  "dept-primary" + (!confirm.linked || confirm.active ? " dept-danger" : "")
-                }
+                className="dept-primary dept-danger"
                 onClick={() => {
                   try {
-                    const linked =
-                      confirm.linked ||
+                    // Records may have appeared since the dialog opened; accounts with records are never removed.
+                    if (
                       accountHasHistory(confirm.id, groups) ||
-                      messages.some((m) => m.to === confirm.id);
-                    const nextAccounts = linked
-                      ? accounts.map((a) => (a.id === confirm.id ? toggleAccountAccess(a) : a))
-                      : accounts.filter((a) => a.id !== confirm.id);
-                    if (
-                      nextAccounts.filter(
-                        (a) =>
-                          a.role === "Workshop Manager" && effectiveAccountStatus(a) !== "DISABLED",
-                      ).length > 1
-                    )
-                      throw new Error(
-                        "Disable the existing workshop manager before restoring this account.",
-                      );
-                    if (
-                      !commit({
-                        accounts: nextAccounts,
-                      })
-                    )
+                      messages.some((m) => m.to === confirm.id)
+                    ) {
+                      setConfirm({ ...confirm, linked: true });
                       return;
+                    }
+                    if (!commit({ accounts: accounts.filter((a) => a.id !== confirm.id) })) return;
                     setConfirm(null);
-                    setNotice("Account updated.");
+                    setNotice("Account deleted.");
                   } catch (cause) {
                     setNotice(
                       cause instanceof Error ? cause.message : "Could not update the account.",
@@ -640,6 +616,7 @@ export default function Department() {
               >
                 Confirm
               </button>
+              )}
             </div>
           </div>
         </div>

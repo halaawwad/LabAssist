@@ -164,24 +164,6 @@ export function effectiveAccountStatus(account: {
     (!account.active ? "DISABLED" : account.invited === false ? "PENDING_ACTIVATION" : "ACTIVE")
   );
 }
-export function toggleAccountAccess<
-  T extends {
-    active: boolean;
-    status?: AccountStatus;
-    invited?: boolean;
-    disabledFrom?: AccountStatus;
-  },
->(account: T): T {
-  const status = effectiveAccountStatus(account);
-  // Disabling and restoring a pending account never activates it.
-  const next = status === "DISABLED" ? (account.disabledFrom ?? "ACTIVE") : "DISABLED";
-  return {
-    ...account,
-    status: next,
-    active: next === "ACTIVE",
-    disabledFrom: status === "DISABLED" ? account.disabledFrom : status,
-  };
-}
 /** Only these deliberately assigned fixture aliases may be resolved automatically. */
 export function demoProjectId(
   app: "student" | "supervisor" | "workshop" | "mobile",

@@ -1,7 +1,7 @@
 import { MobileInput as TextInput } from "@/components/MobileInput";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { MobileModal as Modal } from "@/components/MobileModal";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Image, Keyboard, Linking, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -24,6 +24,10 @@ import { useWorkspace } from "@/state/WorkspaceProvider";
 import { colors, fontStyle } from "@/theme";
 import hardware from "../../../assets/data/hardware.json";
 import { catalogPreviews } from "./catalogPreviews";
+import { useMarketClient } from "@/lib/market/session";
+import { useDebouncedValue, usePagedResource } from "@/lib/market/useMarketData";
+import { MarketState, More } from "./MarketState";
+import { ApiPartDetails } from "./ApiPartDetails";
 
 type Component = (typeof hardware.parts)[number];
 const categoryNames = [
@@ -36,24 +40,6 @@ const categoryNames = [
   "Wireless",
   "Modules",
 ];
-const categoryTints = [
-  colors.primaryWash,
-  "#e9f0f3",
-  "#f3ebdf",
-  "#e8eee6",
-  "#f2ece3",
-  "#eae8ef",
-  "#e5efed",
-  "#eeeddf",
-];
-const normalize = (value: string) =>
-  value
-    .toLowerCase()
-    .normalize("NFKC")
-    .replace(/[أإآ]/g, "ا")
-    .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
-    .trim();
-
 // The host already scrolls vertically. Keep one vertical scroll owner, with only
 // lightweight images in this bounded 43-part grid (no nested virtualized list).
 export function CatalogPanel() {
@@ -67,17 +53,27 @@ export function CatalogPanel() {
   const [selected, setSelected] = useState<Component | null>(null);
   const [notice, setNotice] = useState("");
   const [failed, setFailed] = useState(false);
-  const items = useMemo(
-    () =>
-      hardware.parts.filter(
-        (part) =>
-          (category === "all" || part.category === category) &&
-          (voltage === "all" || part.voltage === Number(voltage)) &&
-          normalize(
-            `${part.name} ${part.arabic} ${part.key} ${part.model} ${part.category}`,
-          ).includes(normalize(search)),
-      ),
-    [category, search, voltage],
+  const [unknownKey, setUnknownKey] = useState<string | null>(null);
+  const client = useMarketClient();
+  const searchValue = useDebouncedValue(search.trim());
+  const categories = usePagedResource("categories", (cursor, signal) =>
+    client.categories({ limit: 100, cursor }, signal),
+    client,
+  );
+  const parts = usePagedResource(`${searchValue}|${category}`, (cursor, signal) =>
+    client.parts(
+      {
+        limit: 24,
+        cursor,
+        search: searchValue || undefined,
+        category: category === "all" ? undefined : category,
+      },
+      signal,
+    ),
+    client,
+  );
+  const items = parts.items.filter(
+    (part) => voltage === "all" || part.typicalSupplyVoltage === Number(voltage),
   );
   const label = (value: string) =>
     language === "ar" ? value : (categoryNames[hardware.categories.indexOf(value)] ?? value);
@@ -158,7 +154,7 @@ export function CatalogPanel() {
         style={s.filterScroll}
         contentContainerStyle={s.filterRow}
       >
-        {["all", ...hardware.categories].map((value) => (
+        {["all", ...categories.items.map((c) => c.id)].map((value) => (
           <Pressable
             key={value}
             accessibilityRole="button"
@@ -212,7 +208,7 @@ export function CatalogPanel() {
       <View style={[s.row, s.results]}>
         <AppText variant="caption" tone="muted" style={s.grow} accessibilityLiveRegion="polite">
           {t(
-            `${items.length} of ${hardware.parts.length} components`,
+            `${items.length} components loaded`,
             `${items.length} من ${hardware.parts.length} قطعة`,
           )}
         </AppText>
@@ -224,86 +220,80 @@ export function CatalogPanel() {
           </Pressable>
         )}
       </View>
+      <MarketState
+        status={categories.status}
+        message={categories.message}
+        retry={categories.retry}
+      />
+      <More
+        next={categories.nextCursor}
+        loading={categories.loadingMore}
+        error={categories.moreError}
+        load={categories.loadMore}
+      />
+      <MarketState status={parts.status} message={parts.message} retry={parts.retry} />
+      {voltage !== "all" && (
+        <AppText variant="caption">
+          {t("Voltage filter applies to loaded parts.", "تصفية الجهد للقطع المحملة فقط.")}
+        </AppText>
+      )}
       <View style={s.grid}>
-        {items.map((part) => (
-          <Pressable
-            key={part.key}
-            accessibilityRole="button"
-            accessibilityLabel={`${language === "ar" ? part.arabic : part.name}, ${label(part.category)}, ${supply(part)}, ${part.def.pins.length} ${t("pins. View details", "طرفاً. عرض التفاصيل")}`}
-            onPress={() => {
-              Keyboard.dismiss();
-              setNotice("");
-              setFailed(false);
-              setSelected(part);
-            }}
-            style={({ pressed }) => [s.card, pressed && s.pressed]}
-          >
-            <View
-              style={[
-                s.preview,
-                { backgroundColor: categoryTints[hardware.categories.indexOf(part.category)] },
-              ]}
+        {items.map((part) => {
+          const local = hardware.parts.find((item) => item.key === part.key);
+          return (
+            <Pressable
+              key={part.key}
+              accessibilityRole="button"
+              accessibilityLabel={`${language === "ar" ? part.nameAr : part.nameEn}, ${t("View details", "عرض التفاصيل")}`}
+              onPress={() => {
+                Keyboard.dismiss();
+                setNotice("");
+                setFailed(false);
+                if (local) setSelected(local);
+                else setUnknownKey(part.key);
+              }}
+              style={({ pressed }) => [s.card, pressed && s.pressed]}
             >
-              {catalogPreviews[part.model] ? (
-                <Image
-                  source={catalogPreviews[part.model]}
-                  style={s.thumbnail}
-                  resizeMode="contain"
-                  accessible={false}
-                />
-              ) : (
-                <CircuitBoard size={42} color={colors.primary} />
-              )}
-            </View>
-            <View style={s.cardBody}>
-              <AppText variant="caption" tone="primary" style={s.category}>
-                {label(part.category)}
-              </AppText>
-              <AppText weight="semibold" style={s.name}>
-                {language === "ar" ? part.arabic : part.name}
-              </AppText>
-              <View style={s.cardSpecs}>
-                <View style={s.meta}>
-                  <Zap size={12} color={colors.primary} />
-                  <AppText
-                    variant="caption"
-                    tone="muted"
-                    style={s.metaText}
-                    language={part.voltage ? "en" : language}
-                  >
-                    {supply(part)}
-                  </AppText>
-                </View>
-                <View style={s.meta}>
-                  <CircuitBoard size={12} color={colors.primary} />
-                  <AppText variant="caption" tone="muted" style={s.metaText}>
-                    {part.def.pins.length} {t("pins", "طرفاً")}
-                  </AppText>
-                </View>
-              </View>
-              <View style={[s.row, s.cardFooter]}>
-                <AppText variant="caption" tone="primary" weight="semibold" style={s.grow}>
-                  {t("Explore", "استكشف")}
-                </AppText>
-                {isRTL ? (
-                  <ArrowLeft size={16} color={colors.primary} />
+              <View style={[s.preview, { backgroundColor: colors.primaryWash }]}>
+                {local && catalogPreviews[local.model] ? (
+                  <Image
+                    source={catalogPreviews[local.model]}
+                    style={s.thumbnail}
+                    resizeMode="contain"
+                    accessible={false}
+                  />
                 ) : (
-                  <ArrowRight size={16} color={colors.primary} />
+                  <CircuitBoard size={42} color={colors.primary} />
                 )}
               </View>
-            </View>
-          </Pressable>
-        ))}
+              <View style={s.cardBody}>
+                <AppText variant="caption" tone="primary">
+                  {language === "ar"
+                    ? categories.items.find((c) => c.id === part.categoryId)?.nameAr
+                    : categories.items.find((c) => c.id === part.categoryId)?.nameEn}
+                </AppText>
+                <AppText weight="semibold" style={s.name}>
+                  {language === "ar" ? part.nameAr : part.nameEn}
+                </AppText>
+                <View style={s.meta}>
+                  <Zap size={12} color={colors.primary} />
+                  <AppText variant="caption" tone="muted">
+                    {part.typicalSupplyVoltage == null
+                      ? t("Unknown", "غير معروف")
+                      : `${part.typicalSupplyVoltage} V`}
+                  </AppText>
+                </View>
+                <AppText variant="caption" tone="primary">
+                  {t("Explore", "استكشف")}
+                </AppText>
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
-      {!items.length && (
+      {parts.status === "ready" && !items.length && (
         <View style={s.empty}>
-          <Search size={30} color={colors.primary} />
-          <AppText variant="heading" align="center">
-            {t("No matching components", "لا توجد قطع مطابقة")}
-          </AppText>
-          <AppText tone="muted" align="center">
-            {t("Try another name or reset your filters.", "جرّب اسماً آخر أو أعد ضبط التصنيفات.")}
-          </AppText>
+          <AppText>{t("No matching components", "لا توجد قطع مطابقة")}</AppText>
           <Button
             title={t("Reset filters", "إعادة ضبط التصنيفات")}
             variant="soft"
@@ -311,7 +301,33 @@ export function CatalogPanel() {
           />
         </View>
       )}
-
+      <More
+        next={parts.nextCursor}
+        loading={parts.loadingMore}
+        error={parts.moreError}
+        load={parts.loadMore}
+      />
+      <Modal
+        visible={!!unknownKey}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setUnknownKey(null)}
+      >
+        <SafeAreaView style={[s.detailRoot, directionStyle(dir)]}>
+          <View style={s.detailHeader}>
+            <Button title={t("Back", "رجوع")} variant="soft" onPress={() => setUnknownKey(null)} />
+          </View>
+          <ScrollView contentContainerStyle={s.detailContent}>
+            {unknownKey && <ApiPartDetails partKey={unknownKey} />}
+            <AppText>
+              {t(
+                "No local preview or wiring sheet for this exact key.",
+                "لا توجد معاينة أو ورقة توصيل محلية لهذا المفتاح.",
+              )}
+            </AppText>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
       <Modal
         visible={!!selected}
         animationType="slide"
@@ -346,6 +362,13 @@ export function CatalogPanel() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={s.detailContent}
             >
+              <ApiPartDetails partKey={selected.key} />
+              <AppText variant="caption">
+                {t(
+                  "Local reference content below; check the original datasheet and pinout. Functional grouping does not indicate physical pin placement.",
+                  "المحتوى التالي مرجع محلي؛ راجع نشرة البيانات ومخطط الأطراف الأصلي. التجميع الوظيفي لا يحدد مواقع الأطراف الفعلية.",
+                )}
+              </AppText>
               <View style={s.stackSmall}>
                 <AppText variant="caption" tone="primary" weight="semibold">
                   {label(selected.category)}

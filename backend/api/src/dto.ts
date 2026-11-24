@@ -20,4 +20,3 @@ export class AccountDto{
  @ApiPropertyOptional() @IsOptional() @Matches(/^\d{8}$/) universityNumber?:string;
  @ApiPropertyOptional() @IsOptional() @Matches(/^\d{4,5}$/) employeeNumber?:string;
 }
-export class StatusDto{@ApiProperty({enum:['ACTIVE','DISABLED']}) @IsIn(['ACTIVE','DISABLED']) status!:'ACTIVE'|'DISABLED';}

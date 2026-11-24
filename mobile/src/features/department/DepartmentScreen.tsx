@@ -35,7 +35,6 @@ import { useLocalPreview } from "@/lib/useLocalPreview";
 import {
   accountHasHistory,
   effectiveAccountStatus,
-  toggleAccountAccess,
   demoSupervisor,
   demoTerm,
   createLocalId,
@@ -63,12 +62,10 @@ import {
   statusLabel,
 } from "./DepartmentCards";
 import {
-  Ban,
   GraduationCap,
   LayoutGrid,
   MessageSquare,
   Pencil,
-  RotateCcw,
   Trash2,
   UserRound,
 } from "lucide-react-native";
@@ -153,7 +150,7 @@ export default function DepartmentScreen() {
     [assignmentsFor, setAssignmentsFor] = useState<string | null>(null);
   const [groupMenu, setGroupMenu] = useState<string | null>(null),
     [groupDetails, setGroupDetails] = useState<string | null>(null);
-  const [change, setChange] = useState<{ id: string; action: "remove" | "access" } | null>(null);
+  const [change, setChange] = useState<{ id: string; action: "remove" } | null>(null);
   const [recipient, setRecipient] = useState(""),
     [body, setBody] = useState(""),
     [contactQuery, setContactQuery] = useState(""),
@@ -358,25 +355,17 @@ export default function DepartmentScreen() {
     pending.current = true;
     try {
       const protect = linked(account.id);
-      const next =
-        change.action === "access"
-          ? accounts.map((a) => (a.id === account.id ? toggleAccountAccess(a) : a))
-          : protect
-            ? accounts.map((a) =>
-                a.id === account.id
-                  ? effectiveAccountStatus(a) === "DISABLED"
-                    ? a
-                    : toggleAccountAccess(a)
-                  : a,
-              )
-            : accounts.filter((a) => a.id !== account.id);
-      if (
-        next.filter((a) => a.role === "workshop" && effectiveAccountStatus(a) !== "DISABLED")
-          .length > 1
-      ) {
-        setError(t("Disable the current workshop manager first.", "عطّل مدير الورشة الحالي أولًا."));
+      // Accounts with groups, messages or history are kept; LabAssist has no disable or re-enable action.
+      if (protect) {
+        setError(
+          t(
+            "This account has records, so it is kept. Accounts cannot be disabled.",
+            "لهذا الحساب سجلات، لذلك يبقى محفوظًا. لا يمكن تعطيل الحسابات.",
+          ),
+        );
         return;
       }
+      const next = accounts.filter((a) => a.id !== account.id);
       if (await commit({ accounts: next })) {
         setChange(null);
         setNotice(t("Account updated.", "تم تحديث الحساب."));
@@ -663,20 +652,6 @@ export default function DepartmentScreen() {
                           icon: LayoutGrid,
                           onPress: () => setAssignmentsFor(menuAccount.id),
                         },
-                        effectiveAccountStatus(menuAccount) === "DISABLED"
-                          ? {
-                              label: t("Restore access", "استعادة الوصول"),
-                              icon: RotateCcw,
-                              disabled: !ready || saving,
-                              onPress: () => setChange({ id: menuAccount.id, action: "access" }),
-                            }
-                          : {
-                              label: t("Disable", "تعطيل"),
-                              icon: Ban,
-                              destructive: true,
-                              disabled: !ready || saving,
-                              onPress: () => setChange({ id: menuAccount.id, action: "access" }),
-                            },
                         // Delete stays limited to accounts without links or history.
                         ...(!linked(menuAccount.id)
                           ? [
@@ -1266,11 +1241,7 @@ export default function DepartmentScreen() {
       </Sheet>
       <Sheet
         visible={!!change}
-        title={
-          change?.action === "remove"
-            ? t("Delete account?", "حذف الحساب؟")
-            : t("Change account availability?", "تغيير حالة الحساب؟")
-        }
+        title={t("Delete account?", "حذف الحساب؟")}
         busy={saving}
         onClose={() => setChange(null)}
         footer={

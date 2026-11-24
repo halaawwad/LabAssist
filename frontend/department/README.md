@@ -99,7 +99,7 @@ Student login page. It is still a demo, not authentication.
    verify that its interface and assets are independent.
 2. Verify account role filters/search, add/edit, generated student email,
    number/email duplicate validation, one-active-workshop-manager validation,
-   Pending local status, and delete vs. disable/reactivate confirmations.
+   Pending local status, and the delete confirmation (accounts with records are kept; there is no disable or re-enable action).
 3. New manual/imported accounts are approved local records immediately and can
    be assigned to groups without an account onboarding step. Add/edit a group
    with 2–3 students and multiple supervisors.

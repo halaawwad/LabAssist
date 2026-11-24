@@ -256,9 +256,8 @@ test("manual transfer requires confirmation, preserves metadata/history and term
   assert.doesNotThrow(() =>
     records.prepareGroupSave(next, [otherTerm, target], accounts, false, "pending-drafts"),
   );
-  const restored = domain.toggleAccountAccess(domain.toggleAccountAccess(first.accounts[1]));
-  assert.equal(restored.status, "PENDING_ACTIVATION");
-  assert.equal(restored.active, false);
+  // LabAssist provides no account disabling or re-enabling helper.
+  assert.equal(domain.toggleAccountAccess, undefined);
 });
 function storage() {
   const data = new Map();
@@ -335,7 +334,8 @@ test("legacy previews retain identity, disabled/pending state, unknown metadata,
   const accounts = native
     .mobileAccounts(planned.accounts)
     .map((a) => ({ ...a, legacyMetadata: { keep: a.id } }));
-  accounts[1] = domain.toggleAccountAccess(accounts[1]);
+  // A pre-existing disabled record (LabAssist cannot create one) must survive enrichment unchanged.
+  accounts[1] = { ...accounts[1], status: "DISABLED", active: false, disabledFrom: domain.effectiveAccountStatus(accounts[1]) };
   const group = {
     ...planned.groups[0],
     status: "ON_HOLD",
