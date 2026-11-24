@@ -36,11 +36,21 @@ jobs:
           cache: npm
           cache-dependency-path: |
             tools/frontend-quality/package-lock.json
-            frontend/student/package-lock.json
             frontend/supervisor/package-lock.json
             frontend/workshop/package-lock.json
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.3"
       - run: npm ci --prefix tools/frontend-quality --ignore-scripts
-      - run: npm ci --prefix frontend/student
+      - name: Prepare isolated locked student dependencies
+        run: |
+          bash .github/scripts/prepare-web-workspace.sh student
+      - name: Install student dependencies from Bun lockfile
+        run: |
+          cd "$STUDENT_CHECK_DIR"
+          bun install --frozen-lockfile
+      - name: Expose isolated student dependencies to coverage runner
+        run: ln -s "$STUDENT_CHECK_DIR/node_modules" frontend/student/node_modules
       - run: npm ci --prefix frontend/supervisor
       - run: npm ci --prefix frontend/workshop
       - name: Resolve shared source dependencies
