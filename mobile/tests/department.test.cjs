@@ -130,7 +130,9 @@ test("web and mobile imports create pending accounts, permit mixed batches in dr
   );
   const web = records.planImport(b, workbook.initialMapping(b.headers), [], [], [], false);
   assert.deepEqual(web.errors, []);
-  assert.ok(web.accounts.every((a) => a.status === "PENDING_ACTIVATION" && !a.active && !a.invited));
+  assert.ok(
+    web.accounts.every((a) => a.status === "PENDING_ACTIVATION" && !a.active && !a.invited),
+  );
 });
 test("web and mobile imports preserve existing account statuses", () => {
   const b = book();
@@ -139,11 +141,34 @@ test("web and mobile imports preserve existing account statuses", () => {
     status: index === 0 ? "ACTIVE" : "PENDING_ACTIVATION",
     active: index === 0,
   }));
-  original.push({ ...original[0], id: "disabled", number: "0910", email: "disabled@example.com", status: "DISABLED", active: false, disabledFrom: "PENDING_ACTIVATION" });
-  original.push({ ...original[0], id: "reference", number: "0911", email: "reference@example.com", status: "REFERENCE_ONLY", active: false });
+  original.push({
+    ...original[0],
+    id: "disabled",
+    number: "0910",
+    email: "disabled@example.com",
+    status: "DISABLED",
+    active: false,
+    disabledFrom: "PENDING_ACTIVATION",
+  });
+  original.push({
+    ...original[0],
+    id: "reference",
+    number: "0911",
+    email: "reference@example.com",
+    status: "REFERENCE_ONLY",
+    active: false,
+  });
   const before = JSON.stringify(original);
   for (const policy of [undefined, "pending-drafts"]) {
-    const review = records.planImport(b, workbook.initialMapping(b.headers), original, [], [], false, policy);
+    const review = records.planImport(
+      b,
+      workbook.initialMapping(b.headers),
+      original,
+      [],
+      [],
+      false,
+      policy,
+    );
     assert.deepEqual(review.errors, []);
     assert.equal(review.summary.accountsCreated, 0);
     for (const account of original) {
@@ -256,9 +281,6 @@ test("manual transfer requires confirmation, preserves metadata/history and term
   assert.doesNotThrow(() =>
     records.prepareGroupSave(next, [otherTerm, target], accounts, false, "pending-drafts"),
   );
-  const restored = domain.toggleAccountAccess(domain.toggleAccountAccess(first.accounts[1]));
-  assert.equal(restored.status, "PENDING_ACTIVATION");
-  assert.equal(restored.active, false);
 });
 function storage() {
   const data = new Map();
@@ -335,7 +357,12 @@ test("legacy previews retain identity, disabled/pending state, unknown metadata,
   const accounts = native
     .mobileAccounts(planned.accounts)
     .map((a) => ({ ...a, legacyMetadata: { keep: a.id } }));
-  accounts[1] = domain.toggleAccountAccess(accounts[1]);
+  accounts[1] = {
+    ...accounts[1],
+    status: "DISABLED",
+    active: false,
+    disabledFrom: accounts[1].status,
+  };
   const group = {
     ...planned.groups[0],
     status: "ON_HOLD",

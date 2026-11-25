@@ -53,19 +53,18 @@ test("protected account requests restore once and retain PATCH method", async ()
     calls.push({ url, ...options });
     if (url.endsWith("/auth/login") || url.endsWith("/auth/refresh"))
       return response(201, tokens());
-    return response(
-      calls.filter((c) => c.url.endsWith("/accounts/id/status")).length === 1 ? 401 : 200,
-      { ok: true },
-    );
+    return response(calls.filter((c) => c.url.endsWith("/accounts/id")).length === 1 ? 401 : 200, {
+      ok: true,
+    });
   });
   await f.client.login("STUDENT", account.email, "secret");
   assert.deepEqual(
-    await f.client.authorizedRequest("/accounts/id/status", "PATCH", { status: "DISABLED" }),
+    await f.client.authorizedRequest("/accounts/id", "PATCH", { fullName: "Updated name" }),
     { ok: true },
   );
-  const writes = calls.filter((c) => c.url.endsWith("/accounts/id/status"));
+  const writes = calls.filter((c) => c.url.endsWith("/accounts/id"));
   assert.equal(writes.length, 2);
-  assert.ok(writes.every((c) => c.method === "PATCH" && c.body === '{"status":"DISABLED"}'));
+  assert.ok(writes.every((c) => c.method === "PATCH" && c.body === '{"fullName":"Updated name"}'));
   assert.equal(calls.filter((c) => c.url.endsWith("/auth/refresh")).length, 1);
 });
 

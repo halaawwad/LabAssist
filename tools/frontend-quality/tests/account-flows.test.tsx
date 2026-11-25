@@ -136,7 +136,7 @@ describe("account activation and recovery forms", () => {
   });
 });
 describe("Head account administration", () => {
-  it("creates an account through the form and confirms disable explicitly", async () => {
+  it("creates an account without offering account disable or reactivation", async () => {
     render(<AccountAdministration onAccounts={() => {}} />);
     await screen.findByText("Test student");
     fireEvent.click(screen.getByText("Add account"));
@@ -151,16 +151,8 @@ describe("Head account administration", () => {
       }),
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    fireEvent.click(screen.getByText("Disable"));
-    expect(client.authorizedRequest).not.toHaveBeenCalledWith("/accounts/student/status", "PATCH", {
-      status: "DISABLED",
-    });
-    fireEvent.click(screen.getByText("Confirm"));
-    await waitFor(() =>
-      expect(client.authorizedRequest).toHaveBeenCalledWith("/accounts/student/status", "PATCH", {
-        status: "DISABLED",
-      }),
-    );
+    expect(screen.queryByRole("button", { name: "Disable" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Enable" })).toBeNull();
   });
   it("renders server accounts and filters their identity", async () => {
     render(<AccountAdministration onAccounts={() => {}} />);

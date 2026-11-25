@@ -144,19 +144,21 @@ describe("Sprint 1 real PostgreSQL API", () => {
       (await post("/auth/login", { role: "SUPERVISOR", identifier: student.email, password }))
         .status,
     ).toBe(401);
-    await request(app.getHttpServer())
-      .patch("/v1/accounts/" + student.id + "/status")
-      .set("Authorization", "Bearer " + headAccess)
-      .send({ status: "DISABLED" })
-      .expect(200);
-    expect(
-      (await post("/auth/login", { role: "STUDENT", identifier: student.email, password })).status,
-    ).toBe(401);
-    await request(app.getHttpServer())
-      .patch("/v1/accounts/" + student.id + "/status")
-      .set("Authorization", "Bearer " + headAccess)
-      .send({ status: "ACTIVE" })
-      .expect(200);
+    // Historical disabled state remains denied; no public status-changing API.
+    await db.$executeRaw`UPDATE labassist_student.accounts SET status='DISABLED' WHERE id=${student.id}::uuid`;
+    try {
+      expect(
+        (await post("/auth/login", { role: "STUDENT", identifier: student.email, password }))
+          .status,
+      ).toBe(401);
+      await request(app.getHttpServer())
+        .patch("/v1/accounts/" + student.id + "/status")
+        .set("Authorization", "Bearer " + headAccess)
+        .send({ status: "ACTIVE" })
+        .expect(404);
+    } finally {
+      await db.$executeRaw`UPDATE labassist_student.accounts SET status='ACTIVE' WHERE id=${student.id}::uuid`;
+    }
   });
   it("staff use their university number; refresh rotates once and logout revokes access", async () => {
     for (const [role, employeeNumber] of [
