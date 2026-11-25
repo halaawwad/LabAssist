@@ -27,3 +27,5 @@ The PostgreSQL scripts, particularly `backend/database/department-stage12`, are 
 - Handovers and return inspections retain previous records. Invalid quantities, empty issues, conflicting allocation and outstanding unreturned handovers are rejected.
 
 See [backend preparation](BACKEND-PREPARATION.md) for identity mappings, storage boundaries, limitations and manual checks.
+
+Account access policy: disable/reactivate actions are removed from Web, Mobile and the account API. Historical disabled records remain unchanged and cannot sign in. First activation, password recovery, logout and session revocation remain supported.
