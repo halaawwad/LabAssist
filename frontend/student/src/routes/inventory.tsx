@@ -294,8 +294,9 @@ function InventoryPage() {
                           <span>
                             {source === "Student Resale"
                               ? "live"
-                              : workshopStock.filter((item) => (item.source || "Workshop") === "Workshop")
-                                  .length}
+                              : workshopStock.filter(
+                                  (item) => (item.source || "Workshop") === "Workshop",
+                                ).length}
                           </span>
                         </button>
                       ))}
@@ -389,12 +390,12 @@ function InventoryPage() {
                       ))}
                     </div>
                     {!filtered.length && stockSource !== "Student Resale" && (
-                        <div className="inventory-empty">
-                          <Box size={32} />
-                          <h3>No matching parts</h3>
-                          <button onClick={reset}>Clear filters</button>
-                        </div>
-                      )}
+                      <div className="inventory-empty">
+                        <Box size={32} />
+                        <h3>No matching parts</h3>
+                        <button onClick={reset}>Clear filters</button>
+                      </div>
+                    )}
                     {tab === "Find Parts" && stockSource === "All sources" && (
                       <MarketOfferList
                         sellerKind="SHOP"
