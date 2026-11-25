@@ -160,6 +160,7 @@ export function WebAccountAccess({ mode: explicit }: { mode?: "activate" | "rese
               </p>
             )}
             <button
+              type="submit"
               disabled={busy}
               style={{ ...input, background: "#526443", color: "white", cursor: "pointer" }}
             >

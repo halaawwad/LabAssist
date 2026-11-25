@@ -228,7 +228,7 @@ export function AccountAdministration({ onAccounts }: { onAccounts: (rows: Accou
                   Reload accounts
                 </button>
               )}
-              <button className="dept-primary" disabled={admin.busy || !admin.ready}>
+              <button type="submit" className="dept-primary" disabled={admin.busy || !admin.ready}>
                 {admin.busy ? "Saving…" : "Save"}
               </button>
               <button type="button" disabled={admin.busy} onClick={() => setDraft(null)}>
