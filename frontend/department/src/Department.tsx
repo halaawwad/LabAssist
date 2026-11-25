@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Account as ApiAccount } from "../../../shared/auth/session-client";
+import { apiMode, logoutWeb } from "../../../shared/auth/web-session";
+import { AccountAdministration } from "./components/AccountAdministration";
 import {
   Plus,
   Search,
@@ -46,6 +49,13 @@ const initial: Account[] = [
   })),
 ];
 export default function Department() {
+  const real = apiMode(import.meta.env);
+  const [serverAccounts, setServerAccounts] = useState<ApiAccount[]>([]);
+  const showServerAccounts = useCallback((rows: ApiAccount[]) => setServerAccounts(rows), []);
+  const serverCount = (role: ApiAccount["role"], includePending = false) =>
+    serverAccounts.filter(
+      (a) => a.role === role && (includePending ? a.status !== "DISABLED" : a.status === "ACTIVE"),
+    ).length;
   const [navOpen, setNavOpen] = useState(true);
   const [groupListVersion, setGroupListVersion] = useState(0);
   const [groups, setGroups] = useState<DepartmentGroup[]>([{ ...demoTeam, status: "DRAFT" }]);
@@ -238,7 +248,16 @@ export default function Department() {
           <MessageCircle size={18} />
           Communication
         </button>
-        <a href={loginUrl()} onClick={() => endDemoSession("department")} className="dept-logout">
+        <a
+          href={loginUrl()}
+          onClick={(e) => {
+            if (real) {
+              e.preventDefault();
+              void logoutWeb(import.meta.env);
+            } else endDemoSession("department");
+          }}
+          className="dept-logout"
+        >
           Back to login
         </a>
       </aside>
@@ -267,22 +286,30 @@ export default function Department() {
           {[
             [
               "Active supervisors",
-              accounts.filter(
-                (a) => a.role === "Supervisor" && effectiveAccountStatus(a) === "ACTIVE",
-              ).length,
+              real
+                ? serverCount("SUPERVISOR")
+                : accounts.filter(
+                    (a) => a.role === "Supervisor" && effectiveAccountStatus(a) === "ACTIVE",
+                  ).length,
             ],
             [
               "Workshop manager",
-              accounts.filter(
-                (a) => a.role === "Workshop Manager" && effectiveAccountStatus(a) !== "DISABLED",
-              ).length,
+              real
+                ? serverCount("WORKSHOP_MANAGER", true)
+                : accounts.filter(
+                    (a) =>
+                      a.role === "Workshop Manager" && effectiveAccountStatus(a) !== "DISABLED",
+                  ).length,
             ],
             [
               "Active students",
-              accounts.filter((a) => a.role === "Student" && effectiveAccountStatus(a) === "ACTIVE")
-                .length,
+              real
+                ? serverCount("STUDENT")
+                : accounts.filter(
+                    (a) => a.role === "Student" && effectiveAccountStatus(a) === "ACTIVE",
+                  ).length,
             ],
-            ["Groups", groups.length],
+            [real ? "Groups · local workspace" : "Groups", groups.length],
           ].map(([label, n]) => (
             <article key={label}>
               <ShieldCheck size={20} />
@@ -299,7 +326,7 @@ export default function Department() {
             </button>
           </p>
         )}
-        {tab !== "messages" && (
+        {!real && tab !== "messages" && (
           <DepartmentImport
             accounts={accounts}
             groups={groups}
@@ -327,7 +354,9 @@ export default function Department() {
             }}
           />
         )}
-        {tab === "accounts" ? (
+        {tab === "accounts" && real ? (
+          <AccountAdministration onAccounts={showServerAccounts} />
+        ) : tab === "accounts" ? (
           <section className="dept-panel">
             <div className="dept-toolbar">
               <h2>
@@ -407,23 +436,27 @@ export default function Department() {
                           <MessageCircle size={15} />
                           Message
                         </button>
-                        {!a.linked && (
-                          <button
-                            className="dept-danger"
-                            aria-label={`Delete ${a.name}`}
-                            onClick={() =>
-                              setConfirm({
-                                ...a,
-                                linked:
-                                  accountHasHistory(a.id, groups) ||
-                                  messages.some((m) => m.to === a.id),
-                              })
-                            }
-                          >
-                            <Trash2 size={15} />
-                            Delete
-                          </button>
-                        )}
+                        <button
+                          className="dept-danger"
+                          disabled={
+                            a.linked ||
+                            accountHasHistory(a.id, groups) ||
+                            messages.some((m) => m.to === a.id)
+                          }
+                          aria-label={`Delete ${a.name}`}
+                          onClick={() =>
+                            setConfirm({
+                              ...a,
+                              linked:
+                                a.linked ||
+                                accountHasHistory(a.id, groups) ||
+                                messages.some((m) => m.to === a.id),
+                            })
+                          }
+                        >
+                          <Trash2 size={15} />
+                          Delete
+                        </button>
                       </>
                     }
                   />
@@ -581,32 +614,36 @@ export default function Department() {
           aria-label="Confirm account change"
         >
           <div className="dept-dialog">
-            <h2>{confirm.linked ? "Account kept" : "Delete account?"}</h2>
+            <h2>Delete account?</h2>
             <p>
               {confirm.linked
-                ? "This account has group or message records, so it is kept. Accounts cannot be disabled or re-enabled."
+                ? "Existing records and assignments will be kept."
                 : "This unused account will be removed."}
             </p>
             <div className="dept-toolbar">
               <button className="dept-secondary" onClick={() => setConfirm(null)}>
-                {confirm.linked ? "Close" : "Cancel"}
+                Cancel
               </button>
-              {!confirm.linked && (
               <button
-                className="dept-primary dept-danger"
+                className={
+                  "dept-primary" + (!confirm.linked || confirm.active ? " dept-danger" : "")
+                }
                 onClick={() => {
                   try {
-                    // Records may have appeared since the dialog opened; accounts with records are never removed.
-                    if (
+                    const linked =
+                      confirm.linked ||
                       accountHasHistory(confirm.id, groups) ||
-                      messages.some((m) => m.to === confirm.id)
-                    ) {
-                      setConfirm({ ...confirm, linked: true });
+                      messages.some((m) => m.to === confirm.id);
+                    if (linked) throw new Error("Accounts with history cannot be deleted.");
+                    const nextAccounts = accounts.filter((a) => a.id !== confirm.id);
+                    if (
+                      !commit({
+                        accounts: nextAccounts,
+                      })
+                    )
                       return;
-                    }
-                    if (!commit({ accounts: accounts.filter((a) => a.id !== confirm.id) })) return;
                     setConfirm(null);
-                    setNotice("Account deleted.");
+                    setNotice("Account updated.");
                   } catch (cause) {
                     setNotice(
                       cause instanceof Error ? cause.message : "Could not update the account.",
@@ -616,7 +653,6 @@ export default function Department() {
               >
                 Confirm
               </button>
-              )}
             </div>
           </div>
         </div>

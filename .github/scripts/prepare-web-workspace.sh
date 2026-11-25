@@ -13,6 +13,15 @@ app="$target/frontend/$role"
 mkdir -p "$app" "$target/shared"
 cp -a "frontend/$role/." "$app/"
 cp -a shared/web "$target/shared/"
+cp -a shared/auth "$target/shared/"
+cp -a shared/contracts "$target/shared/"
+
+# The shared login keeps the student illustration and department preview link.
+if [ "$role" != student ]; then
+  mkdir -p "$target/frontend/student/src/assets" "$target/frontend/student/src/lib"
+  cp frontend/student/src/assets/login-workshop-backlight-sage.png "$target/frontend/student/src/assets/"
+  cp frontend/student/src/lib/departmentUrl.ts "$target/frontend/student/src/lib/"
+fi
 
 # Shared React modules use the same locked React/lucide installation as the app.
 # The link can be created before the install and remains valid after npm ci.

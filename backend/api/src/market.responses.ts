@@ -4,6 +4,7 @@ import {ApiProperty,ApiResponse} from '@nestjs/swagger';
 const NS={type:String,nullable:true},NN={type:Number,nullable:true};
 // Body produced by the global ApiErrors filter: validation errors carry a message array; Nest exceptions add `error`.
 export class ErrorResponse{
+ @ApiProperty() requestId!:string;
  @ApiProperty() statusCode!:number;
  @ApiProperty({oneOf:[{type:'string'},{type:'array',items:{type:'string'}}]}) message!:string|string[];
  @ApiProperty({required:false,description:'Present on framework exceptions such as validation failures.'}) error?:string;

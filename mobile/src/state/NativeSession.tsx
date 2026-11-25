@@ -1,12 +1,24 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { ActivityIndicator, View } from "react-native";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { ActivityIndicator, AppState, View } from "react-native";
 import { Redirect, usePathname } from "expo-router";
-
-type SessionRole = "student" | "supervisor" | "workshop" | "department";
+import { authClient, authMessage, demoMode, roleCodes } from "@/features/auth/client";
+import type { Account } from "@/features/auth/session-client";
+import { AppText, Button } from "@/components";
+import { useLanguage } from "@/i18n";
+export type SessionRole = "student" | "supervisor" | "workshop" | "department";
 const key = "labassist.mobile.demo-session.v1";
 const Context = createContext<{
-  signIn: (role: SessionRole) => Promise<void>;
+  account: Account | null;
+  signIn: (role: SessionRole, identifier?: string, password?: string) => Promise<void>;
   signOut: () => Promise<void>;
 } | null>(null);
 export const sessionHome = (role: SessionRole) =>
@@ -15,28 +27,80 @@ export const sessionHome = (role: SessionRole) =>
     : role === "department"
       ? "/native/department"
       : `/native/${role}/dashboard`;
-
-/** Local demo navigation state only; this does not authenticate a backend user. */
+const accountRole = (account: Account): SessionRole =>
+  account.role === "STUDENT"
+    ? "student"
+    : account.role === "SUPERVISOR"
+      ? "supervisor"
+      : account.role === "WORKSHOP_MANAGER"
+        ? "workshop"
+        : "department";
 export function NativeSessionProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<SessionRole | null>(null);
-  const [ready, setReady] = useState(false);
-  const pathname = usePathname();
+  const [role, setRole] = useState<SessionRole | null>(null),
+    [account, setAccount] = useState<Account | null>(null),
+    [ready, setReady] = useState(false),
+    [error, setError] = useState("");
+  const { language } = useLanguage(),
+    pathname = usePathname();
+  const mounted = useRef(true);
+  const restore = useCallback(async () => {
+    setReady(false);
+    setError("");
+    try {
+      if (demoMode) {
+        const r = await AsyncStorage.getItem(key);
+        if (mounted.current)
+          setRole(
+            ["student", "supervisor", "workshop", "department"].includes(r ?? "")
+              ? (r as SessionRole)
+              : null,
+          );
+      } else {
+        const a = await authClient.restore();
+        if (mounted.current) {
+          setAccount(a);
+          setRole(a ? accountRole(a) : null);
+        }
+      }
+    } catch (e) {
+      if (mounted.current) setError(authMessage(e, language === "ar"));
+    } finally {
+      if (mounted.current) setReady(true);
+    }
+  }, [language]);
   useEffect(() => {
-    let mounted = true;
-    AsyncStorage.getItem(key)
-      .then((value) => {
-        if (mounted && ["student", "supervisor", "workshop", "department"].includes(value ?? ""))
-          setRole(value as SessionRole);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (mounted) setReady(true);
-      });
+    mounted.current = true;
+    void Promise.resolve().then(restore);
     return () => {
-      mounted = false;
+      mounted.current = false;
     };
-  }, []);
-  const login = pathname === "/native/login";
+  }, [restore]);
+  useEffect(() => {
+    if (demoMode) return;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active" && authClient.account)
+        void authClient
+          .me()
+          .then((a) => {
+            if (authClient.account?.id !== a.id) return;
+            setAccount(a);
+            setRole(accountRole(a));
+          })
+          .catch((e) => {
+            if (e.status === 401) {
+              setAccount(null);
+              setRole(null);
+            } else setError(authMessage(e, language === "ar"));
+          });
+    });
+    return () => sub.remove();
+  }, [language]);
+  const publicRoute = [
+    "/native/login",
+    "/native/activate",
+    "/native/reset-password",
+    "/native/forgot-password",
+  ].includes(pathname);
   const requested = pathname.split("/")[2];
   const routeRole =
     requested === "supervisor" || requested === "workshop" || requested === "department"
@@ -45,14 +109,24 @@ export function NativeSessionProvider({ children }: { children: ReactNode }) {
   return (
     <Context.Provider
       value={{
-        signIn: async (next) => {
-          await AsyncStorage.setItem(key, next);
-          setRole(next);
+        account,
+        signIn: async (next, identifier, password) => {
+          if (demoMode) {
+            await AsyncStorage.setItem(key, next);
+            setRole(next);
+          } else {
+            const a = await authClient.login(roleCodes[next], identifier ?? "", password ?? "");
+            setAccount(a);
+            setRole(accountRole(a));
+          }
+          setError("");
         },
         signOut: async () => {
-          // Clear only the demo session, never workspace records or preferences.
-          await AsyncStorage.removeItem(key);
+          if (demoMode) await AsyncStorage.removeItem(key);
+          else await authClient.logout();
+          setAccount(null);
           setRole(null);
+          setError("");
         },
       }}
     >
@@ -60,9 +134,29 @@ export function NativeSessionProvider({ children }: { children: ReactNode }) {
         <View style={{ flex: 1, justifyContent: "center" }}>
           <ActivityIndicator color="#526443" />
         </View>
-      ) : !role && !login ? (
+      ) : error && (!publicRoute || pathname === "/native/login") ? (
+        <View style={{ flex: 1, justifyContent: "center", padding: 24, gap: 16 }}>
+          <AppText accessibilityRole="alert">{error}</AppText>
+          <Button
+            title={language === "ar" ? "إعادة المحاولة" : "Retry"}
+            onPress={() => void restore()}
+          />
+          <Button
+            title={language === "ar" ? "تسجيل الخروج" : "Log out"}
+            variant="ghost"
+            onPress={async () => {
+              await authClient.logout();
+              setRole(null);
+              setAccount(null);
+              setError("");
+            }}
+          />
+        </View>
+      ) : !role && !publicRoute ? (
         <Redirect href="/native/login" />
-      ) : role && !login && role !== routeRole ? (
+      ) : role && pathname === "/native/login" ? (
+        <Redirect href={sessionHome(role) as import("expo-router").Href} />
+      ) : role && !publicRoute && role !== routeRole ? (
         <Redirect href={sessionHome(role) as import("expo-router").Href} />
       ) : (
         children
@@ -72,6 +166,6 @@ export function NativeSessionProvider({ children }: { children: ReactNode }) {
 }
 export function useNativeSession() {
   const context = useContext(Context);
-  if (!context) throw new Error("NativeSessionProvider missing");
+  if (!context) throw Error("NativeSessionProvider missing");
   return context;
 }

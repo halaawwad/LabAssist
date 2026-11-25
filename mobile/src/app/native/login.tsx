@@ -38,6 +38,7 @@ import { router } from "@/native/router";
 import { LabAssistBrand } from "@/components/LabAssistBrand";
 import { sessionHome, useNativeSession } from "@/state/NativeSession";
 import { demoStudents } from "../../../../shared/web/domain";
+import { authMessage, demoMode } from "@/features/auth/client";
 import { departmentHead } from "@/features/department/departmentIdentity";
 const roles = [
   {
@@ -118,17 +119,18 @@ export default function NativeLogin() {
     animation.start();
     return () => animation.stop();
   }, [glow, preferences.motion]);
+  const availableRoles = roles;
   const selected = roles.find((r) => r.id === role)!,
     RoleIcon = selected.icon;
   async function login() {
     if (submitting.current) return;
     const identifier = account.trim().toLowerCase();
-    const legacyStudentDemo = role === "student" && identifier === "noor@demo.com";
+    const legacyStudentDemo = demoMode && role === "student" && identifier === "noor@demo.com";
     if (
       (role === "student" && !legacyStudentDemo && !/^s\d{8}@stu\.najah\.edu$/.test(identifier)) ||
       (role === "supervisor" && !/^\d{4}$/.test(identifier)) ||
       (role === "workshop" && !/^\d{5}$/.test(identifier)) ||
-      (role === "department" && !/^\S+@\S+\.\S+$/.test(identifier))
+      (role === "department" && identifier !== "0" && !/^\S+@\S+\.\S+$/.test(identifier))
     ) {
       setError(
         role === "student"
@@ -147,7 +149,10 @@ export default function NativeLogin() {
       );
       return;
     }
-    if ((!legacyStudentDemo && identifier !== selected.account) || password !== "Noor123!") {
+    if (
+      demoMode &&
+      ((!legacyStudentDemo && identifier !== selected.account) || password !== "Noor123!")
+    ) {
       setError(
         copy(
           "Check your sign-in details and selected role.",
@@ -160,13 +165,17 @@ export default function NativeLogin() {
     setBusy(true);
     setError("");
     try {
-      await signIn(role as Parameters<typeof signIn>[0]);
+      await signIn(role as Parameters<typeof signIn>[0], identifier, password);
       if (role !== "department") selectRole(role as "student" | "supervisor" | "workshop");
       Keyboard.dismiss();
       router.replace(
         sessionHome(role as Parameters<typeof signIn>[0]) as import("expo-router").Href,
       );
-    } catch {
+    } catch (error) {
+      if (!demoMode) {
+        setError(authMessage(error, ar));
+        return;
+      }
       setError(
         copy("Could not save your sign-in. Please retry.", "تعذّر حفظ تسجيل الدخول. أعد المحاولة."),
       );
@@ -278,7 +287,7 @@ export default function NativeLogin() {
                 {role === "student"
                   ? copy("University email", "الإيميل الجامعي")
                   : role === "department"
-                    ? copy("Email", "الإيميل")
+                    ? copy("University number or email", "الرقم الجامعي أو البريد")
                     : copy("University number", "الرقم الجامعي")}
               </AppText>
               <View style={[s.inputBox, !!error && s.invalid]}>
@@ -291,9 +300,7 @@ export default function NativeLogin() {
                   accessibilityLabel={copy("Account", "الحساب")}
                   autoCapitalize="none"
                   autoCorrect={false}
-                  keyboardType={
-                    role === "supervisor" || role === "workshop" ? "number-pad" : "email-address"
-                  }
+                  keyboardType={role === "student" ? "email-address" : "default"}
                   autoComplete="username"
                   value={account}
                   onChangeText={(v) => {
@@ -307,7 +314,7 @@ export default function NativeLogin() {
                         ? "1234"
                         : role === "workshop"
                           ? "12345"
-                          : "name@najah.edu"
+                          : "0"
                   }
                   placeholderTextColor="#8b9483"
                   style={s.input}
@@ -382,26 +389,36 @@ export default function NativeLogin() {
                 style={ar ? { transform: [{ rotate: "180deg" }] } : undefined}
               />
             </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy}
-              onPress={() => {
-                setAccount(selected.account);
-                setPassword("Noor123!");
-                setError("");
-              }}
-              style={s.demo}
-            >
-              <AppText style={{ fontSize: 13, color: "#60734e" }}>
-                {copy("Try with demo details", "جرّب بيانات الدخول التجريبية")}
+            {demoMode && (
+              <Pressable
+                accessibilityRole="button"
+                disabled={busy}
+                onPress={() => {
+                  setAccount(selected.account);
+                  setPassword("Noor123!");
+                  setError("");
+                }}
+                style={s.demo}
+              >
+                <AppText style={{ fontSize: 13, color: "#60734e" }}>
+                  {copy("Try with demo details", "جرّب بيانات الدخول التجريبية")}
+                </AppText>
+              </Pressable>
+            )}
+            <Pressable onPress={() => router.push("/native/forgot-password")}>
+              <AppText style={{ color: "#526443", textAlign: "center", padding: 10 }}>
+                {copy("Forgot password?", "نسيت كلمة المرور؟")}
               </AppText>
             </Pressable>
-            <AppText variant="caption" tone="muted">
-              {copy(
-                `Demo access: ${selected.account} · Noor123!`,
-                `دخول تجريبي: ${selected.account} · Noor123!`,
-              )}
-            </AppText>
+
+            {demoMode && (
+              <AppText variant="caption" tone="muted">
+                {copy(
+                  `Demo access: ${selected.account} · Noor123!`,
+                  `دخول تجريبي: ${selected.account} · Noor123!`,
+                )}
+              </AppText>
+            )}
           </View>
           <View style={s.footer}>
             <View style={s.dot} />
@@ -448,7 +465,7 @@ export default function NativeLogin() {
                   <X color="#526443" size={22} />
                 </Pressable>
               </View>
-              {roles.map((r) => {
+              {availableRoles.map((r) => {
                 const Icon = r.icon;
                 return (
                   <Pressable

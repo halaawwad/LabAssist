@@ -11,5 +11,6 @@ const {Client}=require('pg'),fs=require('node:fs'),path=require('node:path'),cp=
  const cli=path.join(api,'node_modules/prisma/build/index.js'),env={...process.env,DATABASE_URL:url};
  cp.execFileSync(process.execPath,[cli,'migrate','resolve','--applied','00000000000000_baseline'],{cwd:api,env,stdio:'inherit'});
  cp.execFileSync(process.execPath,[cli,'migrate','deploy'],{cwd:api,env,stdio:'inherit'});
+ const enriched=new Client({connectionString:url});await enriched.connect();try{for(const file of manifest.postMigrationsDemo??[])await enriched.query(fs.readFileSync(path.join(database,file),'utf8'));}finally{await enriched.end();}
  console.log('Created separate demo database: '+name+'. The configured development database was not changed.');
 })().catch(e=>{console.error(e.message);process.exitCode=1;});

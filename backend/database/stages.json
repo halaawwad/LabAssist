@@ -44,5 +44,8 @@
     "ai-stage11/sql/25-ai-schema.sql",
     "ai-stage11/sql/26-demo-seed.sql",
     "department-stage12/sql/27-department-administration.sql"
+  ],
+  "postMigrationsDemo": [
+    "repository-demo/seed.sql"
   ]
 }

@@ -1,0 +1,76 @@
+name: Frontend coverage
+on:
+  push:
+    branches: [main, noor]
+    paths:
+      [
+        "frontend/**",
+        "shared/auth/**",
+        "tools/frontend-quality/**",
+        ".github/workflows/frontend-coverage.yml",
+      ]
+  pull_request:
+    branches: [main, noor]
+    paths:
+      [
+        "frontend/**",
+        "shared/auth/**",
+        "tools/frontend-quality/**",
+        ".github/workflows/frontend-coverage.yml",
+      ]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: frontend-coverage-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  coverage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            tools/frontend-quality/package-lock.json
+            frontend/supervisor/package-lock.json
+            frontend/workshop/package-lock.json
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.3"
+      - run: npm ci --prefix tools/frontend-quality --ignore-scripts
+      - name: Prepare isolated locked student dependencies
+        run: |
+          bash .github/scripts/prepare-web-workspace.sh student
+      - name: Install student dependencies from Bun lockfile
+        run: |
+          cd "$STUDENT_CHECK_DIR"
+          bun install --frozen-lockfile
+      - name: Expose isolated student dependencies to coverage runner
+        run: ln -s "$STUDENT_CHECK_DIR/node_modules" frontend/student/node_modules
+      - run: npm ci --prefix frontend/supervisor
+      - run: npm ci --prefix frontend/workshop
+      - name: Resolve shared source dependencies
+        run: ln -s "$PWD/frontend/student/node_modules" node_modules
+      - name: Four-role account UI coverage
+        run: npm test --prefix tools/frontend-quality
+      - name: Existing role suite coverage baselines
+        run: node tools/frontend-quality/run-role-coverage.cjs
+      - name: Normalize source paths for Sonar
+        run: node tools/frontend-quality/normalize-coverage.cjs
+      - name: Check account-flow coverage and nonempty role reports
+        run: node tools/frontend-quality/check-coverage.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: |
+            tools/frontend-quality/coverage/
+            frontend/student/coverage/
+            frontend/supervisor/coverage/
+            frontend/workshop/coverage/
+          if-no-files-found: error
+          retention-days: 14

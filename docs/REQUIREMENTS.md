@@ -21,7 +21,7 @@
 - Provision Student, Supervisor and Workshop Manager accounts, validate duplicates, and manage groups/supervisor links.
 - New accounts await owner activation and password selection; real activation delivery and password hashing require the backend.
 - Department web and mobile create/import Pending local records and preserve existing statuses. Pending links are permitted only in draft planning groups. This does not change backend account or membership approval. Mixed student-number batches are allowed; each student needs an eight-digit number and `s<number>@stu.najah.edu` email.
-- LabAssist does not disable or re-enable accounts. Accounts with records are kept; only eligible unused accounts may be deleted. Do not activate accounts on behalf of owners.
+- Keep referenced accounts unchanged; delete only eligible unused accounts. Do not activate accounts on behalf of owners.
 
 ## Student
 Students can:
@@ -83,3 +83,5 @@ The 3D Lab supports:
 - Arduino code execution.
 
 Local demo persistence does not synchronize web origins or mobile. UI guards are not authorization, and notices/feedback are saved locally without delivery guarantees. See [permissions](PERMISSIONS.md) and [backend preparation](BACKEND-PREPARATION.md) for integration boundaries and manual checks.
+
+Account access policy: disable/reactivate actions are removed from Web, Mobile and the account API. Historical disabled records remain unchanged and cannot sign in. First activation, password recovery, logout and session revocation remain supported.

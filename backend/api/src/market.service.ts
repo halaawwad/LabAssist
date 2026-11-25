@@ -1,7 +1,7 @@
 import {BadRequestException,ConflictException,ForbiddenException,HttpException,Injectable,NotFoundException} from '@nestjs/common';
 import {Prisma} from '@prisma/client';
-import {Database} from './database';
-import {Actor,Role} from './identity';
+import {Database} from './database/database.service';
+import {Actor,Role} from './common/security/identity';
 import {CatalogPartUpdateDto,CatalogQuery,CompareQuery,ExactCompareQuery,IdentityFieldsDto,ManagedOfferQuery,OfferDto,OfferQuery,OfferUpdateDto,OfferVariantDto,PageQuery,PriceObservationDto,ReviewDto,RevokeDto,SellerDto,SellerQuery,SourceDto,SourceQuery,VariantDto} from './market.dto';
 type Tx=Prisma.TransactionClient|Database;
 const money=(v:any)=>v==null?null:Number(v).toFixed(2);

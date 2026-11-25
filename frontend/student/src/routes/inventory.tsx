@@ -2,7 +2,7 @@ import { InventoryRequests } from "@/components/InventoryRequests";
 import { usePartRequests } from "@/lib/partRequests";
 import { MarketOfferList, MarketSellerList } from "@/components/market/MarketLists";
 import { MarketPriceComparison } from "@/components/market/MarketPriceComparison";
-import { InventoryCatchGame } from "@/components/InventoryCatchGame";
+import workshopImage from "@/assets/inventory-workshop-background.png";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
@@ -152,7 +152,15 @@ function InventoryPage() {
                   </span>
                 </div>
               </div>
-              <InventoryCatchGame />
+              <figure className="inventory-workshop-photo">
+                <img
+                  src={workshopImage}
+                  alt="Organized electronic components on workshop shelves"
+                />
+                <figcaption>
+                  <CircuitBoard size={16} /> A place for every part.
+                </figcaption>
+              </figure>
             </section>
           )}
           <div className="inventory-global-search">

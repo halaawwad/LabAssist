@@ -1,3 +1,5 @@
+import { WebSessionBoundary } from "../../../../shared/auth/WebSessionBoundary";
+import { apiMode } from "../../../../shared/auth/web-session";
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { LabAssistBrand } from "../../../../shared/web/LabAssistBrand";
@@ -10,7 +12,7 @@ export function StudentDemoSession({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
-    if (publicPage) return;
+    if (publicPage || apiMode(import.meta.env)) return;
     let current = true;
     setReady(false);
     setError("");
@@ -28,6 +30,12 @@ export function StudentDemoSession({ children }: { children: ReactNode }) {
       current = false;
     };
   }, [publicPage]);
+  if (apiMode(import.meta.env))
+    return (
+      <WebSessionBoundary role="student" env={import.meta.env}>
+        {children}
+      </WebSessionBoundary>
+    );
   if (publicPage || ready) return children;
   return (
     <main
