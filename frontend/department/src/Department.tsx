@@ -18,7 +18,6 @@ import {
 import "./department.css";
 import {
   accountHasHistory,
-  toggleAccountAccess,
   demoStudents,
   demoSupervisor,
   demoWorkshop,
@@ -438,8 +437,13 @@ export default function Department() {
                           Message
                         </button>
                         <button
-                          className={!a.linked || a.active ? "dept-danger" : undefined}
-                          aria-label={`${a.linked ? (effectiveAccountStatus(a) !== "DISABLED" ? "Disable" : "Reactivate") : "Delete"} ${a.name}`}
+                          className="dept-danger"
+                          disabled={
+                            a.linked ||
+                            accountHasHistory(a.id, groups) ||
+                            messages.some((m) => m.to === a.id)
+                          }
+                          aria-label={`Delete ${a.name}`}
                           onClick={() =>
                             setConfirm({
                               ...a,
@@ -451,11 +455,7 @@ export default function Department() {
                           }
                         >
                           <Trash2 size={15} />
-                          {a.linked
-                            ? effectiveAccountStatus(a) !== "DISABLED"
-                              ? "Disable"
-                              : "Reactivate"
-                            : "Delete"}
+                          Delete
                         </button>
                       </>
                     }
@@ -614,13 +614,7 @@ export default function Department() {
           aria-label="Confirm account change"
         >
           <div className="dept-dialog">
-            <h2>
-              {confirm.linked
-                ? effectiveAccountStatus(confirm) !== "DISABLED"
-                  ? "Disable account?"
-                  : "Reactivate account?"
-                : "Delete account?"}
-            </h2>
+            <h2>Delete account?</h2>
             <p>
               {confirm.linked
                 ? "Existing records and assignments will be kept."
@@ -640,18 +634,8 @@ export default function Department() {
                       confirm.linked ||
                       accountHasHistory(confirm.id, groups) ||
                       messages.some((m) => m.to === confirm.id);
-                    const nextAccounts = linked
-                      ? accounts.map((a) => (a.id === confirm.id ? toggleAccountAccess(a) : a))
-                      : accounts.filter((a) => a.id !== confirm.id);
-                    if (
-                      nextAccounts.filter(
-                        (a) =>
-                          a.role === "Workshop Manager" && effectiveAccountStatus(a) !== "DISABLED",
-                      ).length > 1
-                    )
-                      throw new Error(
-                        "Disable the existing workshop manager before restoring this account.",
-                      );
+                    if (linked) throw new Error("Accounts with history cannot be deleted.");
+                    const nextAccounts = accounts.filter((a) => a.id !== confirm.id);
                     if (
                       !commit({
                         accounts: nextAccounts,

@@ -57,18 +57,4 @@ export class AccountsRepository {
       any[]
     >`SELECT id,role,status,activated_at FROM labassist_student.accounts WHERE id=${accountId}::uuid FOR UPDATE`;
   }
-  updateStatus(status: string, accountId: string, tx: Prisma.TransactionClient = this.db) {
-    return tx.$executeRaw`UPDATE labassist_student.accounts SET status=${status},updated_at=now() WHERE id=${accountId}::uuid`;
-  }
-  revokeAccountSessions(accountId: string, tx: Prisma.TransactionClient = this.db) {
-    return tx.$executeRaw`UPDATE labassist_student.auth_sessions SET revoked_at=now() WHERE account_id=${accountId}::uuid`;
-  }
-  recordStatusChange(
-    actorId: string,
-    accountId: string,
-    status: string,
-    tx: Prisma.TransactionClient = this.db,
-  ) {
-    return tx.$executeRaw`INSERT INTO labassist_student.audit_events(actor_id,event_key,subject_id,payload) VALUES(${actorId}::uuid,'ACCOUNT_STATUS_CHANGED',${accountId}::uuid,jsonb_build_object('status',${status}::text))`;
-  }
 }

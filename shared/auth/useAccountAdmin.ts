@@ -114,10 +114,5 @@ export function useAccountAdmin(client: SessionClient, ar = false) {
           ? "تمت إضافة دعوة جديدة إلى طابور البريد. الرابط السابق لم يعد صالحًا."
           : "New invitation queued. The previous link is no longer valid.",
       ),
-    status: (id: string, status: "ACTIVE" | "DISABLED") =>
-      mutate(
-        () => client.authorizedRequest(`/accounts/${id}/status`, "PATCH", { status }),
-        ar ? "تم تحديث حالة الحساب." : "Account status updated.",
-      ),
   };
 }

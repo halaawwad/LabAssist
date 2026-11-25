@@ -60,16 +60,4 @@ export class AccountsService {
     });
     return { ok: true };
   }
-  async status(id: string, status: string, head: Actor) {
-    if (id === head.id) throw new BadRequestException("Cannot disable your own account.");
-    await this.repository.transaction(async (tx) => {
-      const rows = await this.repository.lockStatusAccount(id, tx);
-      if (!rows.length || rows[0].role === Role.DEPARTMENT_HEAD || !rows[0].activated_at)
-        throw new BadRequestException("An activated non-head account is required.");
-      await this.repository.updateStatus(status, id, tx);
-      if (status === "DISABLED") await this.repository.revokeAccountSessions(id, tx);
-      await this.repository.recordStatusChange(head.id, id, status, tx);
-    });
-    return { ok: true };
-  }
 }

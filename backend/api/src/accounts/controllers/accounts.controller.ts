@@ -14,7 +14,7 @@ import { AccountResponseDto } from "../../common/dto/account-response.dto";
 import { SessionGuard } from "../../auth/guards/session.guard";
 import { DepartmentGuard } from "../../common/guards/department.guard";
 import { AccountsService } from "../services/accounts.service";
-import { AccountDto, StatusDto, AccountNameDto } from "../dto/account.dto";
+import { AccountDto, AccountNameDto } from "../dto/account.dto";
 @ApiTags("Accounts")
 @ApiBearerAuth()
 @UseGuards(SessionGuard, DepartmentGuard)
@@ -39,12 +39,5 @@ export class AccountsController {
   }
   @Post(":id/invitation") invite(@Param("id", new ParseUUIDPipe()) id: string, @Req() req: any) {
     return this.accounts.resend(id, req.actor);
-  }
-  @Patch(":id/status") status(
-    @Param("id", new ParseUUIDPipe()) id: string,
-    @Body() body: StatusDto,
-    @Req() req: any,
-  ) {
-    return this.accounts.status(id, body.status, req.actor);
   }
 }

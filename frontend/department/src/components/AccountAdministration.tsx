@@ -12,7 +12,6 @@ export function AccountAdministration({ onAccounts }: { onAccounts: (rows: Accou
   const [filter, setFilter] = useState("all");
   const [draft, setDraft] = useState<ProvisionInput | null>(null);
   const [editing, setEditing] = useState<Account | null>(null);
-  const [confirm, setConfirm] = useState<Account | null>(null);
   const roles = {
     STUDENT: "Student",
     SUPERVISOR: "Supervisor",
@@ -114,16 +113,12 @@ export function AccountAdministration({ onAccounts }: { onAccounts: (rows: Accou
               >
                 Edit name
               </button>
-              {a.status === "PENDING_ACTIVATION" ? (
+              {a.status === "PENDING_ACTIVATION" && (
                 <button
                   disabled={!admin.ready || admin.busy}
                   onClick={() => void admin.invite(a.id)}
                 >
                   Resend invitation
-                </button>
-              ) : (
-                <button disabled={!admin.ready || admin.busy} onClick={() => setConfirm(a)}>
-                  {a.status === "ACTIVE" ? "Disable" : "Enable"}
                 </button>
               )}
             </div>
@@ -240,42 +235,6 @@ export function AccountAdministration({ onAccounts }: { onAccounts: (rows: Accou
                 Cancel
               </button>
             </form>
-          </section>
-        </div>
-      )}
-      {confirm && (
-        <div className="dept-overlay">
-          <section
-            className="dept-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Change account access"
-          >
-            <h2>Change access for {confirm.fullName}?</h2>
-            <p>Disabling signs the account out without deleting its project history.</p>
-            {admin.error && <p role="alert">{admin.error}</p>}
-            {!admin.ready && (
-              <button disabled={admin.busy} onClick={() => void admin.reload()}>
-                Reload accounts
-              </button>
-            )}
-            <button
-              disabled={admin.busy || !admin.ready}
-              onClick={async () => {
-                if (
-                  await admin.status(
-                    confirm.id,
-                    confirm.status === "ACTIVE" ? "DISABLED" : "ACTIVE",
-                  )
-                )
-                  setConfirm(null);
-              }}
-            >
-              Confirm
-            </button>
-            <button disabled={admin.busy} onClick={() => setConfirm(null)}>
-              Cancel
-            </button>
           </section>
         </div>
       )}

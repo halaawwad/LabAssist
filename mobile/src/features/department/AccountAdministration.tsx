@@ -18,7 +18,6 @@ export function AccountAdministration({ onAccounts }: { onAccounts: (rows: Accou
   const [filter, setFilter] = useState("all");
   const [draft, setDraft] = useState<ProvisionInput | null>(null);
   const [editing, setEditing] = useState<Account | null>(null);
-  const [confirm, setConfirm] = useState<Account | null>(null);
   const [formError, setFormError] = useState("");
   const roles = [
     { id: "STUDENT", label: t("Student", "طالب") },
@@ -112,20 +111,12 @@ export function AccountAdministration({ onAccounts }: { onAccounts: (rows: Accou
                 setDraft({ role: a.role as ProvisionInput["role"], fullName: a.fullName });
               }}
             />
-            {a.status === "PENDING_ACTIVATION" ? (
+            {a.status === "PENDING_ACTIVATION" && (
               <Button
                 title={t("Resend invitation", "إعادة إرسال التفعيل")}
                 size="sm"
                 disabled={!admin.ready || admin.busy}
                 onPress={() => void admin.invite(a.id)}
-              />
-            ) : (
-              <Button
-                title={a.status === "ACTIVE" ? t("Disable", "تعطيل") : t("Enable", "تفعيل الدخول")}
-                size="sm"
-                variant={a.status === "ACTIVE" ? "danger" : "secondary"}
-                disabled={!admin.ready || admin.busy}
-                onPress={() => setConfirm(a)}
               />
             )}
           </View>
@@ -217,45 +208,6 @@ export function AccountAdministration({ onAccounts }: { onAccounts: (rows: Accou
               />
             )}
           </View>
-        )}
-      </FormSheet>
-      <FormSheet
-        visible={!!confirm}
-        title={t("Change account access?", "تغيير صلاحية الدخول؟")}
-        busy={admin.busy}
-        onClose={() => setConfirm(null)}
-        footer={
-          <Button
-            title={t("Confirm", "تأكيد")}
-            loading={admin.busy}
-            disabled={!admin.ready}
-            onPress={async () => {
-              if (
-                confirm &&
-                (await admin.status(
-                  confirm.id,
-                  confirm.status === "ACTIVE" ? "DISABLED" : "ACTIVE",
-                ))
-              )
-                setConfirm(null);
-            }}
-          />
-        }
-      >
-        <AppText>{confirm?.fullName}</AppText>
-        <AppText>
-          {t(
-            "Disabling signs the account out without deleting its project history.",
-            "التعطيل ينهي جلسات الحساب ويحافظ على سجلات مشاريعه.",
-          )}
-        </AppText>
-        {!!admin.error && <AppText tone="danger">{admin.error}</AppText>}
-        {!admin.ready && (
-          <Button
-            title={t("Reload accounts", "تحديث الحسابات")}
-            onPress={() => void admin.reload()}
-            disabled={admin.busy}
-          />
         )}
       </FormSheet>
     </View>
