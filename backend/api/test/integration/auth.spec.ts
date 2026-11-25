@@ -275,9 +275,9 @@ describe("Sprint 1 real PostgreSQL API", () => {
         .set("Authorization", bearer)
         .expect(403);
       await request(app.getHttpServer())
-        .patch("/v1/accounts/" + student.id + "/status")
+        .patch("/v1/accounts/" + student.id)
         .set("Authorization", bearer)
-        .send({ status: "DISABLED" })
+        .send({ fullName: "Forbidden rename" })
         .expect(403);
       expect(
         (await post("/accounts/" + student.id + "/invitation", {}, login.body.accessToken)).status,
@@ -322,7 +322,7 @@ describe("Sprint 1 real PostgreSQL API", () => {
         .status,
     ).toBe(201);
   });
-  it("disabling an account revokes all sessions and re-enabling never revives them", async () => {
+  it("logout revokes only its session and a fresh login never revives logged-out tokens", async () => {
     const sessions = await Promise.all(
       [1, 2].map(() =>
         post("/auth/login", {
@@ -332,30 +332,25 @@ describe("Sprint 1 real PostgreSQL API", () => {
         }),
       ),
     );
-    const id = sessions[0].body.account.id;
+    for (const s of sessions) expect(s.status).toBe(201);
+    expect((await post("/auth/logout", {}, sessions[0].body.accessToken)).status).toBe(201);
     await request(app.getHttpServer())
-      .patch("/v1/accounts/" + id + "/status")
-      .set("Authorization", "Bearer " + headAccess)
-      .send({ status: "DISABLED" })
-      .expect(200);
-    for (const s of sessions) {
-      await request(app.getHttpServer())
-        .get("/v1/auth/me")
-        .set("Authorization", "Bearer " + s.body.accessToken)
-        .expect(401);
-      expect((await post("/auth/refresh", { refreshToken: s.body.refreshToken })).status).toBe(401);
-    }
-    await request(app.getHttpServer())
-      .patch("/v1/accounts/" + id + "/status")
-      .set("Authorization", "Bearer " + headAccess)
-      .send({ status: "ACTIVE" })
-      .expect(200);
+      .get("/v1/auth/me")
+      .set("Authorization", "Bearer " + sessions[0].body.accessToken)
+      .expect(401);
     expect(
       (await post("/auth/refresh", { refreshToken: sessions[0].body.refreshToken })).status,
     ).toBe(401);
+    await request(app.getHttpServer())
+      .get("/v1/auth/me")
+      .set("Authorization", "Bearer " + sessions[1].body.accessToken)
+      .expect(200);
     expect(
       (await post("/auth/login", { role: "SUPERVISOR", identifier: "1024", password })).status,
     ).toBe(201);
+    expect(
+      (await post("/auth/refresh", { refreshToken: sessions[0].body.refreshToken })).status,
+    ).toBe(401);
   });
   it("concurrent password-reset consumers have one winner and revoke every prior session", async () => {
     const login = await post("/auth/login", { role: "SUPERVISOR", identifier: "1024", password });
