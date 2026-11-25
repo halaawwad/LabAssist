@@ -1,36 +1,18 @@
+import { LiveOffers, LiveStores, LiveComparison } from "./LiveMarket";
 import { MobileInput as TextInput } from "@/components/MobileInput";
 import { Disclosure } from "@/components/Disclosure";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { MobileModal as Modal } from "@/components/MobileModal";
 import { useEffect, useState, type ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Linking, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  Check,
-  CircuitBoard,
-  Cpu,
-  MapPin,
-  Package,
-  Search,
-  Store,
-  Wrench,
-  X,
-} from "lucide-react-native";
+import { Check, CircuitBoard, Cpu, MapPin, Package, Search, Wrench, X } from "lucide-react-native";
 import { AppText, Button } from "@/components";
 import { Chips, Field, useCopy } from "@/components/MobileKit";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { useLanguage } from "@/i18n";
-import {
-  stores,
-  storeOffers,
-  workshopStock,
-  stockStatus,
-  storeForOffer,
-  type StockItem,
-  type StoreOffer,
-  type LocalStore,
-} from "@/domain/inventoryData";
+import { workshopStock, stockStatus, type StockItem } from "@/domain/inventoryData";
 
 type RequestStatus =
   "Draft" | "Pending" | "Approved" | "Ready for Pickup" | "Completed" | "Rejected" | "Cancelled";
@@ -188,17 +170,13 @@ function InventoryContent({ actorId }: { actorId: string }) {
     [loaded, setLoaded] = useState(false);
   const [requestFilter, setRequestFilter] = useState("All");
   const [sheet, setSheet] = useState<
-    "request" | "details" | "receipt" | "cancel" | "compare" | "map" | null
+    "request" | "details" | "receipt" | "cancel" | "compare" | null
   >(null);
   const [selectedPart, setSelectedPart] = useState<StockItem | null>(null),
     [selected, setSelected] = useState<string | null>(null);
   const [quantity, setQuantity] = useState("1"),
     [use, setUse] = useState(""),
     [error, setError] = useState("");
-  const [mapStore, setMapStore] = useState<LocalStore | null>(null);
-  const [comparePart, setComparePart] = useState("esp32"),
-    [compareCity, setCompareCity] = useState("All cities"),
-    [sort, setSort] = useState("Lowest listed price");
   const storageKey = `labassist.native.inventory.requests.${actorId}`;
   useEffect(() => {
     let alive = true;
@@ -231,21 +209,13 @@ function InventoryContent({ actorId }: { actorId: string }) {
   const term = query.trim().toLowerCase();
   const filtered = workshopStock.filter(
     (item) =>
+      (!item.source || tab === "Workshop Stock") &&
       (source === "All sources" || (item.source || "Workshop") === source) &&
       `${item.name} ${item.arabic} ${item.detail}`.toLowerCase().includes(term) &&
       (category === "All categories" || item.category === category) &&
       (status === "All statuses" || stockStatus(item) === status) &&
       (purpose === "All types" || item.purpose === purpose),
   );
-  const matchingOffers = storeOffers.filter((offer) => {
-    const part = workshopStock.find((p) => p.id === offer.id)!;
-    return (
-      `${offer.name} ${offer.note} ${part.arabic} ${part.name}`.toLowerCase().includes(term) &&
-      (category === "All categories" || part.category === category) &&
-      (purpose === "All types" || purpose === "For Sale") &&
-      status === "All statuses"
-    );
-  });
   const own = requests.filter((r) => !r.sample);
   const actual = requests.find((r) => r.id === selected);
   const activePart = workshopStock.find((p) => p.id === actual?.partId);
@@ -259,26 +229,6 @@ function InventoryContent({ actorId }: { actorId: string }) {
         .toLowerCase()
         .includes(term),
   );
-  const storeList = stores.filter(
-    (store) =>
-      (city === "All cities" || city === store.city) &&
-      (`${store.name} ${store.city} ${store.address}`.toLowerCase().includes(term) ||
-        matchingOffers.some((o) => o.storeId === store.id)),
-  );
-  const groups = workshopStock
-    .map((part) => ({
-      part,
-      offers: storeOffers.filter(
-        (o) => o.id === part.id && (city === "All cities" || storeForOffer(o).city === city),
-      ),
-    }))
-    .filter(
-      ({ part, offers }) =>
-        offers.length &&
-        `${part.name} ${part.arabic} ${offers.map((o) => `${o.name} ${storeForOffer(o).name} ${storeForOffer(o).city}`).join(" ")}`
-          .toLowerCase()
-          .includes(term),
-    );
   function reset() {
     setQuery("");
     setCategory("All categories");
@@ -292,13 +242,6 @@ function InventoryContent({ actorId }: { actorId: string }) {
     setCategory("All categories");
     setStatus("All statuses");
     setPurpose("All types");
-  }
-  function open(url: string) {
-    Linking.openURL(url).catch(() => setNotice(t("Could not open this link.", "تعذر فتح الرابط.")));
-  }
-  function showMap(store: LocalStore) {
-    setMapStore(store);
-    setSheet("map");
   }
   function request(part: StockItem, original?: Request) {
     setSelectedPart(part);
@@ -350,80 +293,6 @@ function InventoryContent({ actorId }: { actorId: string }) {
     );
     setSheet(nextStatus === "Pending" ? "receipt" : null);
   }
-  function OfferCard({ offer, min }: { offer: StoreOffer; min?: number }) {
-    const store = storeForOffer(offer),
-      out = offer.availability === "Out of Stock";
-    return (
-      <View style={[s.offer, out && s.out]}>
-        <View style={s.between}>
-          <View style={s.grow}>
-            <AppText weight="bold" style={s.name}>
-              {store.name}
-            </AppText>
-            <AppText style={s.meta}>{store.city}</AppText>
-          </View>
-          <AppText style={s.price}>
-            {offer.price === null ? t("Ask for price", "اسأل عن السعر") : money(offer.price)}
-          </AppText>
-        </View>
-        {min !== undefined && offer.price !== null && (
-          <AppText style={s.difference}>
-            {offer.price === min
-              ? out
-                ? t("Lowest listing · unavailable", "أقل سعر · غير متوفر")
-                : t("Lowest listed · compare variant", "أقل سعر معلن · قارن الطراز")
-              : `+${money(offer.price - min)} ${t("vs lowest listing", "عن أقل سعر")}`}
-          </AppText>
-        )}
-        <Tag danger={out}>{offer.availability}</Tag>
-        <AppText weight="semibold" style={s.name}>
-          {offer.name}
-        </AppText>
-        <AppText style={s.copy}>{offer.note}</AppText>
-        <AppText style={s.meta}>
-          {t(
-            "Condition: ask store · Check included accessories",
-            "الحالة: اسأل المتجر · تحقق من الملحقات المرفقة",
-          )}
-        </AppText>
-        <AppText style={s.meta}>
-          {t("Checked", "تم التحقق")} {offer.checked} · {t("Shipping excluded", "غير شامل الشحن")}
-        </AppText>
-        <View style={s.actions}>
-          <Button
-            title={t("Map", "الخريطة")}
-            variant="soft"
-            size="sm"
-            onPress={() => showMap(store)}
-          />
-          <Button
-            title={t("Call store", "اتصل بالمحل")}
-            variant="ghost"
-            size="sm"
-            onPress={() => open(`tel:${store.phone}`)}
-          />
-          <Button
-            title={t("Source ↗", "المصدر ↗")}
-            variant="ghost"
-            size="sm"
-            onPress={() => open(offer.url)}
-          />
-        </View>
-      </View>
-    );
-  }
-  const comparisons = storeOffers
-    .filter((o) => o.id === comparePart)
-    .sort((a, b) => {
-      if (sort === "Stores in my city" && compareCity !== "All cities") {
-        const diff =
-          Number(storeForOffer(b).city === compareCity) -
-          Number(storeForOffer(a).city === compareCity);
-        if (diff) return diff;
-      }
-      return (a.price ?? Infinity) - (b.price ?? Infinity);
-    });
-  const prices = comparisons.flatMap((o) => (o.price === null ? [] : [o.price]));
   return (
     <View style={s.page}>
       <View style={s.between}>
@@ -469,10 +338,10 @@ function InventoryContent({ actorId }: { actorId: string }) {
               {[
                 [
                   String(workshopStock.filter((p) => p.quantity > 0).length),
-                  t("Available parts", "قطع متوفرة"),
+                  t("Sample parts", "قطع تجريبية"),
                 ],
-                [String(stores.length), t("Local stores", "محلات محلية")],
-                ["₪", t("Prices in ILS", "الأسعار بالشيكل")],
+                ["•", t("Live stores", "متاجر مباشرة")],
+                ["•", t("Various currencies", "عملات مختلفة")],
               ].map(([n, label]) => (
                 <View style={s.stat} key={label}>
                   <AppText style={s.statValue}>{n}</AppText>
@@ -590,17 +459,22 @@ function InventoryContent({ actorId }: { actorId: string }) {
                 {tab === "Local Stores" ? (
                   <>
                     <AppText style={s.filterLabel}>{t("City", "المدينة")}</AppText>
-                    <Chips
-                      options={["All cities", ...new Set(stores.map((p) => p.city))].map((v) => ({
-                        id: v,
-                        label: vocab(v),
-                      }))}
-                      value={city}
-                      onChange={setCity}
+                    <TextInput
+                      accessibilityLabel={t("City", "المدينة")}
+                      value={city === "All cities" ? "" : city}
+                      onChangeText={(v) => setCity(v || "All cities")}
+                      placeholder={t(
+                        "Filter loaded stores by city",
+                        "تصفية المتاجر المحملة حسب المدينة",
+                      )}
+                      style={s.searchInput}
                     />
                   </>
                 ) : (
                   <>
+                    <AppText style={s.meta}>
+                      {t("These filters apply to sample workshop stock; live offers use the search field.", "تنطبق هذه المرشحات على مخزون الورشة التجريبي؛ تستخدم العروض المباشرة حقل البحث.")}
+                    </AppText>
                     <AppText style={s.filterLabel}>{t("Category", "الفئة")}</AppText>
                     <Chips
                       options={categories.map((v) => ({ id: v, label: vocab(v) }))}
@@ -637,29 +511,21 @@ function InventoryContent({ actorId }: { actorId: string }) {
               <Chips
                 options={["All sources", "Workshop", "Student Resale"].map((v) => ({
                   id: v,
-                  label: `${vocab(v)}  ${workshopStock.filter((p) => v === "All sources" || (p.source || "Workshop") === v).length}`,
+                  label: vocab(v),
                 }))}
                 value={source}
                 onChange={setSource}
               />
-              {source === "Student Resale" && (
-                <View style={s.resale}>
-                  <Package color="#8c719e" size={23} />
-                  <View style={s.grow}>
-                    <AppText weight="bold" style={s.name}>
-                      {t("Give good parts another project.", "امنح القطع الجيدة مشروعًا آخر.")}
-                    </AppText>
-                    <AppText style={s.copy}>
-                      {t(
-                        "Components from previous students, listed through the workshop assistant. Check condition and inspection notes before requesting.",
-                        "قطع من طلاب سابقين، معروضة عبر مساعد الورشة. تحقق من الحالة وملاحظات الفحص قبل الطلب.",
-                      )}
-                    </AppText>
-                    <AppText style={s.meta}>{t("Preview listings", "معاينة العروض")}</AppText>
-                  </View>
-                </View>
+              {(source === "Student Resale" ||
+                (source === "All sources" && tab === "Find Parts")) && (
+                <LiveOffers kind="STUDENT" search={query} />
               )}
-
+              {source === "All sources" && tab === "Find Parts" && (
+                <LiveOffers kind="SHOP" search={query} />
+              )}
+              {filtered.length > 0 && (
+                <AppText style={s.meta}>{t("Sample workshop inventory, including resale examples", "مخزون ورشة تجريبي يتضمن أمثلة لإعادة البيع")}</AppText>
+              )}
               {filtered.map((item) => (
                 <View
                   style={[
@@ -690,7 +556,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
                     <Tag danger={item.quantity === 0}>{stockStatus(item)}</Tag>
                   </View>
                   <AppText style={s.meta}>
-                    {vocab(item.source || "Workshop")} · {vocab(item.category)}
+                    {t("Sample", "تجريبي")} · {vocab(item.source || "Workshop")} · {vocab(item.category)}
                   </AppText>
                   <AppText style={s.partTitle}>{item.name}</AppText>
                   <AppText style={s.copy}>{item.detail}</AppText>
@@ -748,175 +614,22 @@ function InventoryContent({ actorId }: { actorId: string }) {
                   </View>
                 </View>
               ))}
-              {tab === "Find Parts" &&
-                source === "All sources" &&
-                matchingOffers.map((offer) => (
-                  <View key={offer.offerId} style={s.storeOfferWrap}>
-                    <OfferCard offer={offer} />
-                    <Button
-                      title={t("Compare this part", "قارن هذه القطعة")}
-                      variant="ghost"
-                      size="sm"
-                      onPress={() => {
-                        setQuery(workshopStock.find((p) => p.id === offer.id)!.name);
-                        setCategory("All categories");
-                        setPurpose("All types");
-                        setStatus("All statuses");
-                      }}
-                    />
-                  </View>
-                ))}
-              {!filtered.length &&
-                !(tab === "Find Parts" && source === "All sources" && matchingOffers.length) && (
-                  <View style={s.empty}>
-                    <Package color="#8c9b7a" size={32} />
-                    <AppText weight="bold">{t("No matching parts", "لا توجد قطع مطابقة")}</AppText>
-                    <Button
-                      title={t("Clear filters", "مسح التصفية")}
-                      variant="soft"
-                      onPress={reset}
-                    />
-                  </View>
-                )}
+              {source !== "Student Resale" && !filtered.length && (
+                <View style={s.empty}>
+                  <Package color="#8c9b7a" size={32} />
+                  <AppText weight="bold">{t("No matching parts", "لا توجد قطع مطابقة")}</AppText>
+                  <Button
+                    title={t("Clear filters", "مسح التصفية")}
+                    variant="soft"
+                    onPress={reset}
+                  />
+                </View>
+              )}
             </>
           ) : (
             <>
-              <View style={s.compareIntro}>
-                <AppText style={s.kicker}>{t("COMPARE BEFORE YOU BUY", "قارن قبل الشراء")}</AppText>
-                <AppText style={s.sectionTitle}>
-                  {t("One component. Different stores.", "قطعة واحدة. متاجر مختلفة.")}
-                </AppText>
-                <AppText style={s.copy}>
-                  {t(
-                    "Prices, availability and location — together, where you can compare them.",
-                    "الأسعار والتوفر والموقع — معًا لتقارن بينها.",
-                  )}
-                </AppText>
-                <AppText style={s.meta}>
-                  {t(
-                    "Sources checked · 15–16 Oct 2026 · Confirm current prices",
-                    "تم التحقق من المصادر · 15–16 أكتوبر 2026 · تأكد من الأسعار الحالية",
-                  )}
-                </AppText>
-                {!term && (
-                  <Chips
-                    options={["ESP32", "Arduino", "XL4015"].map((v) => ({ id: v, label: v }))}
-                    value=""
-                    onChange={setQuery}
-                  />
-                )}
-              </View>
-              {groups.map(({ part, offers }) => {
-                const priced = offers.flatMap((o) => (o.price === null ? [] : [o.price])),
-                  min = priced.length ? Math.min(...priced) : undefined,
-                  max = priced.length ? Math.max(...priced) : undefined;
-                return (
-                  <View key={part.id} style={s.comparisonGroup}>
-                    <AppText style={s.partTitle}>{part.name}</AppText>
-                    <AppText style={s.meta}>
-                      {new Set(offers.map((o) => o.storeId)).size}{" "}
-                      {t(
-                        "stores · Compare exact variants below",
-                        "متاجر · قارن الطرازات المحددة أدناه",
-                      )}
-                    </AppText>
-                    {min !== undefined && max !== undefined && (
-                      <View style={s.range}>
-                        <AppText weight="bold">
-                          {min === max ? money(min) : `${money(min)} – ${money(max)}`}
-                        </AppText>
-                        <AppText style={s.copy}>
-                          {max > min
-                            ? `${money(max - min)} ${t("difference across listed variants", "فرق بين الطرازات المعلنة")}`
-                            : t("One published price", "سعر منشور واحد")}
-                        </AppText>
-                      </View>
-                    )}
-                    {[...offers]
-                      .sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity))
-                      .map((o) => (
-                        <OfferCard key={o.offerId} offer={o} min={min} />
-                      ))}
-                    {priced.length > 1 && (
-                      <AppText style={s.caveat}>
-                        {offers.some((o) => o.availability === "Out of Stock")
-                          ? t(
-                              "The cheaper listing is out of stock, and board versions may differ. This is not a like-for-like saving.",
-                              "العرض الأرخص غير متوفر، وقد تختلف نسخ اللوحة. هذا ليس توفيرًا مكافئًا.",
-                            )
-                          : t(
-                              "Prices cover different variants. Confirm the USB chip, accessories and condition.",
-                              "الأسعار لطرازات مختلفة. تأكد من شريحة USB والملحقات والحالة.",
-                            )}
-                      </AppText>
-                    )}
-                  </View>
-                );
-              })}
-              {!groups.length && (
-                <AppText style={s.copy}>
-                  {t("No store listings for this search.", "لا توجد عروض متاجر لهذا البحث.")}
-                </AppText>
-              )}
-              <AppText style={s.sectionTitle}>{t("Store directory", "دليل المتاجر")}</AppText>
-              {storeList.map((store) => (
-                <View style={s.stockCard} key={store.id}>
-                  <View style={s.between}>
-                    <View
-                      style={[
-                        s.partIcon,
-                        {
-                          backgroundColor:
-                            store.tone === "blue"
-                              ? "#e2edf6"
-                              : store.tone === "rose"
-                                ? "#f2e5eb"
-                                : "#ece7f4",
-                        },
-                      ]}
-                    >
-                      <AppText weight="bold">{store.initials}</AppText>
-                    </View>
-                    <Store size={23} color="#8b9a7b" />
-                  </View>
-                  <AppText style={s.meta}>
-                    {store.city} · {t("Palestine", "فلسطين")}
-                  </AppText>
-                  <AppText style={s.partTitle}>{store.name}</AppText>
-                  <AppText style={s.copy}>{store.address}</AppText>
-                  <AppText style={s.meta}>{store.note}</AppText>
-                  <View style={s.actions}>
-                    <Button
-                      title={t("View map", "عرض الخريطة")}
-                      size="sm"
-                      variant="soft"
-                      onPress={() => showMap(store)}
-                    />
-                    <Button
-                      title={t("Call store", "الاتصال بالمتجر")}
-                      size="sm"
-                      variant="ghost"
-                      onPress={() => open(`tel:${store.phone}`)}
-                    />
-                    <Button
-                      title={t("Website ↗", "الموقع ↗")}
-                      size="sm"
-                      variant="ghost"
-                      onPress={() => open(store.website)}
-                    />
-                  </View>
-                  <AppText style={s.phone} onPress={() => open(`tel:${store.phone}`)}>
-                    {store.phone}
-                  </AppText>
-                </View>
-              ))}
-              {!storeList.length && (
-                <Button
-                  title={t("No stores match · Clear filters", "لا توجد متاجر مطابقة · مسح التصفية")}
-                  variant="soft"
-                  onPress={reset}
-                />
-              )}
+              <LiveOffers kind="SHOP" search={query} />
+              <LiveStores search={query} city={city === "All cities" ? "" : city} />
             </>
           )}
         </>
@@ -1065,13 +778,11 @@ function InventoryContent({ actorId }: { actorId: string }) {
                   : t("Request a part", "طلب قطعة")
                 : sheet === "compare"
                   ? t("Compare prices", "مقارنة الأسعار")
-                  : sheet === "map"
-                    ? t("Store location", "موقع المتجر")
-                    : sheet === "receipt"
-                      ? t("Request summary", "ملخص الطلب")
-                      : sheet === "cancel"
-                        ? t("Cancel this request?", "إلغاء هذا الطلب؟")
-                        : t("Request details", "تفاصيل الطلب")}
+                  : sheet === "receipt"
+                    ? t("Request summary", "ملخص الطلب")
+                    : sheet === "cancel"
+                      ? t("Cancel this request?", "إلغاء هذا الطلب؟")
+                      : t("Request details", "تفاصيل الطلب")}
             </AppText>
             <Pressable
               accessibilityRole="button"
@@ -1264,106 +975,7 @@ function InventoryContent({ actorId }: { actorId: string }) {
                 />
               </>
             )}
-            {sheet === "map" && mapStore && (
-              <>
-                <View style={s.mapArt}>
-                  <MapPin color="#6e87a6" size={56} />
-                  <AppText style={s.sectionTitle}>{mapStore.city}</AppText>
-                </View>
-                <AppText style={s.partTitle}>{mapStore.name}</AppText>
-                <AppText style={s.copy}>{mapStore.address}</AppText>
-                <AppText style={s.meta}>{mapStore.note}</AppText>
-                <Button
-                  title={t("Open in maps ↗", "فتح في الخرائط ↗")}
-                  onPress={() =>
-                    open(
-                      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapStore.name + " " + mapStore.address)}`,
-                    )
-                  }
-                />
-                <Button
-                  title={`${t("Call", "اتصال")} ${mapStore.phone}`}
-                  variant="soft"
-                  onPress={() => open(`tel:${mapStore.phone}`)}
-                />
-                <Button
-                  title={t("Website ↗", "الموقع ↗")}
-                  variant="ghost"
-                  onPress={() => open(mapStore.website)}
-                />
-              </>
-            )}
-            {sheet === "compare" && (
-              <>
-                <AppText style={s.filterLabel}>{t("Component", "القطعة")}</AppText>
-                <Chips
-                  value={comparePart}
-                  onChange={setComparePart}
-                  options={workshopStock
-                    .filter((p) => storeOffers.some((o) => o.id === p.id))
-                    .map((p) => ({ id: p.id, label: p.name }))}
-                />
-                <AppText style={s.filterLabel}>{t("Your city", "مدينتك")}</AppText>
-                <Chips
-                  value={compareCity}
-                  onChange={setCompareCity}
-                  options={[
-                    "All cities",
-                    ...new Set(stores.map((p) => p.city)),
-                    "Ramallah",
-                    "Hebron",
-                    "Tulkarm",
-                    "Qalqilya",
-                  ].map((v) => ({ id: v, label: v === "All cities" ? t("All cities", "كل المدن") : v }))}
-                />
-                <AppText style={s.filterLabel}>{t("Show first", "اعرض أولًا")}</AppText>
-                <Chips
-                  value={sort}
-                  onChange={setSort}
-                  options={["Lowest listed price", "Stores in my city"].map((v) => ({
-                    id: v,
-                    label:
-                      v === "Lowest listed price"
-                        ? t("Lowest listed price", "أقل سعر معلن")
-                        : t("Stores in my city", "متاجر في مدينتي"),
-                  }))}
-                />
-                {prices.length > 1 && (
-                  <View style={s.range}>
-                    <AppText weight="bold">
-                      {money(Math.max(...prices) - Math.min(...prices))}{" "}
-                      {t("price spread", "فرق الأسعار")}
-                    </AppText>
-                    <AppText style={s.copy}>
-                      {t(
-                        "Across listed variants · Shipping excluded",
-                        "عبر الطرازات المعلنة · غير شامل الشحن",
-                      )}
-                    </AppText>
-                  </View>
-                )}
-                <AppText style={s.caveat}>
-                  {t(
-                    "Compare the exact model, condition and included accessories. Out-of-stock prices remain visible; they are not available offers. City matching does not measure travel distance.",
-                    "قارن الطراز والحالة والملحقات المرفقة. تبقى أسعار المنتجات غير المتوفرة ظاهرة لكنها ليست عروضًا متاحة. تطابق المدينة لا يقيس مسافة السفر.",
-                  )}
-                </AppText>
-                {comparisons.map((o) => (
-                  <View key={o.offerId}>
-                    {compareCity === storeForOffer(o).city && (
-                      <Tag>{t("In your city", "في مدينتك")}</Tag>
-                    )}
-                    <OfferCard offer={o} min={prices.length ? Math.min(...prices) : undefined} />
-                  </View>
-                ))}
-                <AppText style={s.meta}>
-                  {t(
-                    "Workshop prices are sample data and are excluded from real-store price rankings.",
-                    "أسعار الورشة بيانات تجريبية ولا تدخل في ترتيب أسعار المتاجر الفعلية.",
-                  )}
-                </AppText>
-              </>
-            )}
+            {sheet === "compare" && <LiveComparison />}
           </ScrollView>
           {/* Request actions stay pinned above the keyboard and the home indicator. */}
           {sheet === "request" && selectedPart && (
