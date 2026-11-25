@@ -42,12 +42,14 @@ describe('Sprint 1 real PostgreSQL API',()=>{
   const results=await Promise.all([1,2].map(()=>post('/accounts',{role:'STUDENT',fullName:'Race',universityNumber:'12345679'},headAccess)));expect(results.map(r=>r.status).sort()).toEqual([201,409]);
   const rows=await db.$queryRaw<any[]>`SELECT count(*)::int n FROM labassist_student.accounts WHERE university_number='12345679'`;expect(rows[0].n).toBe(1);
  });
- it('wrong password, wrong role and disabled accounts cannot sign in',async()=>{
+ it('wrong password, wrong role and pre-existing disabled records cannot sign in; no disable or re-enable endpoint exists',async()=>{
   expect((await post('/auth/login',{role:'STUDENT',identifier:student.email,password:'wrong-password'})).status).toBe(401);
   expect((await post('/auth/login',{role:'SUPERVISOR',identifier:student.email,password})).status).toBe(401);
-  await request(app.getHttpServer()).patch('/v1/accounts/'+student.id+'/status').set('Authorization','Bearer '+headAccess).send({status:'DISABLED'}).expect(200);
+  for(const status of ['DISABLED','ACTIVE'])expect((await request(app.getHttpServer()).patch('/v1/accounts/'+student.id+'/status').set('Authorization','Bearer '+headAccess).send({status})).status).toBe(404);
+  // Disabled accounts can only be pre-existing records; simulate one directly, then restore the fixture.
+  await db.$executeRaw`UPDATE labassist_student.accounts SET status='DISABLED',updated_at=now() WHERE id=${student.id}::uuid`;
   expect((await post('/auth/login',{role:'STUDENT',identifier:student.email,password})).status).toBe(401);
-  await request(app.getHttpServer()).patch('/v1/accounts/'+student.id+'/status').set('Authorization','Bearer '+headAccess).send({status:'ACTIVE'}).expect(200);
+  await db.$executeRaw`UPDATE labassist_student.accounts SET status='ACTIVE',updated_at=now() WHERE id=${student.id}::uuid`;
  });
  it('staff use their university number; refresh rotates once and logout revokes access',async()=>{
   for(const [role,employeeNumber] of [['SUPERVISOR','1024'],['WORKSHOP_MANAGER','10001']]){

@@ -8,7 +8,7 @@ connection or cross-app storage bridge. Web visuals and navigation remain unchan
 
 Both web and mobile manual creation and Excel import save new accounts as
 `PENDING_ACTIVATION`, `active: false`, without invitation delivery or login
-credentials. Existing account statuses and disabled restore states are preserved;
+credentials. Existing account statuses, including pre-existing disabled records, are preserved unchanged;
 loading stored records does not activate them. Pending accounts may be assigned
 only to draft planning groups; non-draft groups require Active members.
 Disabled/reference-only accounts cannot be newly assigned. Backend authentication
@@ -18,7 +18,7 @@ and membership validation remain unchanged.
 
 | Area | Mobile behavior |
 | --- | --- |
-| Accounts | Student/Supervisor/Workshop filters and counts; name/number/email search; shared assignment summaries/details; edit, message, disable/restore, protected deletion |
+| Accounts | Student/Supervisor/Workshop filters and counts; name/number/email search; shared assignment summaries/details; edit, message, protected deletion (no disable or re-enable action) |
 | Identity | Eight-digit student number; generated `s<number>@stu.najah.edu`; four-digit supervisor and five-digit manager numbers; valid staff email, matching web; role/student number/email immutable on edit; unique numbers/emails and one non-disabled manager |
 | Groups | Project number, optional name, preserved legacy IDs/metadata; normal expandable cards for manual/imported groups; multiple supervisors; adding/removing students; same account form for missing people |
 | Membership | Mixed batches allowed; 2–3 students; one current group per student per term; at most four groups per supervisor and existing term capacity; confirmed transfers preserve dated history and source limits; historical completed/archived projects protected |
@@ -89,7 +89,7 @@ Fourteen focused runtime scenarios passed:
 6. Messages, starred filter, message search and reload persistence.
 7. Account edit preserves identity, assignments and input through a failed save.
 8. Confirmed transfer updates both groups and retains dated prior membership.
-9. Referenced-account deletion restriction, disable/restore stays pending, manager limit.
+9. Referenced-account deletion restriction (accounts with records are kept; no disable or re-enable action), manager limit.
 10. Arabic controls, RTL modal/page layout, immutable student identity and reload.
 11. Failed transfer save/reload invalidates old consent and requires reconfirmation.
 12. Message save failure retains text; retry succeeds without stale error display.

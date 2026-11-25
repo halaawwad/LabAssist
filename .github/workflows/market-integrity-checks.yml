@@ -1,0 +1,70 @@
+name: Market integrity migration checks
+
+# Post-migration checks for 20261124000100_market_price_integrity. Historical stage tests stay in
+# remaining-data-checks.yml, which runs them on stage SQL before any Prisma migration.
+on:
+  push:
+    branches: [main, noor]
+    paths: ['backend/database/**', 'backend/api/prisma/**', 'backend/api/tools/**', 'backend/api/package*.json', '.github/workflows/market-integrity-checks.yml']
+  pull_request:
+    branches: [main, noor]
+    paths: ['backend/database/**', 'backend/api/prisma/**', 'backend/api/tools/**', 'backend/api/package*.json', '.github/workflows/market-integrity-checks.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: market-integrity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  market-integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: labassist_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ephemeral-ci-database
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d labassist_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:ephemeral-ci-database@localhost:5432/labassist_ci?schema=labassist_student
+      DEMO_DATABASE_URL: postgresql://postgres:ephemeral-ci-database@localhost:5432/labassist_ci_demo?schema=labassist_student
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ephemeral-ci-database
+      PGDATABASE: labassist_ci_demo
+    defaults:
+      run:
+        working-directory: backend/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/api/package-lock.json
+      - run: npm ci
+      - name: Validate Prisma schema and frozen baseline
+        run: |
+          npx prisma validate
+          npm run prisma:generate
+          npm run db:verify-baseline
+      - name: Build demo database, then apply Prisma migrations
+        run: npm run db:demo:create
+      - name: Check schema.prisma matches the migrated database
+        run: |
+          DATABASE_URL="$DEMO_DATABASE_URL" npx prisma db pull --print > "$RUNNER_TEMP/pulled.prisma"
+          node -e "const fs=require('fs'),n=f=>fs.readFileSync(f,'utf8').replace(/\r/g,'').trimEnd();if(n(process.argv[1])!==n('prisma/schema.prisma')){console.error('schema.prisma differs from the migrated database. Re-run prisma db pull against a disposable migrated database.');process.exit(1);}" "$RUNNER_TEMP/pulled.prisma"
+      - name: Post-migration acceptance and seed preservation
+        working-directory: backend/database/market-integrity-migration
+        run: |
+          psql -v ON_ERROR_STOP=1 -f tests/acceptance.sql
+          psql -v ON_ERROR_STOP=1 -f tests/seed-replay.sql

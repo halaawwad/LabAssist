@@ -1,7 +1,7 @@
 import { InventoryRequests } from "@/components/InventoryRequests";
 import { usePartRequests } from "@/lib/partRequests";
-import { InventoryStorePrices } from "@/components/InventoryStorePrices";
-import { InventoryPriceComparison } from "@/components/InventoryPriceComparison";
+import { MarketOfferList, MarketSellerList } from "@/components/market/MarketLists";
+import { MarketPriceComparison } from "@/components/market/MarketPriceComparison";
 import { InventoryCatchGame } from "@/components/InventoryCatchGame";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -66,6 +66,7 @@ function InventoryPage() {
   }, [routeSearch.tab]);
   const filtered = workshopStock.filter(
     (item) =>
+      (item.source || "Workshop") !== "Student Resale" &&
       (stockSource === "All sources" || (item.source || "Workshop") === stockSource) &&
       `${item.name} ${item.arabic} ${item.detail}`
         .toLowerCase()
@@ -74,24 +75,7 @@ function InventoryPage() {
       (status === "All statuses" || stockStatus(item) === status) &&
       (purpose === "All types" || item.purpose === purpose),
   );
-  const matchingOffers = storeOffers.filter((offer) => {
-    const item = workshopStock.find((item) => item.id === offer.id)!;
-    return (
-      `${offer.name} ${offer.note} ${item.arabic} ${item.name}`
-        .toLowerCase()
-        .includes(query.trim().toLowerCase()) &&
-      (category === "All categories" || item.category === category) &&
-      (purpose === "All types" || purpose === "For Sale") &&
-      status === "All statuses"
-    );
-  });
   const selectedStore = stores.find((s) => s.id === map);
-  const storeList = stores.filter(
-    (s) =>
-      (city === "All cities" || s.city === city) &&
-      (`${s.name} ${s.city} ${s.address}`.toLowerCase().includes(query.trim().toLowerCase()) ||
-        matchingOffers.some((offer) => offer.storeId === s.id)),
-  );
   const reset = () => {
     setQuery("");
     setCategory("All categories");
@@ -161,7 +145,7 @@ function InventoryPage() {
                     <b>{workshopStock.filter((i) => i.quantity > 0).length}</b>Available parts
                   </span>
                   <span>
-                    <b>{stores.length}</b>Local stores
+                    <b>Live</b>Local stores
                   </span>
                   <span>
                     <b>₪</b>Prices in ILS
@@ -254,8 +238,8 @@ function InventoryPage() {
                   </div>
                   <span className="inventory-preview-label">
                     {tab !== "Local Stores"
-                      ? "Sample stock & prices"
-                      : "Sources checked · 15–16 Oct 2026"}
+                      ? "Sample workshop stock · live prices"
+                      : "Live LabAssist store data"}
                   </span>
                 </div>
                 <div className="inventory-toolbar">
@@ -291,17 +275,7 @@ function InventoryPage() {
                         ))}
                       </select>
                     </>
-                  ) : (
-                    <select
-                      aria-label="City"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                    >
-                      {["All cities", ...new Set(stores.map((s) => s.city))].map((v) => (
-                        <option key={v}>{v}</option>
-                      ))}
-                    </select>
-                  )}
+                  ) : null}
                   <button className="inventory-reset" onClick={reset}>
                     <SlidersHorizontal size={14} />
                     Reset
@@ -318,13 +292,10 @@ function InventoryPage() {
                         >
                           {source}
                           <span>
-                            {
-                              workshopStock.filter(
-                                (item) =>
-                                  source === "All sources" ||
-                                  (item.source || "Workshop") === source,
-                              ).length
-                            }
+                            {source === "Student Resale"
+                              ? "live"
+                              : workshopStock.filter((item) => (item.source || "Workshop") === "Workshop")
+                                  .length}
                           </span>
                         </button>
                       ))}
@@ -340,7 +311,7 @@ function InventoryPage() {
                           Check condition and inspection notes before requesting.
                         </p>
                       </div>
-                      <small>Preview listings</small>
+                      <small>Live listings</small>
                     </div>
                     <div className="inventory-stock-grid">
                       {filtered.map((item) => (
@@ -416,138 +387,43 @@ function InventoryPage() {
                           </footer>
                         </article>
                       ))}
-                      {tab === "Find Parts" &&
-                        stockSource === "All sources" &&
-                        matchingOffers.map((offer) => {
-                          const store = storeForOffer(offer);
-                          const stock = workshopStock.find((item) => item.id === offer.id)!;
-                          return (
-                            <article
-                              className="inventory-stock-card inv-blue inventory-offer-card"
-                              key={offer.offerId}
-                            >
-                              <div className="inventory-card-top">
-                                <span className="inventory-component-icon">
-                                  <Store />
-                                </span>
-                                <span
-                                  className={`inventory-store-offer-label ${offer.availability === "Out of Stock" ? "is-unavailable" : ""}`}
-                                >
-                                  {offer.availability}
-                                </span>
-                              </div>
-                              <small className="inventory-category">
-                                {store.name} · {store.city}
-                              </small>
-                              <h3>{offer.name}</h3>
-                              <p className="inventory-technical">{offer.note}</p>
-                              <div className="inventory-card-tags">
-                                <span>For Sale</span>
-                                <span>Condition: ask store</span>
-                              </div>
-                              <div className="inventory-offer-location">
-                                <MapPin size={13} />
-                                {store.address}
-                              </div>
-                              <p className="inventory-offer-date">
-                                Checked {offer.checked} · Confirm current stock
-                              </p>
-                              <footer>
-                                <div>
-                                  <strong>
-                                    {offer.price === null ? "Ask for price" : `₪${offer.price}`}
-                                  </strong>
-                                  {offer.price !== null && <small> / unit · listed</small>}
-                                </div>
-                                <a href={offer.url} target="_blank" rel="noopener noreferrer">
-                                  View offer <ArrowUpRight size={14} />
-                                </a>
-                              </footer>
-                              <div className="inventory-offer-contact">
-                                <button onClick={() => setMap(store.id)}>
-                                  <MapPin size={13} />
-                                  Map
-                                </button>
-                                <a href={`tel:${store.phone}`}>
-                                  <Phone size={13} />
-                                  Call store
-                                </a>
-                                <button
-                                  onClick={() => {
-                                    setQuery(stock.name);
-                                    setCategory("All categories");
-                                    setStatus("All statuses");
-                                    setPurpose("All types");
-                                  }}
-                                >
-                                  Compare this part
-                                </button>
-                              </div>
-                            </article>
-                          );
-                        })}
                     </div>
-                    {!filtered.length &&
-                      !(
-                        tab === "Find Parts" &&
-                        stockSource === "All sources" &&
-                        matchingOffers.length
-                      ) && (
+                    {!filtered.length && stockSource !== "Student Resale" && (
                         <div className="inventory-empty">
                           <Box size={32} />
                           <h3>No matching parts</h3>
                           <button onClick={reset}>Clear filters</button>
                         </div>
                       )}
+                    {tab === "Find Parts" && stockSource === "All sources" && (
+                      <MarketOfferList
+                        sellerKind="SHOP"
+                        search={query}
+                        title="Published store offers"
+                        description="Live prices from LabAssist. Each price shows its currency, source and observation date."
+                        label="store offers"
+                      />
+                    )}
+                    {stockSource !== "Workshop" && (
+                      <MarketOfferList
+                        sellerKind="STUDENT"
+                        search={query}
+                        title="Student resale"
+                        description="Live listings from previous students. Inspection notes are not provided; check the condition before requesting."
+                        label="resale listings"
+                      />
+                    )}
                   </>
                 ) : (
                   <>
-                    <InventoryStorePrices query={query} onQuery={setQuery} onMap={setMap} />
-                    <h3 className="inventory-directory-title">Store directory</h3>
-                    <div className="inventory-store-grid">
-                      {storeList.map((store) => (
-                        <article
-                          className={`inventory-store-card inv-${store.tone}`}
-                          key={store.id}
-                        >
-                          <div className="inventory-store-heading">
-                            <span>{store.initials}</span>
-                            <div>
-                              <small>{store.city} · Palestine</small>
-                              <h3>{store.name}</h3>
-                            </div>
-                            <Store size={22} />
-                          </div>
-                          <p>
-                            <MapPin size={16} />
-                            {store.address}
-                          </p>
-                          <small className="inventory-store-note">{store.note}</small>
-                          <div className="inventory-store-actions">
-                            <button onClick={() => setMap(store.id)}>
-                              <MapPin size={15} />
-                              View map
-                            </button>
-                            <a href={`tel:${store.phone}`}>
-                              <Phone size={15} />
-                              Call store
-                            </a>
-                            <a href={store.website} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink size={15} />
-                              Website
-                            </a>
-                          </div>
-                          <a className="inventory-phone" href={`tel:${store.phone}`}>
-                            {store.phone}
-                          </a>
-                        </article>
-                      ))}
-                    </div>
-                    {!storeList.length && (
-                      <div className="inventory-empty">
-                        No stores match your search.<button onClick={reset}>Clear filters</button>
-                      </div>
-                    )}
+                    <MarketOfferList
+                      sellerKind="SHOP"
+                      search={query}
+                      title="Store prices"
+                      description="Published store prices with their currency, source and observation date."
+                      label="store prices"
+                    />
+                    <MarketSellerList search={query} />
                   </>
                 )}
               </>
@@ -599,12 +475,7 @@ function InventoryPage() {
               See the price, variant, availability and city for each source.
             </DialogDescription>
           </DialogHeader>
-          <InventoryPriceComparison
-            onMap={(id) => {
-              setCompare(false);
-              setMap(id);
-            }}
-          />
+          <MarketPriceComparison initialSearch={query} />
         </DialogContent>
       </Dialog>
     </div>

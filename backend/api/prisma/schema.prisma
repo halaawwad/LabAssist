@@ -53,6 +53,7 @@ model accounts {
   audit_events                                                                audit_events[]
   auth_mail_outbox                                                            auth_mail_outbox[]
   auth_sessions                                                               auth_sessions[]
+  catalog_part_variants                                                       catalog_part_variants[]
   chat_message_stars                                                          chat_message_stars[]
   chat_messages                                                               chat_messages[]
   circuit_copy_requests_circuit_copy_requests_decided_byToaccounts            circuit_copy_requests[]         @relation("circuit_copy_requests_decided_byToaccounts")
@@ -73,6 +74,7 @@ model accounts {
   market_bookmarks                                                            market_bookmarks[]
   market_offer_history                                                        market_offer_history[]
   market_offers                                                               market_offers[]
+  market_price_observations                                                   market_price_observations[]
   market_sellers                                                              market_sellers[]
   meeting_participants_meeting_participants_account_idToaccounts              meeting_participants[]          @relation("meeting_participants_account_idToaccounts")
   meeting_participants_meeting_participants_invited_byToaccounts              meeting_participants[]          @relation("meeting_participants_invited_byToaccounts")
@@ -113,6 +115,7 @@ model accounts {
   report_version_files                                                        report_version_files[]
   report_versions                                                             report_versions[]
   resale_sources                                                              resale_sources[]
+  resale_sources_resale_sources_revoked_byToaccounts                          resale_sources[]                @relation("resale_sources_revoked_byToaccounts")
   student_enrollments_student_enrollments_extended_byToaccounts               student_enrollments[]           @relation("student_enrollments_extended_byToaccounts")
   student_enrollments_student_enrollments_student_idToaccounts                student_enrollments[]           @relation("student_enrollments_student_idToaccounts")
   student_profiles                                                            student_profiles?
@@ -356,14 +359,18 @@ model catalog_parts {
   description            String                  @default("")
   active                 Boolean                 @default(true)
   revision               Int                     @default(0)
+  exact_identity_fields  String[]                @default(["MANUFACTURER", "MODEL", "PACKAGE_OR_REVISION"])
   ai_part_suggestions    ai_part_suggestions[]
   catalog_documents      catalog_documents[]
   catalog_guides         catalog_guides[]
+  catalog_part_variants  catalog_part_variants[]
   catalog_categories     catalog_categories      @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   catalog_models         catalog_models          @relation(fields: [model_id, model_version], references: [id, version], onDelete: NoAction, onUpdate: NoAction)
   learning_lesson_parts  learning_lesson_parts[]
   market_offers          market_offers[]
   project_bom_items      project_bom_items[]
+
+  @@index([name_en, key], map: "catalog_part_name_order")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -770,30 +777,35 @@ model market_offer_history {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model market_offers {
-  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  seed_key              String?                 @unique
-  seller_id             String                  @db.Uuid
-  source_id             String                  @db.Uuid
-  catalog_key           String?
-  part_name             String
-  variant               String                  @default("")
-  condition             String
-  unit_price            Decimal                 @db.Decimal(14, 2)
-  currency              String                  @db.Char(3)
-  quantity              Int
-  shipping_cost         Decimal?                @db.Decimal(14, 2)
-  valid_until           DateTime?               @db.Timestamptz(6)
-  status                String                  @default("ACTIVE")
-  updated_by            String                  @db.Uuid
-  revision              Int                     @default(0)
-  updated_at            DateTime                @default(now()) @db.Timestamptz(6)
-  market_bookmarks      market_bookmarks[]
-  market_offer_history  market_offer_history[]
-  catalog_parts         catalog_parts?          @relation(fields: [catalog_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
-  market_sellers        market_sellers          @relation(fields: [seller_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  resale_sources        resale_sources          @relation(fields: [source_id, seller_id], references: [id, seller_id], onDelete: NoAction, onUpdate: NoAction)
-  accounts              accounts                @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  project_expense_lines project_expense_lines[]
+  id                        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                  String?                     @unique
+  seller_id                 String                      @db.Uuid
+  source_id                 String                      @db.Uuid
+  catalog_key               String?
+  part_name                 String
+  variant                   String                      @default("")
+  condition                 String
+  unit_price                Decimal                     @db.Decimal(14, 2)
+  currency                  String                      @db.Char(3)
+  quantity                  Int
+  shipping_cost             Decimal?                    @db.Decimal(14, 2)
+  valid_until               DateTime?                   @db.Timestamptz(6)
+  status                    String                      @default("ACTIVE")
+  updated_by                String                      @db.Uuid
+  revision                  Int                         @default(0)
+  updated_at                DateTime                    @default(now()) @db.Timestamptz(6)
+  variant_id                String?                     @db.Uuid
+  market_bookmarks          market_bookmarks[]
+  market_offer_history      market_offer_history[]
+  catalog_part_variants     catalog_part_variants?      @relation(fields: [variant_id, catalog_key], references: [id, part_key], onDelete: NoAction, onUpdate: NoAction, map: "market_offer_variant_part")
+  catalog_parts             catalog_parts?              @relation(fields: [catalog_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
+  market_sellers            market_sellers              @relation(fields: [seller_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  resale_sources            resale_sources              @relation(fields: [source_id, seller_id], references: [id, seller_id], onDelete: NoAction, onUpdate: NoAction)
+  accounts                  accounts                    @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  market_price_observations market_price_observations[]
+  project_expense_lines     project_expense_lines[]
+
+  @@unique([id, seller_id, currency], map: "market_offer_observation_key")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1379,21 +1391,26 @@ model reporting_periods {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model resale_sources {
-  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  seed_key       String?         @unique
-  seller_id      String          @db.Uuid
-  kind           String
-  url            String?
-  file_id        String?         @db.Uuid
-  observed_at    DateTime        @db.Timestamptz(6)
-  content_hash   String?         @db.Char(64)
-  status         String          @default("PENDING")
-  reviewed_by    String?         @db.Uuid
-  reviewed_at    DateTime?       @db.Timestamptz(6)
-  market_offers  market_offers[]
-  files          files?          @relation(fields: [file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  accounts       accounts?       @relation(fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  market_sellers market_sellers  @relation(fields: [seller_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                                           String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                                     String?                     @unique
+  seller_id                                    String                      @db.Uuid
+  kind                                         String
+  url                                          String?
+  file_id                                      String?                     @db.Uuid
+  observed_at                                  DateTime                    @db.Timestamptz(6)
+  content_hash                                 String?                     @db.Char(64)
+  status                                       String                      @default("PENDING")
+  reviewed_by                                  String?                     @db.Uuid
+  reviewed_at                                  DateTime?                   @db.Timestamptz(6)
+  revoked_by                                   String?                     @db.Uuid
+  revoked_at                                   DateTime?                   @db.Timestamptz(6)
+  revocation_reason                            String?
+  market_offers                                market_offers[]
+  market_price_observations                    market_price_observations[]
+  files                                        files?                      @relation(fields: [file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts                                     accounts?                   @relation(fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_resale_sources_revoked_byToaccounts accounts?                   @relation("resale_sources_revoked_byToaccounts", fields: [revoked_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  market_sellers                               market_sellers              @relation(fields: [seller_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([id, seller_id])
 }
@@ -1694,4 +1711,43 @@ model workshop_tables {
   geometry                   Json                         @default("{}")
   workshop_table_assignments workshop_table_assignments[]
   workshop_table_history     workshop_table_history[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model catalog_part_variants {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  part_key            String
+  manufacturer        String?
+  model_number        String?
+  package_or_revision String?
+  source_url          String?
+  created_by          String          @db.Uuid
+  created_at          DateTime        @default(now()) @db.Timestamptz(6)
+  accounts            accounts        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalog_parts       catalog_parts   @relation(fields: [part_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
+  market_offers       market_offers[]
+
+  @@unique([id, part_key])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model market_price_observations {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  offer_id       String         @db.Uuid
+  seller_id      String         @db.Uuid
+  currency       String         @db.Char(3)
+  offer_revision Int
+  source_id      String         @db.Uuid
+  unit_price     Decimal        @db.Decimal(14, 2)
+  shipping_cost  Decimal?       @db.Decimal(14, 2)
+  observed_at    DateTime?      @db.Timestamptz(6)
+  is_legacy      Boolean        @default(false)
+  recorded_by    String?        @db.Uuid
+  recorded_at    DateTime       @default(now()) @db.Timestamptz(6)
+  market_offers  market_offers  @relation(fields: [offer_id, seller_id, currency], references: [id, seller_id, currency], onDelete: NoAction, onUpdate: NoAction)
+  accounts       accounts?      @relation(fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  resale_sources resale_sources @relation(fields: [source_id, seller_id], references: [id, seller_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([offer_id, offer_revision])
 }
