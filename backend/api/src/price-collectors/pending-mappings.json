@@ -1,0 +1,34 @@
+{
+  "policy": "Candidates are PENDING only. Approval requires a manager-reviewed exact catalog variant; names never create an exact match.",
+  "catalogCoverage": [
+    "arduino_uno", "arduino_nano", "esp32_devkit_v1", "esp8266_nodemcu", "raspberry_pi_4",
+    "hc_sr04", "dht11", "dht22", "ldr", "pir_hc_sr501", "lm35", "mpu6050", "bmp280",
+    "ir_obstacle", "flame_sensor", "mq2_gas", "soil_moisture", "water_level", "ldr_module",
+    "push_button", "servo_sg90", "servo_mg995", "dc_motor", "stepper_28byj48", "buzzer_active",
+    "relay_5v", "lcd1602_i2c", "oled_096", "seven_segment_1digit", "led_red", "led_green",
+    "led_rgb", "resistor_220", "resistor_10k", "potentiometer_10k", "l298n", "tb6600", "uln2003",
+    "esp8266_module", "rfid_rc522", "hc05_bluetooth", "nrf24l01", "water_pump_5v"
+  ],
+  "pendingCandidates": [
+    {
+      "shop": "TECHNOLAB",
+      "externalProductId": "1",
+      "sku": "TL000001",
+      "productName": "Arduino UNO R3 Development Board ATmega328P ATMEGA16U2 (Without Cable)",
+      "candidateCatalogKey": "arduino_uno",
+      "requiredVariant": {"manufacturer": null, "modelNumber": "ATmega328P / ATMEGA16U2", "packageOrRevision": "UNO R3 without cable"},
+      "status": "PENDING"
+    },
+    {
+      "shop": "TECHNOLAB",
+      "externalProductId": "198",
+      "sku": "TL000198",
+      "productName": "Arduino UNO SMD CH340 (Without Cable)",
+      "candidateCatalogKey": "arduino_uno",
+      "requiredVariant": {"manufacturer": null, "modelNumber": "CH340", "packageOrRevision": "UNO SMD without cable"},
+      "status": "PENDING"
+    }
+  ],
+  "technicalReviewManifest": "./reviewed-mappings.json",
+  "unresolvedCatalogKeys": "Technical evidence review is complete in reviewed-mappings.json. Every supported mapping still requires a manager-created exact variant and application approval before import."
+}

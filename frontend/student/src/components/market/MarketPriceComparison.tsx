@@ -4,7 +4,10 @@ import type { Variant } from "@/lib/market/client";
 import { useMarketClient } from "@/lib/market/session";
 import { useDebouncedValue, usePagedResource } from "@/lib/market/useMarketData";
 import { formatDate, formatMoney } from "@/lib/market/format";
+import { offerStock } from "@/lib/market/offerStock";
 import { LoadMore, MarketEmpty, MarketStatus } from "./MarketStatus";
+import { ShopPriceCards } from "./ShopPrices";
+import { shopPriceCopy } from "@/lib/market/shopPrices";
 const CURRENCIES = ["ILS", "USD", "JOD", "EUR"];
 const identityLabel = (v: Variant) =>
   `${v.manufacturer ?? "Unknown manufacturer"} · ${v.modelNumber ?? "unknown model"} · ${v.packageOrRevision ?? "unknown package/revision"}${v.exact ? "" : " (not specific enough for exact matching)"}`;
@@ -49,6 +52,7 @@ export function MarketPriceComparison({ initialSearch = "" }: { initialSearch?: 
       : null,
     client,
   );
+  const selectedVariant = variants.items.find((variant) => variant.id === variantId) ?? null;
   const choosePart = (key: string) => {
     setPartKey(key);
     setVariantId("");
@@ -149,6 +153,17 @@ export function MarketPriceComparison({ initialSearch = "" }: { initialSearch?: 
           {variants.status === "ready" && (
             <LoadMore {...variants} onMore={variants.loadMore} label="variants" />
           )}
+          {selectedVariant ? (
+            selectedVariant.exact ? (
+              <ShopPriceCards key={selectedVariant.id} variantId={selectedVariant.id} />
+            ) : (
+              <p className="glass-inset rounded-xl p-3 text-xs">{shopPriceCopy("en").notExact}</p>
+            )
+          ) : (
+            <p className="text-[11px] text-muted-foreground">
+              {shopPriceCopy("en").chooseIdentity}
+            </p>
+          )}
           <p className="text-[11px] text-muted-foreground">
             {variantId
               ? "Only offers linked to this exact catalog identity are compared."
@@ -174,7 +189,7 @@ export function MarketPriceComparison({ initialSearch = "" }: { initialSearch?: 
                       <p className="mt-1">
                         {offer.partName}
                         {offer.variant ? ` · ${offer.variant}` : ""} ·{" "}
-                        {offer.condition === "NEW" ? "new" : "used"} · {offer.quantity} available ·{" "}
+                        {offer.condition === "NEW" ? "new" : "used"} · {offerStock(offer)} ·{" "}
                         {offer.shippingCost
                           ? `+ ${formatMoney(offer.shippingCost, offer.currency)} shipping`
                           : "shipping unknown"}

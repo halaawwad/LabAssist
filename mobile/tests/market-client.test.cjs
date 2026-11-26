@@ -3,12 +3,20 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const ts = require("typescript");
 const vm = require("node:vm");
-const code = ts.transpileModule(fs.readFileSync("src/lib/market/client.ts", "utf8"), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText;
-const mod = { exports: {} };
-vm.runInThisContext(`(function(exports,require,module){${code}\n})`)(mod.exports, require, mod);
-const { createMarketClient, SessionUnavailableError, ApiNotConfiguredError } = mod.exports;
+// Transpiles src/lib/market/*.ts on the fly; relative imports resolve to sibling .ts files.
+function load(file) {
+  const code = ts.transpileModule(fs.readFileSync(file, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const mod = { exports: {} };
+  const local = (name) =>
+    name.startsWith("./") ? load(`src/lib/market/${name.slice(2)}.ts`) : require(name);
+  vm.runInThisContext(`(function(exports,require,module){${code}\n})`)(mod.exports, local, mod);
+  return mod.exports;
+}
+const { createMarketClient, SessionUnavailableError, ApiNotConfiguredError } = load(
+  "src/lib/market/client.ts",
+);
 const session = {
   getAccessToken: async () => "test-token",
   getCurrentUser: async () => ({ id: "test", role: "STUDENT" }),

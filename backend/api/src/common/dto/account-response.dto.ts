@@ -2,12 +2,12 @@ import { ApiProperty } from "@nestjs/swagger";
 import type { AccountResponse, ApiRole } from "../../../../../shared/contracts/auth";
 
 export class AccountResponseDto implements AccountResponse {
-  @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiProperty({ type: String, format: "uuid" }) id!: string;
   @ApiProperty({ enum: ["STUDENT", "SUPERVISOR", "WORKSHOP_MANAGER", "DEPARTMENT_HEAD"] })
   role!: ApiRole;
-  @ApiProperty() fullName!: string;
-  @ApiProperty({ format: "email" }) email!: string;
-  @ApiProperty() status!: string;
+  @ApiProperty({ type: String }) fullName!: string;
+  @ApiProperty({ type: String, format: "email" }) email!: string;
+  @ApiProperty({ type: String }) status!: string;
   @ApiProperty({ type: String, nullable: true }) universityNumber!: string | null;
   @ApiProperty({ type: String, nullable: true }) employeeNumber!: string | null;
 

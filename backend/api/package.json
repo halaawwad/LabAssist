@@ -18,7 +18,10 @@
     "db:demo:create": "node tools/demo.cjs",
     "test:contracts": "jest --runInBand test/contracts",
     "test:integration": "node tools/test.cjs --runTestsByPath test/integration/auth.spec.ts",
-    "test:load": "k6 run test/load/auth.k6.js"
+    "test:load": "k6 run test/load/auth.k6.js",
+    "prices:dry-run": "tsx tools/collect-shop-prices.ts",
+    "prices:prepare-approval": "tsx tools/prepare-mapping-approval-batch.ts",
+    "prices:sync": "tsx tools/sync-shop-prices.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.10",

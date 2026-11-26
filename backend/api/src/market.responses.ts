@@ -63,7 +63,7 @@ export class Source{
 export class Offer{
  @ApiProperty() id!:string;@ApiProperty() sellerId!:string;@ApiProperty({description:'Original source evidence; later prices are observations.'}) sourceId!:string;@ApiProperty(NS) catalogKey!:string|null;@ApiProperty(NS) variantId!:string|null;
  @ApiProperty() partName!:string;@ApiProperty() variant!:string;@ApiProperty() condition!:string;@ApiProperty({description:'Latest recorded price, which may still await source approval.'}) unitPrice!:string;@ApiProperty() currency!:string;
- @ApiProperty() quantity!:number;@ApiProperty(NS) shippingCost!:string|null;@ApiProperty(NS) validUntil!:string|null;@ApiProperty() status!:string;@ApiProperty() revision!:number;@ApiProperty() updatedAt!:string;
+ @ApiProperty(NN) quantity!:number|null;@ApiProperty(NS) shippingCost!:string|null;@ApiProperty(NS) validUntil!:string|null;@ApiProperty() status!:string;@ApiProperty() revision!:number;@ApiProperty() updatedAt!:string;
 }
 export class Observation{
  @ApiProperty() id!:string;@ApiProperty() offerRevision!:number;@ApiProperty() sourceId!:string;@ApiProperty() sourceStatus!:string;@ApiProperty() unitPrice!:string;@ApiProperty(NS) shippingCost!:string|null;
@@ -75,7 +75,7 @@ export class PublicSource{@ApiProperty({description:'Source of the public price 
 export class Identity{@ApiProperty(NS) manufacturer!:string|null;@ApiProperty(NS) modelNumber!:string|null;@ApiProperty(NS) packageOrRevision!:string|null;@ApiProperty({description:'True only when the linked variant has every relevant identity field.'}) exact!:boolean;}
 export class PublicOffer{
  @ApiProperty() id!:string;@ApiProperty() sellerId!:string;@ApiProperty(NS) catalogKey!:string|null;@ApiProperty(NS) variantId!:string|null;@ApiProperty() partName!:string;@ApiProperty() variant!:string;@ApiProperty() condition!:string;
- @ApiProperty({description:'Price of the newest approved observation.'}) unitPrice!:string;@ApiProperty() currency!:string;@ApiProperty() quantity!:number;@ApiProperty(NS) shippingCost!:string|null;@ApiProperty(NS) validUntil!:string|null;
+ @ApiProperty({description:'Price of the newest approved observation.'}) unitPrice!:string;@ApiProperty() currency!:string;@ApiProperty(NN) quantity!:number|null;@ApiProperty(NS) stockAvailability!:string|null;@ApiProperty(NS) stockCheckedAt!:string|null;@ApiProperty(NS) shippingCost!:string|null;@ApiProperty(NS) validUntil!:string|null;
  @ApiProperty({type:String,nullable:true,description:'Null for legacy prices with an unknown observation date.'}) priceObservedAt!:string|null;@ApiProperty() priceObservationLegacy!:boolean;
  @ApiProperty() seller!:PublicSeller;@ApiProperty() source!:PublicSource;@ApiProperty() identity!:Identity;@ApiProperty() bookmarked!:boolean;
 }

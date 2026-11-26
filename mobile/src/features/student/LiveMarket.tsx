@@ -8,6 +8,8 @@ import { useLanguage } from "@/i18n";
 import { useDebouncedValue, usePagedResource } from "@/lib/market/useMarketData";
 import type { PublicOffer, Variant } from "@/lib/market/client";
 import { MarketState, More } from "./MarketState";
+import { ShopPriceCards } from "./ShopPrices";
+import { offerStock } from "@/lib/market/offerStock";
 const card = {
   padding: 14,
   borderWidth: 1,
@@ -34,7 +36,7 @@ function Offer({ offer }: { offer: PublicOffer }) {
         {offer.unitPrice} {offer.currency}
       </AppText>
       <AppText>
-        {offer.condition} · {t("Quantity", "الكمية")}: {offer.quantity}
+        {offer.condition} · {offerStock(offer, t)}
       </AppText>
       <AppText>
         {t("Observed", "تاريخ الرصد")}:{" "}
@@ -278,6 +280,7 @@ export function LiveComparison() {
               />
             </>
           )}
+          {!!variantId && <ShopPriceCards key={variantId} variantId={variantId} />}
         </>
       )}
       <AppText>{t("Currency code", "رمز العملة")}</AppText>
