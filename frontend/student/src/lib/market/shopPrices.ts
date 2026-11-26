@@ -219,7 +219,12 @@ function cardFor(
     note,
     priceDate: shownPrice ? observed : null,
     lastCheck,
-    stockCheck: confirmed ? t(`Stock last checked: ${formatShopDate(row.stockCheckedAt ?? null, lang) ?? "unknown"}`, `آخر فحص للتوفر: ${formatShopDate(row.stockCheckedAt ?? null, lang) ?? "غير معروف"}`) : null,
+    stockCheck: confirmed
+      ? t(
+          `Stock last checked: ${formatShopDate(row.stockCheckedAt ?? null, lang) ?? "unknown"}`,
+          `آخر فحص للتوفر: ${formatShopDate(row.stockCheckedAt ?? null, lang) ?? "غير معروف"}`,
+        )
+      : null,
     sourceUrl: confirmed ? row.sourceUrl : null,
     lower: lowerShop === shop,
   };

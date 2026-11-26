@@ -216,10 +216,16 @@ export function ExactShopPrices({ partKey }: { partKey: string }) {
     ar = shopPriceCopy("ar");
   const variants = usePagedResource(
     `shop-variants|${partKey}`,
-    (cursor, signal) => client.variants(partKey, { limit: 50, cursor }, signal),
+    async (cursor, signal) => {
+      const page = await client.variants(partKey, { limit: 50, cursor }, signal);
+      if (!Array.isArray(page.items)) throw new Error("Invalid variant response. Please retry.");
+      return page;
+    },
     client,
   );
-  const exact = variants.items.filter((variant) => variant.exact);
+  const exact = Array.isArray(variants.items)
+    ? variants.items.filter((variant) => variant.exact)
+    : [];
   return (
     <section aria-label="Shop prices · أسعار المتاجر" className="space-y-2">
       {variants.status === "ready" ? (

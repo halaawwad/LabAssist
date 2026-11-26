@@ -29,7 +29,7 @@ const fetchImpl = vi.fn(async (input: string) => {
   const path = new URL(input).pathname;
   const body = path.endsWith("/categories")
     ? { items: [], nextCursor: null }
-    : path.endsWith("/pins") || path.endsWith("/documents")
+    : path.endsWith("/pins") || path.endsWith("/documents") || path.endsWith("/variants")
       ? { items: [], nextCursor: null }
       : path.endsWith("/parts")
         ? { items: [part("arduino_uno"), part("arduino-uno")], nextCursor: null }

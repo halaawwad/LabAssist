@@ -391,6 +391,15 @@ describe("ShopPriceCards", () => {
 });
 
 describe("ExactShopPrices (catalog details)", () => {
+  it("reports a malformed variants response without crashing", async () => {
+    const fetchImpl = vi.fn(async () => reply({ key: "arduino_uno" }));
+    render(
+      <MarketSessionProvider session={sessionA} baseUrl="https://api.test" fetchImpl={fetchImpl}>
+        <ExactShopPrices partKey="arduino_uno" />
+      </MarketSessionProvider>,
+    );
+    expect(await screen.findByText("Invalid variant response. Please retry.")).toBeInTheDocument();
+  });
   it("offers only exact identities and loads prices only after an explicit choice", async () => {
     const fetchImpl = vi.fn(async (input: string) => {
       const url = new URL(input);

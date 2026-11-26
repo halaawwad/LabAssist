@@ -793,8 +793,6 @@ model market_offers {
   unit_price                Decimal                     @db.Decimal(14, 2)
   currency                  String                      @db.Char(3)
   quantity                  Int?
-  stock_availability        String?
-  stock_checked_at           DateTime?                   @db.Timestamptz(6)
   shipping_cost             Decimal?                    @db.Decimal(14, 2)
   valid_until               DateTime?                   @db.Timestamptz(6)
   status                    String                      @default("ACTIVE")
@@ -802,6 +800,8 @@ model market_offers {
   revision                  Int                         @default(0)
   updated_at                DateTime                    @default(now()) @db.Timestamptz(6)
   variant_id                String?                     @db.Uuid
+  stock_availability        String?
+  stock_checked_at          DateTime?                   @db.Timestamptz(6)
   market_bookmarks          market_bookmarks[]
   market_offer_history      market_offer_history[]
   catalog_part_variants     catalog_part_variants?      @relation(fields: [variant_id, catalog_key], references: [id, part_key], onDelete: NoAction, onUpdate: NoAction, map: "market_offer_variant_part")
@@ -1728,20 +1728,20 @@ model workshop_tables {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model catalog_part_variants {
-  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  part_key            String
-  manufacturer        String?
-  model_number        String?
-  package_or_revision String?
-  source_url          String?
-  created_by          String          @db.Uuid
-  created_at          DateTime        @default(now()) @db.Timestamptz(6)
-  accounts            accounts        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  catalog_parts       catalog_parts   @relation(fields: [part_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
-  market_offers       market_offers[]
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  part_key                String
+  manufacturer            String?
+  model_number            String?
+  package_or_revision     String?
+  source_url              String?
+  created_by              String                    @db.Uuid
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  accounts                accounts                  @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalog_parts           catalog_parts             @relation(fields: [part_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
   global_price_references global_price_references[]
-  shop_price_mappings shop_price_mappings[]
-  shop_price_outcomes shop_price_outcomes[]
+  market_offers           market_offers[]
+  shop_price_mappings     shop_price_mappings[]
+  shop_price_outcomes     shop_price_outcomes[]
 
   @@unique([id, part_key])
 }
@@ -1799,6 +1799,7 @@ model shop_price_checks {
   started_at          DateTime              @default(now()) @db.Timestamptz(6)
   completed_at        DateTime              @default(now()) @db.Timestamptz(6)
   shop_price_outcomes shop_price_outcomes[]
+
   @@unique([shop, observed_at])
 }
 
@@ -1834,36 +1835,38 @@ model shop_price_mappings {
   accounts              accounts?              @relation(fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   catalog_part_variants catalog_part_variants? @relation(fields: [variant_id, part_key], references: [id, part_key], onDelete: NoAction, onUpdate: NoAction)
   shop_price_outcomes   shop_price_outcomes[]
+
   @@unique([shop, external_product_id])
 }
 
 model shop_price_outcomes {
-  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  check_id              String                 @db.Uuid
-  shop                  String
-  external_product_id   String?
-  mapping_id            String?                @db.Uuid
-  part_key              String?
-  variant_id            String?                @db.Uuid
-  offer_id              String?                @db.Uuid
-  source_id             String?                @db.Uuid
-  outcome               String
-  availability          String?
-  stock_evidence_verified Boolean              @default(false)
-  price                 Decimal?               @db.Decimal(14, 2)
-  currency              String?                @db.Char(3)
-  source_url            String?
-  observed_at           DateTime               @db.Timestamptz(6)
-  last_successful_check DateTime?              @db.Timestamptz(6)
-  package_quantity      Int?
-  sale_quantity         Int?
-  details               Json                   @default("{}")
-  shop_price_checks     shop_price_checks      @relation(fields: [check_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  shop_price_mappings   shop_price_mappings?   @relation(fields: [mapping_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  market_offers         market_offers?         @relation(fields: [offer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  catalog_parts         catalog_parts?         @relation(fields: [part_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
-  resale_sources        resale_sources?        @relation(fields: [source_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  catalog_part_variants catalog_part_variants? @relation(fields: [variant_id, part_key], references: [id, part_key], onDelete: NoAction, onUpdate: NoAction)
+  id                      String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  check_id                String                 @db.Uuid
+  shop                    String
+  external_product_id     String?
+  mapping_id              String?                @db.Uuid
+  part_key                String?
+  variant_id              String?                @db.Uuid
+  offer_id                String?                @db.Uuid
+  source_id               String?                @db.Uuid
+  outcome                 String
+  availability            String?
+  price                   Decimal?               @db.Decimal(14, 2)
+  currency                String?                @db.Char(3)
+  source_url              String?
+  observed_at             DateTime               @db.Timestamptz(6)
+  last_successful_check   DateTime?              @db.Timestamptz(6)
+  package_quantity        Int?
+  sale_quantity           Int?
+  details                 Json                   @default("{}")
+  stock_evidence_verified Boolean                @default(false)
+  shop_price_checks       shop_price_checks      @relation(fields: [check_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  shop_price_mappings     shop_price_mappings?   @relation(fields: [mapping_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  market_offers           market_offers?         @relation(fields: [offer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalog_parts           catalog_parts?         @relation(fields: [part_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
+  resale_sources          resale_sources?        @relation(fields: [source_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalog_part_variants   catalog_part_variants? @relation(fields: [variant_id, part_key], references: [id, part_key], onDelete: NoAction, onUpdate: NoAction)
+
   @@unique([check_id, shop, external_product_id])
   @@index([variant_id, shop, observed_at(sort: Desc)], map: "shop_price_outcome_variant")
 }
