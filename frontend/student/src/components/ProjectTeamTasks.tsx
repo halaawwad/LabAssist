@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ArrowUpRight, Check, Circle, Clock3, ListTodo, Plus, Users } from "lucide-react";
 import { TeamPersonalProgress } from "@/components/TeamPersonalProgress";
 import { Button } from "@/components/ui/button";
-import { teammates, useProjectWorkspace } from "@/lib/projectWorkspace";
+import { useProjectWorkspace } from "@/lib/projectWorkspace";
 import { useStudentProfile } from "@/lib/studentProfile";
 
 export function ProjectTeamTasks() {
@@ -11,14 +11,14 @@ export function ProjectTeamTasks() {
     { profile } = useStudentProfile(),
     navigate = useNavigate(),
     [filter, setFilter] = useState("All");
-  const members = teammates.map((person, index) => {
+  const members = workspace.members.map((person, index) => {
     const tasks = workspace.teamTasks.filter((task) => task.owner === index),
       done = tasks.filter((task) => workspace.completed.includes(task.id)).length,
       total = tasks.length;
     return {
       ...person,
       index,
-      name: index === 0 ? profile.name : person.name,
+      name: index === 0 && !workspace.live ? profile.name : person.name,
       tasks,
       done,
       total,
@@ -108,7 +108,7 @@ export function ProjectTeamTasks() {
                   return (
                     <button
                       key={task.id}
-                      disabled={task.owner !== 0}
+                      disabled={workspace.saving || task.owner !== 0}
                       aria-pressed={done}
                       aria-label={`${done ? "Reopen" : "Complete"} ${task.title}`}
                       className={done ? "is-done" : ""}

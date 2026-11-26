@@ -19,11 +19,11 @@ export default function NativeLayout() {
     <PreferencesProvider>
       <LanguageProvider>
         <WorkspaceProvider>
-          <ProjectWorkspaceProvider>
-            <NativeSessionProvider>
+          <NativeSessionProvider>
+            <ProjectWorkspaceProvider>
               <Stack screenOptions={{ headerShown: false }} />
-            </NativeSessionProvider>
-          </ProjectWorkspaceProvider>
+            </ProjectWorkspaceProvider>
+          </NativeSessionProvider>
         </WorkspaceProvider>
       </LanguageProvider>
     </PreferencesProvider>

@@ -1,3 +1,5 @@
+import { ProjectWorkspaceStatus } from "@/components/ProjectWorkspaceStatus";
+import { ProjectIssueEditor } from "@/components/ProjectIssueEditor";
 import { ProjectMetricArt } from "@/components/ProjectMetricArt";
 import { ProjectTeamTasks } from "@/components/ProjectTeamTasks";
 import { useReports, thisWeek, weekLabel } from "@/lib/reports";
@@ -32,13 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  deadlines,
-  project,
-  projectBom,
-  teammates,
-  useProjectWorkspace,
-} from "@/lib/projectWorkspace";
+import { deadlines, project, projectBom, useProjectWorkspace } from "@/lib/projectWorkspace";
 import { componentCatalog, readBom } from "@/lib/componentCatalog";
 import { useStudentProfile } from "@/lib/studentProfile";
 
@@ -82,6 +78,7 @@ function ProjectPage() {
     [titleDraft, setTitleDraft] = useState(""),
     [subtitleDraft, setSubtitleDraft] = useState(""),
     [issueDraft, setIssueDraft] = useState("");
+  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string>();
   const [bom, setBom] =
     useState<
       { name: string; quantity: number; cost: number; available: boolean; image?: string }[]
@@ -121,6 +118,7 @@ function ProjectPage() {
   return (
     <div className="dashboard-background project-background min-h-screen">
       <div className="insight-shell">
+        <ProjectWorkspaceStatus />
         {menu && (
           <button
             className="fixed inset-0 z-30 bg-foreground/20 lg:hidden"
@@ -162,7 +160,7 @@ function ProjectPage() {
             <div className="project-cover-copy">
               <span className="project-badge">
                 <span className="insight-dot" />
-                {project.status}
+                {workspace.live ? workspace.project?.status.replaceAll("_", " ") : project.status}
               </span>
               <h2>
                 {workspace.details.name}
@@ -171,11 +169,11 @@ function ProjectPage() {
               <p className="project-cover-meta">
                 <span>
                   <CalendarDays size={14} />
-                  {project.deadline}
+                  {workspace.live ? workspace.project?.term.name : project.deadline}
                 </span>
                 <span>
                   <Users size={14} />
-                  {teammates.length} teammates
+                  {workspace.members.length} teammates
                 </span>
               </p>
               <div className="project-cover-progress-line">
@@ -254,6 +252,7 @@ function ProjectPage() {
                       onClick={() => {
                         setAbstractDraft(workspace.abstract);
                         setTitleDraft(workspace.details.name);
+                        setExpectedUpdatedAt(workspace.project?.updatedAt);
                         setSubtitleDraft(workspace.details.subtitle);
                         setModal("abstract");
                       }}
@@ -342,7 +341,13 @@ function ProjectPage() {
                     <CircleAlert size={19} />
                   </span>
                   <div>
-                    <strong>{3 + workspace.issues.length} open issues</strong>
+                    <strong>
+                      {workspace.live
+                        ? (workspace.project?.issues.filter((issue) => issue.status !== "RESOLVED")
+                            .length ?? 0)
+                        : 3 + workspace.issues.length}{" "}
+                      open issues
+                    </strong>
                     <p>
                       2 hardware · 1 software
                       {workspace.issues.length ? ` · ${workspace.issues.length} new` : ""}
@@ -351,7 +356,14 @@ function ProjectPage() {
                   <Plus size={15} />
                 </button>
               </section>
-              {workspace.issues.length > 0 && (
+              {workspace.live && workspace.project && workspace.project.issues.length > 0 && (
+                <section className="insight-paper" aria-label="Project issues">
+                  {workspace.project.issues.map((issue) => (
+                    <ProjectIssueEditor key={issue.id} issue={issue} />
+                  ))}
+                </section>
+              )}
+              {!workspace.live && workspace.issues.length > 0 && (
                 <section className="insight-paper">
                   <h2 className="text-sm font-bold">Issues recorded this session</h2>
                   <ul className="insight-issue-list">
@@ -399,7 +411,7 @@ function ProjectPage() {
                       <strong>Prototype demonstration</strong>
                       <p>Whole team · Final milestone</p>
                     </div>
-                    <span>{project.deadline}</span>
+                    <span>{workspace.live ? workspace.project?.term.name : project.deadline}</span>
                   </div>
                 </div>
               </section>
@@ -549,19 +561,27 @@ function ProjectPage() {
               {modal === "abstract" ? "Edit Project Abstract" : "Add Issue"}
             </DialogTitle>
             <DialogDescription>
-              Changes are saved on this device after a successful save.
+              {workspace.live
+                ? "Changes are shared with your project team."
+                : "Changes are saved on this device."}
             </DialogDescription>
           </DialogHeader>
           {modal === "abstract" ? (
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 if (!abstractDraft.trim()) return;
-                workspace.saveProjectDetails({
-                  name: titleDraft,
-                  subtitle: subtitleDraft,
-                  abstract: abstractDraft,
-                });
+                if (
+                  !(await workspace.saveProjectDetails(
+                    {
+                      name: titleDraft,
+                      subtitle: subtitleDraft,
+                      abstract: abstractDraft,
+                    },
+                    expectedUpdatedAt,
+                  ))
+                )
+                  return;
                 setModal(null);
               }}
               className="space-y-4"
@@ -599,17 +619,21 @@ function ProjectPage() {
                 <Button type="button" variant="secondary" onClick={() => setModal(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={!abstractDraft.trim()}>
+                <Button type="submit" disabled={workspace.saving || !abstractDraft.trim()}>
                   Save Changes
                 </Button>
               </div>
             </form>
           ) : (
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 if (!issueDraft.trim()) return;
-                workspace.addIssue(issueDraft.trim());
+                const title = issueDraft.trim();
+                if (
+                  !(await workspace.addIssue(title.slice(0, 240), title.length > 240 ? title : ""))
+                )
+                  return;
                 setIssueDraft("");
                 setModal(null);
               }}
@@ -626,7 +650,11 @@ function ProjectPage() {
                 onChange={(e) => setIssueDraft(e.target.value)}
                 className="glass-inset min-h-28 w-full rounded-xl p-3 text-sm"
               />
-              <Button type="submit" className="action-orange-soft" disabled={!issueDraft.trim()}>
+              <Button
+                type="submit"
+                className="action-orange-soft"
+                disabled={workspace.saving || !issueDraft.trim()}
+              >
                 Add Issue
               </Button>
             </form>

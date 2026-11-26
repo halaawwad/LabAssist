@@ -1,3 +1,8 @@
+import { authClient, demoMode } from "@/features/auth/client";
+import { useNativeSession } from "@/state/NativeSession";
+import { useCopy } from "@/components/MobileKit";
+import { useLiveProject } from "../../../shared/project-work/useLiveProject";
+import type { ProjectIssue, ProjectTaskStatus } from "../../../shared/contracts/project-work";
 import { demoTeam, demoStudents, demoTasks } from "../../../shared/web/domain";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { createContext, useContext, useState, type ReactNode } from "react";
@@ -96,7 +101,7 @@ export type TeamTask = {
 };
 export type TeamActivity = { id: string; owner: number; text: string; time: string };
 /** Adapter for the existing native project layout; all writes use the workspace. */
-function useWorkspaceState() {
+function useDemoWorkspace() {
   const { state, actorId, act, error, retryLoading, saving } = useWorkspace();
   const active = state.projects.find((p) => p.studentIds.includes(actorId)) ?? state.projects[0]!;
   const members = active.studentIds.map((id) => state.users.find((user) => user.id === id)!);
@@ -151,6 +156,109 @@ function useWorkspaceState() {
     error,
     retryLoading,
     saving,
+  };
+}
+function useWorkspaceState() {
+  const demo = useDemoWorkspace();
+  const { account } = useNativeSession();
+  const copy = useCopy();
+  const liveMode = !demoMode && account?.role === "STUDENT";
+  const live = useLiveProject(liveMode ? authClient : null, liveMode ? account.id : undefined);
+  const current = live.project;
+  const members = current?.students ?? [];
+  const tasks = current?.tasks ?? [];
+  const completed = tasks.filter((task) => task.status === "DONE").map(({ id }) => id);
+  const error = live.error
+    ? {
+        missing: copy(
+          "No project assigned for the current term.",
+          "لا يوجد مشروع مخصص للفصل الحالي.",
+        ),
+        load: copy("Could not load your project.", "تعذّر تحميل مشروعك."),
+        save: copy("Could not save this change.", "تعذّر حفظ التغيير."),
+        conflict: copy(
+          "This item changed. Reload before retrying.",
+          "تغيّر هذا العنصر. أعد التحميل قبل المحاولة.",
+        ),
+      }[live.error]
+    : "";
+  const updateStatus = (id: string, status: ProjectTaskStatus) => {
+    const task = tasks.find((item) => item.id === id);
+    if (!task) return Promise.resolve(false);
+    return live.save("/tasks/" + id, "PATCH", {
+      expectedRevision: task.revision,
+      status,
+      needsHelp: task.needsHelp,
+    });
+  };
+  const sharedActions = {
+    liveMode,
+    project: current,
+    loading: live.loading,
+    updateStatus,
+    createTask: (title: string, assignedTo: string, description: string, dueOn: string) =>
+      live.save("/tasks", "POST", { title, assignedTo, description, dueOn: dueOn || null }),
+    updateIssue: (issue: ProjectIssue) =>
+      live.save("/issues/" + issue.id, "PATCH", {
+        title: issue.title,
+        description: issue.description,
+        priority: issue.priority,
+        status: issue.status,
+        resolution: issue.resolution,
+        expectedRevision: issue.revision,
+      }),
+  };
+  if (!liveMode) return { ...demo, ...sharedActions };
+  return {
+    ...demo,
+    ...sharedActions,
+    actorId: account.id,
+    details: {
+      ...demo.details,
+      id: current?.id ?? "",
+      title: current?.name ?? "",
+      description: current?.abstract ?? "",
+    },
+    abstract: current?.abstract ?? "",
+    members,
+    teamTasks: tasks.map((task): TeamTask => ({
+      id: task.id,
+      owner: members.findIndex(({ id }) => id === task.assignedTo),
+      title: task.title,
+      description: task.description,
+      due: task.dueOn ?? "",
+      inProgress: task.status === "IN_PROGRESS",
+      help: task.needsHelp,
+    })),
+    completed,
+    completedCount: completed.length,
+    taskCount: tasks.length,
+    progress: Math.round((completed.length / Math.max(1, tasks.length)) * 100),
+    teamActivity: [],
+    logTeamActivity: () => undefined,
+    openIssues: (current?.issues ?? []).filter((issue) => issue.status !== "RESOLVED"),
+    saveDetails: (
+      title: string,
+      description: string,
+      subtitle?: string,
+      expectedUpdatedAt?: string,
+    ) =>
+      live.save("", "PATCH", {
+        name: title,
+        abstract: description,
+        subtitle: subtitle ?? current?.subtitle ?? "",
+        expectedUpdatedAt,
+      }),
+    toggleTask: (id: string) => updateStatus(id, completed.includes(id) ? "TODO" : "DONE"),
+    addIssue: (title: string) =>
+      live.save("/issues", "POST", {
+        title: title.slice(0, 240),
+        description: title.length > 240 ? title : "",
+        priority: "MEDIUM",
+      }),
+    saving: live.saving,
+    error,
+    retryLoading: live.reload,
   };
 }
 const WorkspaceContext = createContext<ReturnType<typeof useWorkspaceState> | null>(null);

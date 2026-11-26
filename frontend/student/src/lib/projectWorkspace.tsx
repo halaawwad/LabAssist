@@ -1,3 +1,6 @@
+import { apiMode, webClient } from "../../../../shared/auth/web-session";
+import { useLiveProject } from "../../../../shared/project-work/useLiveProject";
+import type { ProjectIssue, ProjectTaskStatus } from "../../../../shared/contracts/project-work";
 import { useStoredState } from "./useStoredState";
 import { demoTeam, demoStudents, demoTasks } from "../../../../shared/web/domain";
 import { createContext, useContext, useState, type SetStateAction, type ReactNode } from "react";
@@ -99,7 +102,7 @@ export type TeamTask = {
   help: boolean;
 };
 export type TeamActivity = { id: string; owner: number; text: string; time: string };
-function useWorkspaceState() {
+function useDemoWorkspace() {
   const [taskData, persistTaskData] = useStoredState<{ tasks: TeamTask[]; completed: string[] }>(
     "labassist.student.team-work.v1",
     {
@@ -247,6 +250,136 @@ function useWorkspaceState() {
     progress: Math.round((completedCount / Math.max(1, taskCount)) * 100),
     completedCount,
     taskCount,
+  };
+}
+function useWorkspaceState() {
+  const demo = useDemoWorkspace();
+  const client = apiMode(import.meta.env) ? webClient(import.meta.env) : null;
+  const accountId = client?.account?.id;
+  const live = useLiveProject(client, accountId);
+  const project = live.project;
+  const roster = project?.students ?? [];
+  const students = [...roster].sort(
+    (a, b) => Number(b.id === accountId) - Number(a.id === accountId),
+  );
+  const members = client
+    ? students.map((student, index) => ({
+        name: student.name,
+        initials: student.name
+          .split(/\s+/)
+          .slice(0, 2)
+          .map((word) => word[0])
+          .join("")
+          .toUpperCase(),
+        tone: ["mint", "blue", "rose"][index % 3]!,
+      }))
+    : teammates;
+  const teamTasks: TeamTask[] = client
+    ? (project?.tasks ?? []).map((task) => ({
+        id: task.id,
+        owner: students.findIndex(({ id }) => id === task.assignedTo),
+        title: task.title,
+        description: task.description,
+        due: task.dueOn ?? "",
+        inProgress: task.status === "IN_PROGRESS",
+        help: task.needsHelp,
+      }))
+    : demo.teamTasks;
+  const completed = client
+    ? (project?.tasks ?? []).filter((task) => task.status === "DONE").map(({ id }) => id)
+    : demo.completed;
+
+  const saveTask = (id: string, status: ProjectTaskStatus, needsHelp?: boolean) => {
+    const task = project?.tasks.find((item) => item.id === id);
+    if (!task) return Promise.resolve(false);
+    return live.save("/tasks/" + id, "PATCH", {
+      expectedRevision: task.revision,
+      status,
+      needsHelp: needsHelp ?? task.needsHelp,
+    });
+  };
+
+  return {
+    ...demo,
+    live: !!client,
+    project,
+    members,
+    loading: live.loading,
+    error: live.error,
+    saving: live.saving,
+    reload: live.reload,
+    details: client
+      ? {
+          name: project?.name ?? "",
+          subtitle: project?.subtitle ?? "",
+          abstract: project?.abstract ?? "",
+        }
+      : demo.details,
+    abstract: client ? (project?.abstract ?? "") : demo.abstract,
+    teamTasks,
+    completed,
+    completedCount: completed.length,
+    taskCount: teamTasks.length,
+    progress: Math.round((completed.length / Math.max(1, teamTasks.length)) * 100),
+    teamActivity: client ? [] : demo.teamActivity,
+    logTeamActivity: client ? () => undefined : demo.logTeamActivity,
+    saveProjectDetails: async (details: typeof demo.details, expectedUpdatedAt?: string) => {
+      if (client) return live.save("", "PATCH", { ...details, expectedUpdatedAt });
+      demo.saveProjectDetails(details);
+      return true;
+    },
+    createTask: async (input: Pick<TeamTask, "owner" | "title" | "description" | "due">) => {
+      if (client) {
+        const assignedTo = students[input.owner]?.id;
+        if (!assignedTo) return false;
+        return live.save("/tasks", "POST", {
+          assignedTo,
+          title: input.title,
+          description: input.description,
+          dueOn: input.due || null,
+        });
+      }
+      demo.setTeamTasks((tasks) => [
+        ...tasks,
+        { ...input, id: crypto.randomUUID(), inProgress: false, help: false },
+      ]);
+      return true;
+    },
+    toggleTask: async (id: string) => {
+      if (client) return saveTask(id, completed.includes(id) ? "TODO" : "DONE");
+      demo.toggleTask(id);
+      return true;
+    },
+    updateTaskStatus: async (id: string, status: string) => {
+      if (client)
+        return saveTask(
+          id,
+          status === "Completed" ? "DONE" : status === "In Progress" ? "IN_PROGRESS" : "TODO",
+        );
+      demo.updateTaskStatus(id, status);
+      return true;
+    },
+    toggleHelp: async (task: TeamTask) => {
+      if (client) return saveTask(task.id, task.inProgress ? "IN_PROGRESS" : "TODO", !task.help);
+      demo.setTeamTasks((list) =>
+        list.map((item) => (item.id === task.id ? { ...item, help: !item.help } : item)),
+      );
+      return true;
+    },
+    addIssue: async (title: string, description = "") => {
+      if (client) return live.save("/issues", "POST", { title, description, priority: "MEDIUM" });
+      demo.addIssue(title);
+      return true;
+    },
+    updateIssue: (issue: ProjectIssue) =>
+      live.save("/issues/" + issue.id, "PATCH", {
+        title: issue.title,
+        description: issue.description,
+        priority: issue.priority,
+        status: issue.status,
+        resolution: issue.resolution,
+        expectedRevision: issue.revision,
+      }),
   };
 }
 const WorkspaceContext = createContext<ReturnType<typeof useWorkspaceState> | null>(null);
