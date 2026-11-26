@@ -1,3 +1,5 @@
+import { SupervisedProjects } from "./SupervisedProjects";
+import { demoMode } from "@/features/auth/client";
 import { useLanguage } from "@/i18n";
 import { useWorkspace, useRole } from "@/state/WorkspaceProvider";
 import { FinalReviewScreen } from "@/features/supervisor/screens/FinalReviewScreen";
@@ -119,6 +121,10 @@ export function NativeScreen({ role, page }: { role: Role; page: string }) {
           <DashboardScreen />
         ) : page === "finalReports" ? (
           <FinalReviewScreen />
+        ) : page === "projects" && !demoMode ? (
+          <ScrollView contentContainerStyle={s.content}>
+            <SupervisedProjects />
+          </ScrollView>
         ) : ["projects", "students", "progress", "tasks"].includes(page) ? (
           <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
             <WebSupervisorPanels

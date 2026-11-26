@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { AppText, Button } from "@/components";
 import { MobileInput } from "@/components/MobileInput";
 import { Disclosure } from "@/components/Disclosure";
-import { kit, SegmentedControl, useCopy } from "@/components/MobileKit";
+import { kit, Panel, SegmentedControl, useCopy } from "@/components/MobileKit";
 import type { ProjectIssue, ProjectIssueStatus } from "../../../shared/contracts/project-work";
 import { useProjectWorkspace } from "./StudentReference";
 
@@ -137,5 +137,45 @@ export function NativeProjectIssue({ issue }: { issue: ProjectIssue }) {
         />
       )}
     </View>
+  );
+}
+
+export function LiveProjectIssues() {
+  const copy = useCopy();
+  const { project, addIssue, saving, error, loading, retryLoading } = useProjectWorkspace();
+  const [title, setTitle] = useState("");
+  return (
+    <Panel title={copy("Project issues", "مشكلات المشروع")}>
+      {loading && <AppText>{copy("Loading project…", "جارٍ تحميل المشروع…")}</AppText>}
+      {!!error && <AppText accessibilityRole="alert">{error}</AppText>}
+      {(project || error) && (
+        <Button
+          variant="ghost"
+          disabled={saving}
+          title={copy("Refresh project", "تحديث المشروع")}
+          onPress={() => void retryLoading()}
+        />
+      )}
+      {project && (
+        <>
+          <MobileInput
+            accessibilityLabel={copy("Issue title", "عنوان المشكلة")}
+            value={title}
+            onChangeText={setTitle}
+            maxLength={240}
+          />
+          <Button
+            title={copy("Add issue", "إضافة مشكلة")}
+            disabled={saving || !title.trim()}
+            onPress={async () => {
+              if (await addIssue(title.trim())) setTitle("");
+            }}
+          />
+          {project.issues.map((issue) => (
+            <NativeProjectIssue key={issue.id} issue={issue} />
+          ))}
+        </>
+      )}
+    </Panel>
   );
 }

@@ -42,7 +42,7 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const navigate = useNavigate();
-  const workspace = useProjectWorkspace();
+  const workspace = useProjectWorkspace().demo;
   const { profile } = useStudentProfile();
   const avatar = profile.photo;
   const [menu, setMenu] = useState(false);

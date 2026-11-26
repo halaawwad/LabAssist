@@ -301,6 +301,7 @@ function useWorkspaceState() {
 
   return {
     ...demo,
+    demo,
     live: !!client,
     project,
     members,

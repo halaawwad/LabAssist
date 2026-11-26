@@ -40,11 +40,24 @@ class ProjectWorkService {
   constructor(private readonly db: Database) {}
 
   async read(actor: Actor, projectId: string | null) {
+    const [project] = await this.readVisible(actor, projectId);
+    if (!project) throw new NotFoundException("Project workspace not found.");
+    return project;
+  }
+
+  supervised(actor: Actor) {
+    if (actor.role !== Role.SUPERVISOR) {
+      throw new ForbiddenException("A supervisor session is required.");
+    }
+    return this.readVisible(actor, null, true);
+  }
+
+  private async readVisible(actor: Actor, projectId: string | null, allAssigned = false) {
     if (actor.role !== Role.STUDENT && actor.role !== Role.SUPERVISOR) {
       throw new ForbiddenException("A project member session is required.");
     }
 
-    const [row] = await this.db.$queryRaw<{ workspace: ProjectWorkspace }[]>`
+    const rows = await this.db.$queryRaw<{ workspace: ProjectWorkspace }[]>`
       WITH visible_project AS (
         SELECT p.*, term.name AS term_name
         FROM labassist_student.projects p
@@ -55,14 +68,14 @@ class ProjectWorkService {
         ) AND (
           p.id = ${projectId}::uuid
           OR (
-            ${projectId}::uuid IS NULL AND ${actor.role} = 'STUDENT'
+            ${projectId}::uuid IS NULL AND (${actor.role} = 'STUDENT' OR ${allAssigned})
             AND p.status <> 'ARCHIVED'
             AND term.starts_on <= (now() AT TIME ZONE 'Asia/Hebron')::date
             AND (term.ends_on IS NULL OR term.ends_on >= (now() AT TIME ZONE 'Asia/Hebron')::date)
           )
         )
         ORDER BY term.starts_on DESC, term.created_at DESC, p.id
-        LIMIT 1
+        LIMIT CASE WHEN ${allAssigned} THEN NULL ELSE 1 END
       )
       SELECT jsonb_build_object(
         'id', p.id, 'name', p.name, 'subtitle', p.subtitle, 'abstract', p.abstract,
@@ -96,8 +109,7 @@ class ProjectWorkService {
         ), '[]'::jsonb)
       ) AS workspace FROM visible_project p
     `;
-    if (!row) throw new NotFoundException("Project workspace not found.");
-    return row.workspace;
+    return rows.map(({ workspace }) => workspace);
   }
 
   private write<T>(
@@ -235,6 +247,12 @@ class ProjectWorkController {
   @ApiOperation({ summary: "Read the signed-in student's workspace for their current term" })
   mine(@Req() req: { actor: Actor }) {
     return this.work.read(req.actor, null);
+  }
+
+  @Get("supervised")
+  @ApiOperation({ summary: "Read the current projects assigned to the signed-in supervisor" })
+  supervised(@Req() req: { actor: Actor }) {
+    return this.work.supervised(req.actor);
   }
 
   @Get(":id")

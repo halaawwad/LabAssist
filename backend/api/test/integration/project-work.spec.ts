@@ -6,6 +6,7 @@ import request from "supertest";
 import { AppModule } from "../../src/app.module";
 import { configureApp } from "../../src/configure-app";
 import { Database } from "../../src/database/database.service";
+import type { ProjectGroupRecord } from "../../../../shared/contracts/project-work";
 import { Mailer } from "../../src/mail/services/mailer.service";
 import { MailQueue } from "../../src/mail/services/mail-queue.service";
 
@@ -65,6 +66,14 @@ describe("Sprint 2A project workspace", () => {
       null,
       "3010",
     );
+    const otherAdvisor = await createAccount(
+      "SUPERVISOR",
+      "Other advisor",
+      "other-advisor@najah.edu",
+      head,
+      null,
+      "3011",
+    );
     const accounts = new Map<string, string>();
     for (const [name, number] of Object.entries({
       member: "20263001",
@@ -102,7 +111,12 @@ describe("Sprint 2A project workspace", () => {
     `;
     termId = term.id;
     await db.$executeRaw`INSERT INTO labassist_student.term_workshop_capacity(term_id) VALUES (${termId}::uuid)`;
-    const makeTeam = async (title: string, projectNumber: string, studentIds: string[]) => {
+    const makeTeam = async (
+      title: string,
+      projectNumber: string,
+      studentIds: string[],
+      supervisorId = advisor,
+    ) => {
       const response = await request(app.getHttpServer())
         .post(groupPath)
         .set("Authorization", "Bearer " + tokens.head)
@@ -111,14 +125,14 @@ describe("Sprint 2A project workspace", () => {
           projectNumber,
           studentIds,
           termId,
-          supervisorIds: [advisor],
+          supervisorIds: [supervisorId],
           confirmedTransfer: false,
         })
         .expect(201);
       return response.body.id as string;
     };
     projectId = await makeTeam("Shared project", "P-1", [accounts.get("member")!, teammateId]);
-    await makeTeam("Other project", "P-2", [outsiderId, accounts.get("other")!]);
+    await makeTeam("Other project", "P-2", [outsiderId, accounts.get("other")!], otherAdvisor);
   });
   afterAll(async () => {
     if (app) await app.close();
@@ -138,6 +152,9 @@ describe("Sprint 2A project workspace", () => {
       expect(response.body).toEqual(mine.body);
     }
     await call("get", "/" + projectId, "outsider").expect(404);
+    const supervised = await call("get", "/supervised", "advisor").expect(200);
+    expect(supervised.body).toEqual([mine.body]);
+    await call("get", "/supervised", "member").expect(403);
   });
 
   it("rejects cross-team edits and preserves one of two simultaneous detail edits", async () => {
@@ -250,5 +267,49 @@ describe("Sprint 2A project workspace", () => {
       WHERE project_id = ${projectId}::uuid AND student_id = ${teammateId}::uuid ORDER BY joined_at
     `;
     expect(timeline).toEqual([{ left_at: expect.any(Date) }, { left_at: null }]);
+  });
+
+  it("requires transfer confirmation and updates both teams atomically", async () => {
+    const db = app.get(Database);
+    const groups = async () => {
+      const result = await request(app.getHttpServer())
+        .get(groupPath)
+        .set("Authorization", "Bearer " + tokens.head)
+        .expect(200);
+      return result.body.groups as ProjectGroupRecord[];
+    };
+    const update = (group: ProjectGroupRecord, studentIds: string[], confirmedTransfer = false) =>
+      request(app.getHttpServer())
+        .patch(groupPath + "/" + group.id)
+        .set("Authorization", "Bearer " + tokens.head)
+        .send({
+          title: group.title,
+          projectNumber: group.projectNumber,
+          termId: group.termId,
+          supervisorIds: group.supervisorIds,
+          studentIds,
+          expectedUpdatedAt: group.updatedAt,
+          confirmedTransfer,
+        });
+
+    const before = await groups();
+    const source = before.find((group) => group.id === projectId)!;
+    const target = before.find((group) => group.projectNumber === "P-2")!;
+    await update(source, [...source.studentIds, spareId]).expect(200);
+    const nextMembers = [...target.studentIds, spareId];
+    await update(target, nextMembers).expect(409);
+    const beforeMove = (await groups()).find((group) => group.id === source.id)!;
+    expect(beforeMove.studentIds).toContain(spareId);
+    await update(target, nextMembers, true).expect(200);
+    const after = await groups();
+    expect(after.find((group) => group.id === source.id)?.studentIds).toEqual(source.studentIds);
+    expect(after.find((group) => group.id === source.id)?.updatedAt).not.toBe(beforeMove.updatedAt);
+    const workspace = await call("get", "/mine", "spare").expect(200);
+    expect(workspace.body.id).toBe(target.id);
+    const memberships = await db.$queryRaw<{ project_id: string }[]>`
+      SELECT project_id FROM labassist_student.project_students
+      WHERE student_id = ${spareId}::uuid AND left_at IS NULL
+    `;
+    expect(memberships).toEqual([{ project_id: target.id }]);
   });
 });
