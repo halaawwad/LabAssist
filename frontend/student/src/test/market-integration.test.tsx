@@ -312,6 +312,7 @@ describe("market screens", () => {
           nextCursor: null,
         });
       if (url.pathname.endsWith("/documents")) return reply({ items: [], nextCursor: null });
+      if (url.pathname.endsWith("/variants")) return reply({ items: [], nextCursor: null });
       return reply({
         key: "sprint6_unmapped",
         categoryId: "c",
@@ -350,6 +351,7 @@ describe("market screens", () => {
       "/v1/catalog/parts/sprint6_unmapped",
       "/v1/catalog/parts/sprint6_unmapped/documents",
       "/v1/catalog/parts/sprint6_unmapped/pins",
+      "/v1/catalog/parts/sprint6_unmapped/variants",
     ]);
   });
   it("labels offers exact only through an exact catalog variant", async () => {

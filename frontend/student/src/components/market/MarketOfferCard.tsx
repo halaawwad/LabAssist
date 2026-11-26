@@ -1,6 +1,7 @@
 import { ArrowUpRight, MapPin, Package, Phone, Store } from "lucide-react";
 import type { PublicOffer } from "@/lib/market/client";
 import { formatDate, formatMoney } from "@/lib/market/format";
+import { offerStock } from "@/lib/market/offerStock";
 /** One public offer: price with currency, the source of that price and its own observation date. */
 export function MarketOfferCard({ offer }: { offer: PublicOffer }) {
   const observed = formatDate(offer.priceObservedAt);
@@ -11,7 +12,7 @@ export function MarketOfferCard({ offer }: { offer: PublicOffer }) {
     >
       <div className="inventory-card-top">
         <span className="inventory-component-icon">{student ? <Package /> : <Store />}</span>
-        <span className="inventory-store-offer-label">{offer.quantity} available</span>
+        <span className="inventory-store-offer-label">{offerStock(offer)}</span>
       </div>
       <small className="inventory-category">
         {offer.seller.name} · {offer.seller.city}

@@ -1,4 +1,4 @@
-import { NativeSessionProvider } from "@/state/NativeSession";
+import { NativeSessionProvider, useNativeSession } from "@/state/NativeSession";
 import { PreferencesProvider } from "@/state/Preferences";
 import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
@@ -7,6 +7,16 @@ import { LanguageProvider } from "@/i18n";
 import { WorkspaceProvider } from "@/state/WorkspaceProvider";
 import { fontAssets } from "@/theme";
 import { ProjectWorkspaceProvider } from "@/native/StudentReference";
+import { MarketSessionProvider } from "@/lib/market/session";
+
+function AuthenticatedStack() {
+  const { marketSession } = useNativeSession();
+  return (
+    <MarketSessionProvider session={marketSession}>
+      <Stack screenOptions={{ headerShown: false }} />
+    </MarketSessionProvider>
+  );
+}
 export default function NativeLayout() {
   const [ready, error] = useFonts(fontAssets);
   if (!ready && !error)
@@ -21,7 +31,7 @@ export default function NativeLayout() {
         <WorkspaceProvider>
           <ProjectWorkspaceProvider>
             <NativeSessionProvider>
-              <Stack screenOptions={{ headerShown: false }} />
+              <AuthenticatedStack />
             </NativeSessionProvider>
           </ProjectWorkspaceProvider>
         </WorkspaceProvider>

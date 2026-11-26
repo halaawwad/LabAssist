@@ -15,6 +15,7 @@ import { useMarketClient } from "@/lib/market/session";
 import { useMarketResource, usePagedResource } from "@/lib/market/useMarketData";
 import { formatDate, pinValue } from "@/lib/market/format";
 import { LoadMore, MarketEmpty, MarketStatus } from "./MarketStatus";
+import { ExactShopPrices } from "./ShopPrices";
 /** Part specifications from the API; pins and documents are paged separately. */
 export function CatalogPartDialog({
   partKey,
@@ -98,6 +99,7 @@ export function CatalogPartDialog({
               </div>
             </div>
             <LocalWiringSheet partKey={part.key} expanded />
+            <ExactShopPrices key={part.key} partKey={part.key} />
             <section aria-label="Pins">
               <h3 className="text-xs font-bold">Pins · {part.pinCount}</h3>
               <p className="mt-1 text-[11px] text-muted-foreground">

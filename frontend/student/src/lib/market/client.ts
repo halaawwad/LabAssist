@@ -1,5 +1,6 @@
 // Catalog and market client for the LabAssist API (`/v1/catalog/*`, `/v1/market/*`).
 // It never sends a request without a real access token from the session provider.
+import { assertShopPriceComparison, type ShopPriceComparison } from "./shopPrices";
 export type Page<T> = { items: T[]; nextCursor: string | null };
 export type PinStatus = "UNKNOWN" | "UNVERIFIED";
 export type PinField = {
@@ -88,7 +89,9 @@ export type PublicOffer = {
   condition: string;
   unitPrice: string;
   currency: string;
-  quantity: number;
+  quantity: number | null;
+  stockAvailability?: string | null;
+  stockCheckedAt?: string | null;
   shippingCost: string | null;
   validUntil: string | null;
   priceObservedAt: string | null;
@@ -146,8 +149,10 @@ type Query = Record<string, string | number | null | undefined>;
 type Paging = { limit?: number | undefined; cursor?: string | null | undefined };
 export type MarketClient = ReturnType<typeof createMarketClient>;
 export function marketApiBaseUrl(): string | null {
-  const value = (import.meta.env["VITE_LABASSIST_API_URL"] as string | undefined)?.trim();
-  return value ? value : null;
+  const value = String(
+    import.meta.env["VITE_LABASSIST_API_URL"] || import.meta.env["VITE_API_URL"] || "",
+  ).trim();
+  return value ? value.replace(/\/v1\/?$/, "") : null;
 }
 export function createMarketClient({
   baseUrl,
@@ -224,5 +229,8 @@ export function createMarketClient({
       q: Paging & { variantId: string; currency: string; condition?: string | undefined },
       signal?: AbortSignal,
     ) => get<Page<PublicOffer>>("/market/compare/exact", q, signal),
+    /** Technolab and PIC Industrial prices for one exact variant and quantity (never converted). */
+    shopPrices: (q: { variantId: string; quantity: number }, signal?: AbortSignal) =>
+      get<ShopPriceComparison>("/market/prices/compare", q, signal).then(assertShopPriceComparison),
   };
 }

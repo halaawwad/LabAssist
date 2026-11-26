@@ -5,6 +5,9 @@ import {SessionGuard} from './auth/guards/session.guard';
 import {MarketService} from './market.service';
 import {CatalogPartUpdateDto,CatalogQuery,CompareQuery,ExactCompareQuery,IdentityFieldsDto,ManagedOfferQuery,OfferDto,OfferQuery,OfferUpdateDto,OfferVariantDto,PageQuery,PART_KEY,PriceObservationDto,ReviewDto,RevokeDto,SellerDto,SellerQuery,SourceDto,SourceQuery,VariantDto} from './market.dto';
 import {ApiErrors,BookmarkPage,BookmarkResult,CategoryPage,DocumentPage,HistoryPage,ObservationPage,Offer,OfferPage,PartDetail,PartPage,PartRevision,PinPage,PublicOfferPage,Seller,SellerPage,Source,SourcePage,Variant,VariantPage} from './market.responses';
+import {GlobalReferenceDto,MappingReviewDto,ShopComparisonQuery,ShopFeedDto} from './price-sync.dto';
+import {GlobalPriceReference,MappingReviewResult,ShopFeedConfiguration,ShopPriceComparison} from './price-sync.responses';
+import {PriceSyncService} from './price-sync.service';
 class PartKeyPipe implements PipeTransform{transform(value:string){if(!PART_KEY.test(value))throw new BadRequestException('Invalid catalog part key.');return value;}}
 const uuid=new ParseUUIDPipe();
 @ApiTags('Catalog') @ApiBearerAuth() @ApiErrors(401,429,500) @UseGuards(SessionGuard) @Controller('catalog') export class CatalogController{
@@ -20,7 +23,7 @@ const uuid=new ParseUUIDPipe();
  @Put('parts/:key/identity-fields') @ApiOkResponse({type:PartRevision}) @ApiErrors(400,403,404,409) identityFields(@Param('key',new PartKeyPipe()) key:string,@Body() body:IdentityFieldsDto,@Req() req:any){return this.market.identityFields(req.actor,key,body);}
 }
 @ApiTags('Market') @ApiBearerAuth() @ApiErrors(401,429,500) @UseGuards(SessionGuard) @Controller('market') export class MarketController{
- constructor(private market:MarketService){}
+ constructor(private market:MarketService,private priceSync:PriceSyncService){}
  @Get('sellers') @ApiOkResponse({type:SellerPage}) @ApiErrors(400,403) sellers(@Query() q:SellerQuery,@Req() req:any){return this.market.sellers(req.actor,q);}
  @Post('sellers') @ApiCreatedResponse({type:Seller}) @ApiErrors(400,403,409) createSeller(@Body() body:SellerDto,@Req() req:any){return this.market.createSeller(req.actor,body);}
  @Patch('sellers/:id') @ApiOkResponse({type:Seller}) @ApiErrors(400,403,404) updateSeller(@Param('id',uuid) id:string,@Body() body:SellerDto,@Req() req:any){return this.market.updateSeller(req.actor,id,body);}
@@ -30,6 +33,10 @@ const uuid=new ParseUUIDPipe();
  @Post('sources/:id/revoke') @ApiCreatedResponse({type:Source}) @ApiErrors(400,403,404,409) revoke(@Param('id',uuid) id:string,@Body() body:RevokeDto,@Req() req:any){return this.market.revoke(req.actor,id,body);}
  @Get('compare') @ApiOkResponse({type:PublicOfferPage}) @ApiErrors(400,403) compare(@Query() q:CompareQuery,@Req() req:any){return this.market.compare(req.actor,q);}
  @Get('compare/exact') @ApiOkResponse({type:PublicOfferPage}) @ApiErrors(400,403,404) compareExact(@Query() q:ExactCompareQuery,@Req() req:any){return this.market.compareExact(req.actor,q);}
+ @Get('prices/compare') @ApiOkResponse({type:ShopPriceComparison}) @ApiErrors(400,403,404) compareShopPrices(@Query() q:ShopComparisonQuery,@Req() req:any){return this.priceSync.compare(req.actor,q);}
+ @Put('prices/feeds') @ApiOkResponse({type:ShopFeedConfiguration}) @ApiErrors(400,403) configurePriceFeed(@Body() b:ShopFeedDto,@Req() req:any){return this.priceSync.configureFeed(req.actor,b);}
+ @Post('prices/mappings/:id/review') @ApiCreatedResponse({type:MappingReviewResult}) @ApiErrors(400,403,404,409) reviewPriceMapping(@Param('id',uuid) id:string,@Body() b:MappingReviewDto,@Req() req:any){return this.priceSync.reviewMapping(req.actor,id,b);}
+ @Post('prices/global-references') @ApiCreatedResponse({type:GlobalPriceReference}) @ApiErrors(400,403,404,409) addGlobalReference(@Body() b:GlobalReferenceDto,@Req() req:any){return this.priceSync.addGlobalReference(req.actor,b);}
  @Get('offers') @ApiOkResponse({type:PublicOfferPage}) @ApiErrors(400,403) offers(@Query() q:OfferQuery,@Req() req:any){return this.market.offers(req.actor,q);}
  @Get('offers/managed') @ApiOkResponse({type:OfferPage}) @ApiErrors(400,403) managed(@Query() q:ManagedOfferQuery,@Req() req:any){return this.market.managed(req.actor,q);}
  @Post('offers') @ApiCreatedResponse({type:Offer}) @ApiErrors(400,403,404) createOffer(@Body() body:OfferDto,@Req() req:any){return this.market.createOffer(req.actor,body);}
@@ -42,4 +49,4 @@ const uuid=new ParseUUIDPipe();
  @Delete('offers/:id/bookmark') @ApiOkResponse({type:BookmarkResult}) @ApiErrors(400,403) unsave(@Param('id',uuid) id:string,@Req() req:any){return this.market.bookmark(req.actor,id,false);}
  @Get('bookmarks') @ApiOkResponse({type:BookmarkPage}) @ApiErrors(400,403) bookmarks(@Query() q:PageQuery,@Req() req:any){return this.market.bookmarks(req.actor,q);}
 }
-@Module({imports:[AuthModule],controllers:[CatalogController,MarketController],providers:[MarketService]}) export class MarketModule{}
+@Module({imports:[AuthModule],controllers:[CatalogController,MarketController],providers:[MarketService,PriceSyncService]}) export class MarketModule{}

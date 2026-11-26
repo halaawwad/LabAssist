@@ -4,6 +4,17 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { LabAssistBrand } from "../../../../shared/web/LabAssistBrand";
 import { ensureDemoSession } from "../../../../shared/web/demoSession";
+import { webClient } from "../../../../shared/auth/web-session";
+import { MarketSessionProvider, unavailableSession } from "@/lib/market/session";
+import type { MarketSession } from "@/lib/market/client";
+
+const liveMarketSession: MarketSession = {
+  getAccessToken: () => webClient(import.meta.env).getAccessToken(),
+  getCurrentUser: () => webClient(import.meta.env).getCurrentAccount(),
+  onUnauthorized: () => {
+    void webClient(import.meta.env).refreshAccess();
+  },
+};
 
 /** The login (including its hidden demo handoff) always stays public. */
 export function StudentDemoSession({ children }: { children: ReactNode }) {
@@ -33,10 +44,11 @@ export function StudentDemoSession({ children }: { children: ReactNode }) {
   if (apiMode(import.meta.env))
     return (
       <WebSessionBoundary role="student" env={import.meta.env}>
-        {children}
+        <MarketSessionProvider session={liveMarketSession}>{children}</MarketSessionProvider>
       </WebSessionBoundary>
     );
-  if (publicPage || ready) return children;
+  if (publicPage || ready)
+    return <MarketSessionProvider session={unavailableSession}>{children}</MarketSessionProvider>;
   return (
     <main
       className="mx-auto my-16 max-w-xl rounded-2xl bg-card p-8 text-foreground"
