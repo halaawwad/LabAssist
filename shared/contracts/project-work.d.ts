@@ -41,3 +41,29 @@ export type ProjectWorkspace = {
   tasks: ProjectTask[];
   issues: ProjectIssue[];
 };
+export type ProjectGroupRecord = {
+  id: string;
+  title: string;
+  projectNumber: string;
+  termId: string;
+  termName: string;
+  status: ProjectWorkspace["status"];
+  updatedAt: string;
+  studentIds: string[];
+  supervisorIds: string[];
+};
+
+export type ProjectGroupList = {
+  groups: ProjectGroupRecord[];
+  openTerms: { id: string; name: string }[];
+};
+
+export type ProjectGroupInput = {
+  title: string;
+  projectNumber: string;
+  termId: string;
+  studentIds: string[];
+  supervisorIds: string[];
+  confirmedTransfer: boolean;
+  expectedUpdatedAt?: string;
+};

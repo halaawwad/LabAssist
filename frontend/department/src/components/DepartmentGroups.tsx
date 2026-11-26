@@ -12,10 +12,14 @@ export function DepartmentGroups({
   groups,
   onSave,
   onCreateAccount,
+  openTerms,
+  saving = false,
 }: {
   accounts: DepartmentAccount[];
   groups: DepartmentGroup[];
-  onSave: (group: DepartmentGroup, confirmedTransfer: boolean) => boolean;
+  onSave: (group: DepartmentGroup, confirmedTransfer: boolean) => boolean | Promise<boolean>;
+  openTerms?: { id: string; name: string }[];
+  saving?: boolean;
   onCreateAccount: (role: "Student" | "Supervisor") => void;
 }) {
   const [draft, setDraft] = useState<DepartmentGroup | null>(null);
@@ -60,13 +64,14 @@ export function DepartmentGroups({
         </div>
         <button
           className="dept-primary"
+          disabled={!!openTerms && !openTerms.length}
           onClick={() => {
             setDraft({
               id: crypto.randomUUID(),
               projectNumber: "",
               title: "",
               status: "DRAFT",
-              termId: demoTerm.id,
+              termId: openTerms?.[0]?.id ?? demoTerm.id,
               studentIds: [],
               supervisorIds: [],
             });
@@ -118,7 +123,11 @@ export function DepartmentGroups({
               action={
                 <button
                   className="dept-secondary"
-                  disabled={g.status === "ARCHIVED" || g.status === "COMPLETED"}
+                  disabled={
+                    g.status === "ARCHIVED" ||
+                    g.status === "COMPLETED" ||
+                    (!!openTerms && !openTerms.some(({ id }) => id === g.termId))
+                  }
                   aria-label={`Edit group: ${people(g.studentIds).join(", ")}`}
                   onClick={() => {
                     setDraft({
@@ -161,10 +170,10 @@ export function DepartmentGroups({
         <div className="dept-overlay" role="dialog" aria-modal="true" aria-label="Group details">
           <form
             className="dept-dialog dept-group-dialog"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               try {
-                if (onSave(draft, confirmedTransfer)) setDraft(null);
+                if (await onSave(draft, confirmedTransfer)) setDraft(null);
                 else
                   setError(
                     "Could not save the group. Your selections are preserved. Please try again.",
@@ -185,6 +194,24 @@ export function DepartmentGroups({
                 <X />
               </button>
             </div>
+            {openTerms && !draft.updatedAt && (
+              <label>
+                Academic term
+                <select
+                  value={draft.termId}
+                  onChange={(e) => {
+                    setDraft({ ...draft, termId: e.target.value });
+                    setConfirmedTransfer(false);
+                  }}
+                >
+                  {openTerms.map(({ id, name }) => (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label>
               Project number / code
               <input
@@ -313,7 +340,9 @@ export function DepartmentGroups({
                 {error}
               </p>
             )}
-            <button className="dept-primary">Save group</button>
+            <button type="submit" className="dept-primary" disabled={saving}>
+              Save group
+            </button>
           </form>
         </div>
       )}

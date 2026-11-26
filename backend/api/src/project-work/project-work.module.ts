@@ -17,6 +17,11 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { ProjectWorkspace } from "../../../../shared/contracts/project-work";
+import {
+  DepartmentProjectController,
+  DepartmentProjectService,
+} from "./department-project.controller";
+import { DepartmentGuard } from "../common/guards/department.guard";
 import { AuthModule } from "../auth/auth.module";
 import { SessionGuard } from "../auth/guards/session.guard";
 import { Actor, Role } from "../common/security/identity";
@@ -95,9 +100,15 @@ class ProjectWorkService {
     return row.workspace;
   }
 
-  private write<T>(actor: Actor, id: string, action: (tx: Prisma.TransactionClient) => Promise<T>) {
+  private write<T>(
+    actor: Actor,
+    id: string,
+    action: (tx: Prisma.TransactionClient) => Promise<T>,
+    locksAllocation = false,
+  ) {
     if (actor.role !== Role.STUDENT) throw new ForbiddenException("A student session is required.");
     return this.db.$transaction(async (tx) => {
+      if (locksAllocation) await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(25102701)`;
       if (!(await this.lockMember(tx, id, actor.id))) {
         throw new NotFoundException("Project workspace not found.");
       }
@@ -115,8 +126,11 @@ class ProjectWorkService {
   }
 
   updateDetails(actor: Actor, id: string, input: ProjectDetailsDto) {
-    return this.write(actor, id, async (tx) => {
-      const [updated] = await tx.$queryRaw<{ updatedAt: string }[]>`
+    return this.write(
+      actor,
+      id,
+      async (tx) => {
+        const [updated] = await tx.$queryRaw<{ updatedAt: string }[]>`
         UPDATE labassist_student.projects
         SET name = ${input.name.trim()}, subtitle = ${input.subtitle.trim()},
             abstract = ${input.abstract.trim()},
@@ -124,9 +138,11 @@ class ProjectWorkService {
         WHERE id = ${id}::uuid AND updated_at = ${input.expectedUpdatedAt}::timestamptz
         RETURNING to_jsonb(updated_at) #>> '{}' AS "updatedAt"
       `;
-      if (!updated) throw new ConflictException("Project changed. Reload and try again.");
-      return updated;
-    });
+        if (!updated) throw new ConflictException("Project changed. Reload and try again.");
+        return updated;
+      },
+      true,
+    );
   }
 
   createTask(actor: Actor, id: string, input: CreateProjectTaskDto) {
@@ -277,7 +293,7 @@ class ProjectWorkController {
 
 @Module({
   imports: [AuthModule],
-  controllers: [ProjectWorkController],
-  providers: [ProjectWorkService],
+  controllers: [ProjectWorkController, DepartmentProjectController],
+  providers: [ProjectWorkService, DepartmentProjectService, DepartmentGuard],
 })
 export class ProjectWorkModule {}

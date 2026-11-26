@@ -1103,8 +1103,6 @@ model project_students {
   left_at             DateTime?           @db.Timestamptz(6)
   projects            projects            @relation(fields: [project_id, term_id], references: [id, term_id], onDelete: NoAction, onUpdate: NoAction)
   student_enrollments student_enrollments @relation(fields: [student_id, term_id], references: [student_id, term_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@unique([project_id, student_id])
 }
 
 model project_supervisors {
@@ -1166,6 +1164,7 @@ model project_work_events {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model projects {
   id                         String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_number             String?
   seed_key                   String?                     @unique
   term_id                    String                      @db.Uuid
   name                       String                      @default("")
@@ -1197,6 +1196,7 @@ model projects {
   workshop_table_history     workshop_table_history[]
 
   @@unique([id, term_id])
+  @@unique([term_id, project_number], map: "project_number_per_term")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

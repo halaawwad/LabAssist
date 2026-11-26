@@ -14,6 +14,9 @@ describe("Sprint 2A project workspace", () => {
   let projectId: string;
   let teammateId: string;
   let outsiderId: string;
+  let termId: string;
+  let spareId: string;
+  const groupPath = "/v1/department/project-groups";
   const tokens: Record<string, string> = {};
   const password = "WorkspaceTest123!";
   const call = (method: "get" | "post" | "patch", path: string, user?: string) => {
@@ -68,6 +71,7 @@ describe("Sprint 2A project workspace", () => {
       teammate: "20263002",
       outsider: "20263003",
       other: "20263004",
+      spare: "20263005",
     })) {
       const email = "s" + number + "@stu.najah.edu";
       accounts.set(name, await createAccount("STUDENT", name, email, head, number));
@@ -85,40 +89,37 @@ describe("Sprint 2A project workspace", () => {
     teammateId = accounts.get("teammate")!;
     outsiderId = accounts.get("outsider")!;
 
-    await db.$transaction(async (tx) => {
-      const [term] = await tx.$queryRaw<{ id: string }[]>`
-        INSERT INTO labassist_student.academic_terms(name, starts_on)
-        VALUES ('Workspace term', (now() AT TIME ZONE 'Asia/Hebron')::date) RETURNING id
-      `;
-      await tx.$executeRaw`INSERT INTO labassist_student.term_workshop_capacity(term_id) VALUES (${term.id}::uuid)`;
-      for (const student of accounts.values()) {
-        await tx.$executeRaw`
-          INSERT INTO labassist_student.student_enrollments(student_id, term_id)
-          VALUES (${student}::uuid, ${term.id}::uuid)
-        `;
-      }
-      const makeTeam = async (name: string, students: string[]) => {
-        const [project] = await tx.$queryRaw<{ id: string }[]>`
-          INSERT INTO labassist_student.projects(term_id, name, formed_by)
-          VALUES (${term.id}::uuid, ${name}, ${head}::uuid) RETURNING id
-        `;
-        await tx.$executeRaw`
-          INSERT INTO labassist_student.project_supervisors(project_id, supervisor_id)
-          VALUES (${project.id}::uuid, ${advisor}::uuid)
-        `;
-        for (const student of students) {
-          await tx.$executeRaw`
-            INSERT INTO labassist_student.project_students(project_id, term_id, student_id)
-            VALUES (${project.id}::uuid, ${term.id}::uuid, ${student}::uuid)
-          `;
-        }
-        return project.id;
-      };
-      projectId = await makeTeam("Shared project", [accounts.get("member")!, teammateId]);
-      await makeTeam("Other project", [outsiderId, accounts.get("other")!]);
-    });
-  });
+    spareId = accounts.get("spare")!;
+    const headSession = await request(app.getHttpServer())
+      .post("/v1/auth/login")
+      .send({ role: "DEPARTMENT_HEAD", identifier: "head@najah.edu", password })
+      .expect(201);
+    tokens.head = headSession.body.accessToken;
 
+    const [term] = await db.$queryRaw<{ id: string }[]>`
+      INSERT INTO labassist_student.academic_terms(name, starts_on)
+      VALUES ('Workspace term', (now() AT TIME ZONE 'Asia/Hebron')::date) RETURNING id
+    `;
+    termId = term.id;
+    await db.$executeRaw`INSERT INTO labassist_student.term_workshop_capacity(term_id) VALUES (${termId}::uuid)`;
+    const makeTeam = async (title: string, projectNumber: string, studentIds: string[]) => {
+      const response = await request(app.getHttpServer())
+        .post(groupPath)
+        .set("Authorization", "Bearer " + tokens.head)
+        .send({
+          title,
+          projectNumber,
+          studentIds,
+          termId,
+          supervisorIds: [advisor],
+          confirmedTransfer: false,
+        })
+        .expect(201);
+      return response.body.id as string;
+    };
+    projectId = await makeTeam("Shared project", "P-1", [accounts.get("member")!, teammateId]);
+    await makeTeam("Other project", "P-2", [outsiderId, accounts.get("other")!]);
+  });
   afterAll(async () => {
     if (app) await app.close();
   });
@@ -208,5 +209,46 @@ describe("Sprint 2A project workspace", () => {
     expect(workspace.body.issues).toEqual([
       expect.objectContaining({ status: "RESOLVED", resolution: "Recalibrated", revision: 1 }),
     ]);
+  });
+
+  it("serializes concurrent group changes and preserves a student's earlier membership on rejoining", async () => {
+    const getGroups = () =>
+      request(app.getHttpServer())
+        .get(groupPath)
+        .set("Authorization", "Bearer " + tokens.head);
+    await request(app.getHttpServer())
+      .get(groupPath)
+      .set("Authorization", "Bearer " + tokens.member)
+      .expect(403);
+    const initial = await getGroups().expect(200);
+    expect(initial.body.openTerms).toContainEqual({ id: termId, name: "Workspace term" });
+    const group = initial.body.groups.find((item: { id: string }) => item.id === projectId);
+    const { title, projectNumber, supervisorIds, updatedAt: expectedUpdatedAt } = group;
+    const base = {
+      title,
+      projectNumber,
+      supervisorIds,
+      termId,
+      expectedUpdatedAt,
+      confirmedTransfer: false,
+    };
+    const patch = (studentIds: string[], revision = expectedUpdatedAt) =>
+      request(app.getHttpServer())
+        .patch(groupPath + "/" + projectId)
+        .set("Authorization", "Bearer " + tokens.head)
+        .send({ ...base, expectedUpdatedAt: revision, studentIds });
+    const next = group.studentIds.map((id: string) => (id === teammateId ? spareId : id));
+    const replies = await Promise.all([patch(next), patch(next)]);
+    expect(replies.map((reply) => reply.status).sort()).toEqual([200, 409]);
+    await call("get", "/mine", "teammate").expect(404);
+    await call("get", "/mine", "spare").expect(200);
+    const refreshed = await getGroups().expect(200);
+    const current = refreshed.body.groups.find((item: { id: string }) => item.id === projectId);
+    await patch(group.studentIds, current.updatedAt).expect(200);
+    const timeline = await app.get(Database).$queryRaw<{ left_at: Date | null }[]>`
+      SELECT left_at FROM labassist_student.project_students
+      WHERE project_id = ${projectId}::uuid AND student_id = ${teammateId}::uuid ORDER BY joined_at
+    `;
+    expect(timeline).toEqual([{ left_at: expect.any(Date) }, { left_at: null }]);
   });
 });
