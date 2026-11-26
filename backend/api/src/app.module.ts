@@ -5,6 +5,7 @@ import { DatabaseModule } from "./database/database.module";
 import { AuthModule } from "./auth/auth.module";
 import { AccountsModule } from "./accounts/accounts.module";
 import { MarketModule } from "./market.controllers";
+import { ProjectWorkModule } from "./project-work/project-work.module";
 import { HealthController } from "./health/health.controller";
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { HealthController } from "./health/health.controller";
     AuthModule,
     AccountsModule,
     MarketModule,
+    ProjectWorkModule,
     ThrottlerModule.forRoot([{ ttl: 60000, limit: process.env.NODE_ENV === "test" ? 1000 : 60 }]),
   ],
   controllers: [HealthController],
