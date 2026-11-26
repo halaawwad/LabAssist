@@ -15,6 +15,7 @@ cp -a "frontend/$role/." "$app/"
 cp -a shared/web "$target/shared/"
 cp -a shared/auth "$target/shared/"
 cp -a shared/contracts "$target/shared/"
+cp -a shared/project-work "$target/shared/"
 
 # The shared login keeps the student illustration and department preview link.
 if [ "$role" != student ]; then
