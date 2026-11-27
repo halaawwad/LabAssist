@@ -1,0 +1,17 @@
+**
+!package.json
+!package-lock.json
+!prisma.config.ts
+!prisma/
+!prisma/**
+!src/
+!src/config/
+!src/config/environment.ts
+!tools/
+!tools/env.cjs
+!tools/prepare.cjs
+!tools/compose-db-update.cjs
+!tools/shared-data-updates.cjs
+!shared-data/
+!shared-data/**
+!Dockerfile.db-update
