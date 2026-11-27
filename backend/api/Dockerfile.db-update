@@ -1,0 +1,10 @@
+FROM node:22-bookworm-slim
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts
+COPY prisma.config.ts ./
+COPY prisma ./prisma
+COPY src/config/environment.ts ./src/config/environment.ts
+COPY tools/env.cjs tools/prepare.cjs tools/compose-db-update.cjs tools/shared-data-updates.cjs ./tools/
+COPY shared-data ./shared-data
+CMD ["node", "tools/compose-db-update.cjs"]
