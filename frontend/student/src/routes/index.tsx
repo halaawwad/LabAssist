@@ -42,7 +42,9 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const navigate = useNavigate();
-  const workspace = useProjectWorkspace().demo;
+  const projectWorkspace = useProjectWorkspace();
+  const workspace = projectWorkspace.demo;
+  const budget = projectWorkspace.finance.data?.budget;
   const { profile } = useStudentProfile();
   const avatar = profile.photo;
   const [menu, setMenu] = useState(false);
@@ -194,8 +196,16 @@ function Dashboard() {
               {
                 icon: Wallet,
                 label: "Budget remaining",
-                value: `$${project.budget - project.spent}`,
-                note: `$${project.spent} of $${project.budget} used`,
+                value: projectWorkspace.live
+                  ? budget
+                    ? `${budget.currency} ${budget.remaining}`
+                    : "—"
+                  : `${project.budget - project.spent}`,
+                note: projectWorkspace.live
+                  ? budget
+                    ? `${budget.spent} of ${budget.amount} used`
+                    : "Set project budget"
+                  : `${project.spent} of ${project.budget} used`,
                 tone: "purple",
                 tab: "components" as const,
               },

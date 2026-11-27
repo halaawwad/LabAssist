@@ -1,3 +1,4 @@
+import { useProjectWorkspace } from "@/lib/projectWorkspace";
 import { CatalogCategoryShowcase } from "@/components/CatalogCategoryShowcase";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/catalog")({
 function CatalogPage() {
   const navigate = useNavigate();
   const previews = usePartPreviews();
+  const workspace = useProjectWorkspace();
   const [menu, setMenu] = useState(false),
     [category, setCategory] = useState("All");
 
@@ -46,7 +48,25 @@ function CatalogPage() {
     [bom, setBom] = useState<BomEntry[]>([]),
     [notice, setNotice] = useState("");
   useEffect(() => setBom(readBom()), []);
-  const add = (item: CatalogComponent) => {
+  const add = async (item: CatalogComponent) => {
+    if (workspace.live) {
+      if (!workspace.finance.data?.budget) {
+        setNotice("Set your project budget in My Project → Components before adding parts.");
+        return;
+      }
+      const ok = await workspace.finance.save("bom", "POST", {
+        name: item.name,
+        quantityRequired: 1,
+        estimatedUnitPrice: null,
+        notes: "Catalog component: " + item.key,
+      });
+      setNotice(
+        ok
+          ? `${item.name} added to the shared project BOM`
+          : "Could not add the part. Retry after checking project finances.",
+      );
+      return;
+    }
     try {
       setBom(addToBom(item.key));
       setNotice(`${item.name} added to BOM`);

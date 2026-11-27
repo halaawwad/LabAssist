@@ -1,3 +1,4 @@
+import { useProjectFinance } from "../../../../shared/project-work/useProjectFinance";
 import { apiMode, webClient } from "../../../../shared/auth/web-session";
 import { useLiveProject } from "../../../../shared/project-work/useLiveProject";
 import type { ProjectIssue, ProjectTaskStatus } from "../../../../shared/contracts/project-work";
@@ -258,6 +259,7 @@ function useWorkspaceState() {
   const accountId = client?.account?.id;
   const live = useLiveProject(client, accountId);
   const project = live.project;
+  const finance = useProjectFinance(client, accountId, project?.id);
   const roster = project?.students ?? [];
   const students = [...roster].sort(
     (a, b) => Number(b.id === accountId) - Number(a.id === accountId),
@@ -303,6 +305,7 @@ function useWorkspaceState() {
     ...demo,
     demo,
     live: !!client,
+    finance,
     project,
     members,
     loading: live.loading,
