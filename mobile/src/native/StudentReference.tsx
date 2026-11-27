@@ -1,3 +1,4 @@
+import { useProjectFinance } from "../../../shared/project-work/useProjectFinance";
 import { authClient, demoMode } from "@/features/auth/client";
 import { useNativeSession } from "@/state/NativeSession";
 import { useCopy } from "@/components/MobileKit";
@@ -165,6 +166,7 @@ function useWorkspaceState() {
   const liveMode = !demoMode && account?.role === "STUDENT";
   const live = useLiveProject(liveMode ? authClient : null, liveMode ? account.id : undefined);
   const current = live.project;
+  const finance = useProjectFinance(liveMode ? authClient : null, liveMode ? account?.id : undefined, current?.id);
   const members = current?.students ?? [];
   const tasks = current?.tasks ?? [];
   const completed = tasks.filter((task) => task.status === "DONE").map(({ id }) => id);
@@ -193,6 +195,7 @@ function useWorkspaceState() {
   };
   const sharedActions = {
     liveMode,
+    finance,
     project: current,
     loading: live.loading,
     updateStatus,

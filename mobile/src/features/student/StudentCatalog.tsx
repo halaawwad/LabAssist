@@ -1,3 +1,4 @@
+import { useProjectWorkspace } from "@/native/StudentReference";
 import { MobileInput as TextInput } from "@/components/MobileInput";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
 import { MobileModal as Modal } from "@/components/MobileModal";
@@ -47,6 +48,7 @@ export function CatalogPanel() {
   const { language, dir, isRTL } = useLanguage();
   const { state, actorId, act, storageError } = useWorkspace();
   const project = projectFor(state, actorId);
+  const workspace = useProjectWorkspace();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [voltage, setVoltage] = useState("all");
@@ -86,7 +88,13 @@ export function CatalogPanel() {
   };
   const close = () => setSelected(null);
   const add = async () => {
-    if (!project || !selected) return;
+    if (!selected) return;
+    if (workspace.liveMode) {
+      if (!workspace.finance.data?.budget) {setFailed(true);setNotice(t("Set the project budget in My Project → Components first.","حدّد ميزانية المشروع من مشروعي ← المكونات أولاً."));return;}
+      const ok = await workspace.finance.save("bom","POST",{name:selected.name,quantityRequired:1,estimatedUnitPrice:null,notes:"Catalog component: "+selected.key});
+      setFailed(!ok);setNotice(ok?t("Added to the shared project BOM.","أُضيفت القطعة لقائمة مواد الفريق."):t("Could not add the part. Retry.","تعذّرت الإضافة، حاول مجدداً."));return;
+    }
+    if (!project) return;
     const ok = await act({
       type: "part.add",
       projectId: project.id,
@@ -556,7 +564,7 @@ export function CatalogPanel() {
                   )}
                 </AppText>
               )}
-              {project ? (
+              {(workspace.liveMode ? !!workspace.project : !!project) ? (
                 <Button
                   title={t("Add to project BOM", "إضافة إلى قطع المشروع")}
                   onPress={add}
@@ -565,8 +573,8 @@ export function CatalogPanel() {
               ) : (
                 <AppText variant="caption" tone="muted">
                   {t(
-                    "Join a project to add components to its BOM.",
-                    "انضم إلى مشروع لإضافة مكونات إلى قائمة قطعه.",
+                    "Your department head must assign your project before adding parts.",
+                    "يجب أن يربطك رئيس القسم بمشروع قبل إضافة القطع.",
                   )}
                 </AppText>
               )}

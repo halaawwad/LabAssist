@@ -1,3 +1,4 @@
+import { LiveFinanceSummary, LiveProjectFinance } from "@/components/ProjectFinance";
 import { ProjectWorkspaceStatus } from "@/components/ProjectWorkspaceStatus";
 import { ProjectIssueEditor } from "@/components/ProjectIssueEditor";
 import { ProjectMetricArt } from "@/components/ProjectMetricArt";
@@ -275,37 +276,41 @@ function ProjectPage() {
                     </div>
                   </div>
                 </section>
-                <section className="insight-paper project-budget-analysis">
-                  <div className="insight-section-heading">
-                    <h2>Budget health</h2>
-                    <Wallet size={17} className="text-muted-foreground" />
-                  </div>
-                  <div className="budget-orbit">
-                    <ProjectMetricArt
-                      value={(project.spent / project.budget) * 100}
-                      tone="budget"
-                      label="Budget used"
-                      detail="of project budget used"
-                    />
-                    <div>
-                      <strong>${project.budget - project.spent}</strong>
-                      <span>still available</span>
+                {workspace.live ? (
+                  <LiveFinanceSummary onManage={() => setTab("components")} />
+                ) : (
+                  <section className="insight-paper project-budget-analysis">
+                    <div className="insight-section-heading">
+                      <h2>Budget health</h2>
+                      <Wallet size={17} className="text-muted-foreground" />
                     </div>
-                  </div>
-                  <div className="budget-legend">
-                    <span>
-                      <i />
-                      Spent <strong>${project.spent}</strong>
-                    </span>
-                    <span>
-                      <i />
-                      Remaining <strong>${project.budget - project.spent}</strong>
-                    </span>
-                  </div>
-                  <p className="insight-fineprint">
-                    Total project budget: ${project.budget}. Recorded expenses across the project.
-                  </p>
-                </section>
+                    <div className="budget-orbit">
+                      <ProjectMetricArt
+                        value={(project.spent / project.budget) * 100}
+                        tone="budget"
+                        label="Budget used"
+                        detail="of project budget used"
+                      />
+                      <div>
+                        <strong>${project.budget - project.spent}</strong>
+                        <span>still available</span>
+                      </div>
+                    </div>
+                    <div className="budget-legend">
+                      <span>
+                        <i />
+                        Spent <strong>${project.spent}</strong>
+                      </span>
+                      <span>
+                        <i />
+                        Remaining <strong>${project.budget - project.spent}</strong>
+                      </span>
+                    </div>
+                    <p className="insight-fineprint">
+                      Total project budget: ${project.budget}. Recorded expenses across the project.
+                    </p>
+                  </section>
+                )}
               </div>
               <section className="insight-paper project-stage-panel project-journey-panel">
                 <ProjectMetricArt
@@ -417,102 +422,111 @@ function ProjectPage() {
               </section>
             </TabsContent>
             <TabsContent value="components" className="project-tab-panel">
-              <div className="components-workspace-grid">
-                <section className="insight-paper">
-                  <div className="insight-section-heading">
-                    <div>
-                      <p className="insight-eyebrow">WHAT THE BUILD IS MADE OF</p>
-                      <h2>Bill of Materials</h2>
-                    </div>
-                    <span className="insight-count-pill">{unitCount} units</span>
-                  </div>
-                  <div className="project-bom-scroll">
-                    <table className="project-bom-table">
-                      <thead>
-                        <tr>
-                          <th>Component</th>
-                          <th>Qty</th>
-                          <th>Listed cost</th>
-                          <th>Availability</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {bom.map((item) => (
-                          <tr key={item.name}>
-                            <td>
-                              <strong>{item.name}</strong>
-                            </td>
-                            <td>{item.quantity}</td>
-                            <td>{item.cost ? `$${item.cost}` : "—"}</td>
-                            <td>
-                              <span
-                                className={
-                                  item.available
-                                    ? "project-badge"
-                                    : "project-badge action-orange-soft"
-                                }
-                              >
-                                {item.available ? "Available" : "Missing"}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <p className="insight-fineprint">
-                    Listed costs are estimates for these items, not the full project expenditure.
-                  </p>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => navigate({ to: "/catalog" })}
-                    className="mt-4 action-blue-soft"
-                  >
-                    Explore component catalog
-                    <ArrowUpRight size={13} />
-                  </Button>
-                </section>
-                <section className="insight-paper component-readiness">
-                  <h2>Build readiness</h2>
-                  <ProjectMetricArt
-                    value={unitCount ? (availableUnits / unitCount) * 100 : 0}
-                    tone="parts"
-                    label="Available component units"
-                    detail={`${availableUnits} of ${unitCount} units ready`}
-                  />
-                  <strong>
-                    {availableUnits} / {unitCount} units available
-                  </strong>
-                  <p>{unitCount - availableUnits} units still needed for the listed build.</p>
-                </section>
-              </div>
-              <section className="insight-paper">
-                <div className="insight-section-heading">
-                  <h2>Missing Components</h2>
-                  <span className="project-badge action-orange-soft">{missing.length} types</span>
-                </div>
-                <div className="project-missing-grid">
-                  {missing.map((item) => (
-                    <article key={item.name}>
-                      {item.image ? (
-                        <img src={item.image} alt={item.name} />
-                      ) : (
-                        <span className="insight-color-icon tone-orange">
-                          <Package size={28} />
-                        </span>
-                      )}
-                      <div>
-                        <h3>{item.name}</h3>
-                        <p>
-                          {item.quantity} needed{item.cost ? ` · $${item.cost} estimated` : ""}
-                        </p>
+              {workspace.live ? (
+                <LiveProjectFinance />
+              ) : (
+                <>
+                  <div className="components-workspace-grid">
+                    <section className="insight-paper">
+                      <div className="insight-section-heading">
+                        <div>
+                          <p className="insight-eyebrow">WHAT THE BUILD IS MADE OF</p>
+                          <h2>Bill of Materials</h2>
+                        </div>
+                        <span className="insight-count-pill">{unitCount} units</span>
                       </div>
-                      <span className="insight-needed-count">×{item.quantity}</span>
-                    </article>
-                  ))}
-                </div>
-              </section>
+                      <div className="project-bom-scroll">
+                        <table className="project-bom-table">
+                          <thead>
+                            <tr>
+                              <th>Component</th>
+                              <th>Qty</th>
+                              <th>Listed cost</th>
+                              <th>Availability</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {bom.map((item) => (
+                              <tr key={item.name}>
+                                <td>
+                                  <strong>{item.name}</strong>
+                                </td>
+                                <td>{item.quantity}</td>
+                                <td>{item.cost ? `$${item.cost}` : "—"}</td>
+                                <td>
+                                  <span
+                                    className={
+                                      item.available
+                                        ? "project-badge"
+                                        : "project-badge action-orange-soft"
+                                    }
+                                  >
+                                    {item.available ? "Available" : "Missing"}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="insight-fineprint">
+                        Listed costs are estimates for these items, not the full project
+                        expenditure.
+                      </p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => navigate({ to: "/catalog" })}
+                        className="mt-4 action-blue-soft"
+                      >
+                        Explore component catalog
+                        <ArrowUpRight size={13} />
+                      </Button>
+                    </section>
+                    <section className="insight-paper component-readiness">
+                      <h2>Build readiness</h2>
+                      <ProjectMetricArt
+                        value={unitCount ? (availableUnits / unitCount) * 100 : 0}
+                        tone="parts"
+                        label="Available component units"
+                        detail={`${availableUnits} of ${unitCount} units ready`}
+                      />
+                      <strong>
+                        {availableUnits} / {unitCount} units available
+                      </strong>
+                      <p>{unitCount - availableUnits} units still needed for the listed build.</p>
+                    </section>
+                  </div>
+                  <section className="insight-paper">
+                    <div className="insight-section-heading">
+                      <h2>Missing Components</h2>
+                      <span className="project-badge action-orange-soft">
+                        {missing.length} types
+                      </span>
+                    </div>
+                    <div className="project-missing-grid">
+                      {missing.map((item) => (
+                        <article key={item.name}>
+                          {item.image ? (
+                            <img src={item.image} alt={item.name} />
+                          ) : (
+                            <span className="insight-color-icon tone-orange">
+                              <Package size={28} />
+                            </span>
+                          )}
+                          <div>
+                            <h3>{item.name}</h3>
+                            <p>
+                              {item.quantity} needed{item.cost ? ` · $${item.cost} estimated` : ""}
+                            </p>
+                          </div>
+                          <span className="insight-needed-count">×{item.quantity}</span>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                </>
+              )}
             </TabsContent>
             <TabsContent value="reports" className="project-tab-panel">
               <div className="project-reports-grid">

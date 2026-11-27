@@ -1,3 +1,4 @@
+import { ProjectFinanceModule } from "./project-finance/project-finance.module";
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
@@ -14,6 +15,7 @@ import { HealthController } from "./health/health.controller";
     AccountsModule,
     MarketModule,
     ProjectWorkModule,
+    ProjectFinanceModule,
     ThrottlerModule.forRoot([{ ttl: 60000, limit: process.env.NODE_ENV === "test" ? 1000 : 60 }]),
   ],
   controllers: [HealthController],

@@ -1,3 +1,4 @@
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import helmet from "helmet";
@@ -10,6 +11,7 @@ export function configureApp(
 ) {
   app.setGlobalPrefix("v1");
   app.use(helmet());
+  (app as NestExpressApplication).useBodyParser("json", { limit: "2mb" });
   app.use(requestTracing(options.logRequest));
   app.use((_request: unknown, response: ServerResponse, next: () => void) => {
     response.setHeader("Cache-Control", "no-store");
