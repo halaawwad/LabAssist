@@ -1,3 +1,4 @@
+import { overlap, freshQuery } from "../helpers/concurrent";
 import "reflect-metadata";
 import { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
@@ -193,9 +194,21 @@ describe("Sprint 2A project workspace", () => {
     const resource = path + "/" + created.body.id;
     const update = { status: "DONE", expectedRevision: 0, needsHelp: false };
     await call("patch", resource, "member").send(update).expect(403);
-    const replies = await Promise.all(
-      [1, 2].map(() => call("patch", resource, "teammate").send(update)),
+    const replies = await overlap(
+      "SELECT id FROM labassist_student.project_tasks WHERE id=$1 FOR UPDATE",
+      [created.body.id],
+      () =>
+        [1, 2].map(() =>
+          call("patch", resource, "teammate")
+            .send(update)
+            .then((r) => r),
+        ),
     );
+    const persisted = await freshQuery(
+      "SELECT status,revision,(SELECT count(*)::int FROM labassist_student.project_work_events e WHERE e.task_id=t.id AND event_key='UPDATED') AS changes FROM labassist_student.project_tasks t WHERE id=$1",
+      [created.body.id],
+    );
+    expect(persisted).toEqual([{ status: "DONE", revision: 1, changes: 1 }]);
     expect(replies.map((reply) => reply.status).sort()).toEqual([200, 409]);
     const workspace = await call("get", "/mine", "member").expect(200);
     expect(workspace.body.tasks).toEqual([
@@ -218,9 +231,23 @@ describe("Sprint 2A project workspace", () => {
     await call("patch", resource, "teammate")
       .send({ ...resolved, resolution: " " })
       .expect(400);
-    const replies = await Promise.all(
-      ["member", "teammate"].map((user) => call("patch", resource, user).send(resolved)),
+    const replies = await overlap(
+      "SELECT id FROM labassist_student.project_issues WHERE id=$1 FOR UPDATE",
+      [created.body.id],
+      () =>
+        ["member", "teammate"].map((user) =>
+          call("patch", resource, user)
+            .send(resolved)
+            .then((r) => r),
+        ),
     );
+    const persisted = await freshQuery(
+      "SELECT status,revision,resolution,(SELECT count(*)::int FROM labassist_student.project_work_events e WHERE e.issue_id=i.id AND event_key='UPDATED') AS changes FROM labassist_student.project_issues i WHERE id=$1",
+      [created.body.id],
+    );
+    expect(persisted).toEqual([
+      { status: "RESOLVED", revision: 1, resolution: "Recalibrated", changes: 1 },
+    ]);
     expect(replies.map((reply) => reply.status).sort()).toEqual([200, 409]);
     const workspace = await call("get", "/mine", "member").expect(200);
     expect(workspace.body.issues).toEqual([
