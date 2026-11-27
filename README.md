@@ -1,5 +1,8 @@
 # LabAssist
 
+Local Compose migrations and versioned shared development data updates are described in
+[database shared updates](docs/DATABASE-SHARED-UPDATES.md).
+
 LabAssist is an intelligent platform for managing university hardware graduation projects from idea to completion.
 
 ## Main Users

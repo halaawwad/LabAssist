@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -14,12 +15,14 @@ import { authClient, authMessage, demoMode, roleCodes } from "@/features/auth/cl
 import type { Account } from "@/features/auth/session-client";
 import { AppText, Button } from "@/components";
 import { useLanguage } from "@/i18n";
+import type { MarketSession } from "@/lib/market/client";
 export type SessionRole = "student" | "supervisor" | "workshop" | "department";
 const key = "labassist.mobile.demo-session.v1";
 const Context = createContext<{
   account: Account | null;
   signIn: (role: SessionRole, identifier?: string, password?: string) => Promise<void>;
   signOut: () => Promise<void>;
+  marketSession: MarketSession;
 } | null>(null);
 export const sessionHome = (role: SessionRole) =>
   role === "student"
@@ -106,10 +109,30 @@ export function NativeSessionProvider({ children }: { children: ReactNode }) {
     requested === "supervisor" || requested === "workshop" || requested === "department"
       ? requested
       : "student";
+  const marketSession = useMemo<MarketSession>(
+    () => {
+      // Account identity intentionally invalidates market requests after an account switch.
+      void account?.id;
+      return demoMode
+        ? {
+            getAccessToken: async () => null,
+            getCurrentUser: async () => null,
+          }
+        : {
+            getAccessToken: () => authClient.getAccessToken(),
+            getCurrentUser: () => authClient.getCurrentAccount(),
+            onUnauthorized: () => {
+              void authClient.refreshAccess();
+            },
+          };
+    },
+    [account?.id],
+  );
   return (
     <Context.Provider
       value={{
         account,
+        marketSession,
         signIn: async (next, identifier, password) => {
           if (demoMode) {
             await AsyncStorage.setItem(key, next);

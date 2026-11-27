@@ -4,6 +4,7 @@ import { useCopy } from "@/components/MobileKit";
 import { useMarketClient } from "@/lib/market/session";
 import { useMarketResource, usePagedResource } from "@/lib/market/useMarketData";
 import { MarketState, More } from "./MarketState";
+import { ExactShopPrices } from "./ShopPrices";
 export function ApiPartDetails({ partKey }: { partKey: string }) {
   const t = useCopy(),
     client = useMarketClient();
@@ -33,6 +34,7 @@ export function ApiPartDetails({ partKey }: { partKey: string }) {
           </AppText>
         </>
       )}
+      <ExactShopPrices key={partKey} partKey={partKey} />
       <AppText variant="heading">{t("Catalog pins", "أطراف الكتالوج")}</AppText>
       <AppText variant="caption">
         {t(

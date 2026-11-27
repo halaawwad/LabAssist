@@ -166,6 +166,18 @@ export class SessionClient {
       return this.request("/auth/me", undefined, this.access);
     }
   }
+  async getAccessToken(): Promise<string | null> {
+    if (!this.access && !(await this.restore())) return null;
+    return this.access;
+  }
+  async getCurrentAccount(): Promise<Account | null> {
+    if (!this.account && !(await this.restore())) return null;
+    return this.account;
+  }
+  async refreshAccess(): Promise<Account | null> {
+    this.access = null;
+    return this.restore();
+  }
   logout(): Promise<void> {
     if (this.logoutFlight) return this.logoutFlight;
     ++this.epoch;
