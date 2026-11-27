@@ -1,3 +1,6 @@
+import * as DocumentPicker from "expo-document-picker";
+import { File } from "expo-file-system";
+import { useState } from "react";
 import { router } from "./router";
 import { View } from "react-native";
 import { AppText, Button } from "@/components";
@@ -78,6 +81,7 @@ export function LiveFinancePanel() {
 function FinanceForms({ finance }: { finance: FinanceClient }) {
   const copy = useCopy();
   const f = useFinanceEditor(finance);
+  const [receiptError, setReceiptError] = useState("");
   const d = finance.data!;
   const notices: Record<string, string> = {
     budgetSaved: copy("Budget saved.", "تم حفظ الميزانية."),
@@ -299,6 +303,42 @@ function FinanceForms({ finance }: { finance: FinanceClient }) {
           value={f.expense.sellerName}
           onChangeText={(sellerName) => f.setExpense({ ...f.expense, sellerName })}
         />
+        <AppText>
+          {copy(
+            "Receipt (optional, PDF/PNG/JPEG, max 1 MiB)",
+            "الفاتورة (اختياري، PDF/PNG/JPEG، حتى 1 MiB)",
+          )}
+        </AppText>
+        {!!f.expense.receiptName && <AppText>{f.expense.receiptName}</AppText>}
+        {!!receiptError && <AppText accessibilityRole="alert">{receiptError}</AppText>}
+        <Button
+          title={copy("Attach receipt", "إرفاق فاتورة")}
+          disabled={f.disabled}
+          variant="ghost"
+          onPress={() =>
+            void (async () => {
+              setReceiptError("");
+              try {
+                const result = await DocumentPicker.getDocumentAsync({
+                  type: ["application/pdf", "image/png", "image/jpeg"],
+                  copyToCacheDirectory: true,
+                });
+                if (result.canceled) return;
+                const asset = result.assets[0];
+                if (!asset || !asset.size || asset.size > 1048576) {
+                  setReceiptError(
+                    copy("Choose a receipt up to 1 MiB.", "اختَر فاتورة بحجم حتى 1 MiB."),
+                  );
+                  return;
+                }
+                const content=asset.file ? await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(Error('Read failed'));reader.onload=()=>resolve(String(reader.result).split(',')[1]??'');reader.readAsDataURL(asset.file!);}) : await new File(asset.uri).base64();
+                  await f.attachReceipt(asset.name, content);
+              } catch {
+                setReceiptError(copy("Could not attach receipt.", "تعذّر إرفاق الفاتورة."));
+              }
+            })()
+          }
+        />
         <Button
           title={copy("Save purchase", "حفظ الشراء")}
           disabled={!f.canExpense}
@@ -322,6 +362,7 @@ function FinanceForms({ finance }: { finance: FinanceClient }) {
               {d.budget?.currency} {e.amount} · {e.purchasedOn} ·{" "}
               {e.status === "VOIDED" ? copy("Voided", "ملغى") : copy("Recorded", "مسجّل")}
             </AppText>
+            {!!e.receiptFileId && <AppText>{copy("Receipt attached", "فاتورة مرفقة")}</AppText>}
             {!!e.voidReason && <AppText>{e.voidReason}</AppText>}
             {e.status === "POSTED" && (
               <Button

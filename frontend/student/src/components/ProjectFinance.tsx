@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useProjectWorkspace } from "@/lib/projectWorkspace";
 import { useFinanceEditor } from "../../../../shared/project-work/useFinanceEditor";
@@ -98,6 +99,7 @@ export function LiveProjectFinance() {
   return <FinanceForms key={finance.data.projectId} finance={finance} />;
 }
 function FinanceForms({ finance }: { finance: FinanceClient }) {
+  const [receiptError, setReceiptError] = useState("");
   const f = useFinanceEditor(finance),
     d = finance.data!;
   const notices: Record<string, string> = {
@@ -310,6 +312,32 @@ function FinanceForms({ finance }: { finance: FinanceClient }) {
             onChange={(sellerName) => f.setExpense({ ...f.expense, sellerName })}
           />
         </div>
+        <label className="grid gap-2">
+          Receipt (optional, PDF/PNG/JPEG, max 1 MiB)
+          <input
+            aria-label="Receipt file"
+            type="file"
+            accept="application/pdf,image/png,image/jpeg"
+            disabled={f.disabled}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              setReceiptError("");
+              if (!file) return;
+              if (file.size > 1048576) {
+                setReceiptError("Choose a receipt up to 1 MiB.");
+                return;
+              }
+              const reader = new FileReader();
+              reader.onerror = () => setReceiptError("Could not read receipt.");
+              reader.onload = () =>
+                void f.attachReceipt(file.name, String(reader.result).split(",")[1] ?? "");
+              reader.readAsDataURL(file);
+            }}
+          />
+        </label>
+        {f.expense.receiptName && <p>{f.expense.receiptName}</p>}
+        {receiptError && <p role="alert">{receiptError}</p>}
         <Button disabled={!f.canExpense} onClick={() => void f.saveExpense()}>
           Save purchase
         </Button>
@@ -327,6 +355,7 @@ function FinanceForms({ finance }: { finance: FinanceClient }) {
               {d.budget?.currency} {e.amount} · {e.purchasedOn} ·{" "}
               {e.status === "VOIDED" ? "Voided" : "Recorded"}
             </p>
+            {e.receiptFileId && <p>Receipt attached</p>}
             {e.voidReason && <p>{e.voidReason}</p>}
             {e.status === "POSTED" && (
               <Button variant="secondary" disabled={f.disabled} onClick={() => f.prepareVoid(e)}>

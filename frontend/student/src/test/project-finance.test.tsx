@@ -28,6 +28,7 @@ const fake = (save = vi.fn(async () => true)): FinanceClient => ({
   loading: false,
   saving: false,
   reload: vi.fn(async () => data),
+  uploadReceipt: vi.fn(async () => ({ id: "receipt-id", name: "receipt.pdf" })),
   save,
 });
 describe("shared project finance drafts", () => {
@@ -140,4 +141,29 @@ describe("shared project finance drafts", () => {
     });
     expect(result.current.data?.projectId).toBe("second");
   });
+});
+
+it("keeps a successfully uploaded receipt attached through a failed purchase retry", async () => {
+  const save = vi.fn(async () => false),
+    finance = fake(save);
+  const { result } = renderHook(() => useFinanceEditor(finance));
+  await act(async () => {
+    await result.current.attachReceipt("receipt.pdf", "JVBERg==");
+  });
+  expect(result.current.expense.receiptFileId).toBe("receipt-id");
+  act(() =>
+    result.current.setExpense({
+      ...result.current.expense,
+      label: "Receipt purchase",
+      quantity: "1",
+      unitPrice: "2.00",
+    }),
+  );
+  await act(async () => {
+    await result.current.saveExpense();
+  });
+  expect(
+    (save.mock.calls[0] as unknown as [string, string, { receiptFileId: string }])[2].receiptFileId,
+  ).toBe("receipt-id");
+  expect(result.current.expense.receiptFileId).toBe("receipt-id");
 });

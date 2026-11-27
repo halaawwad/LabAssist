@@ -60,6 +60,27 @@ export function useProjectFinance(
       setSaving(false);
     }
   }
+  async function uploadReceipt(name: string, content: string) {
+    if (!client || !projectId || !current?.data || current.data.readOnly || busy.current)
+      return null;
+    busy.current = true;
+    setSaving(true);
+    const version = request.current;
+    try {
+      return await client.authorizedRequest<{ id: string; name: string }>(
+        "/projects/" + projectId + "/receipts",
+        "POST",
+        { name, content },
+      );
+    } catch {
+      if (request.current === version)
+        setState((old) => ({ key, data: old?.key === key ? old.data : null, error: "save" }));
+      return null;
+    } finally {
+      busy.current = false;
+      setSaving(false);
+    }
+  }
   return {
     data: current?.data ?? null,
     error: current?.error ?? null,
@@ -67,6 +88,7 @@ export function useProjectFinance(
     saving,
     reload,
     save,
+    uploadReceipt,
   };
 }
 export type FinanceClient = ReturnType<typeof useProjectFinance>;

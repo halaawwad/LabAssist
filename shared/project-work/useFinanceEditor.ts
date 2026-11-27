@@ -12,6 +12,8 @@ const emptyBom = () => ({
   notNeededReason: "",
 });
 const emptyExpense = () => ({
+  receiptFileId: "",
+  receiptName: "",
   bomItemId: "",
   label: "",
   quantity: "1",
@@ -138,11 +140,16 @@ export function useFinanceEditor(finance: FinanceClient) {
         setNotice("bomSaved");
       }
     },
+    attachReceipt: async (name: string, content: string) => {
+      const result = await finance.uploadReceipt(name, content);
+      if (result) setExpense((old) => ({ ...old, receiptFileId: result.id, receiptName: name }));
+    },
     saveExpense: async () => {
       setNotice("");
       if (
         await finance.save("expenses", "POST", {
           requestKey: key.current,
+          ...(expense.receiptFileId ? { receiptFileId: expense.receiptFileId } : {}),
           purchasedOn: expense.purchasedOn,
           sellerName: expense.sellerName,
           lines: [
