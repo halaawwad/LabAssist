@@ -184,12 +184,26 @@ describe("Sprint 2B project finance", () => {
       sellerName: "Parts shop",
       lines: [{ bomItemId: bom.id, label: "Light sensor", quantity: 2, unitPrice: "9.50" }],
     };
-    const results = await overlap<any>("SELECT pg_advisory_xact_lock(hashtext($1))",['finance:'+pid],()=>[1,2].map(()=>call('post','/expenses','a',body).then((r:any)=>r)));
+    const results = await overlap<any>(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      ["finance:" + pid],
+      () => [1, 2].map(() => call("post", "/expenses", "a", body).then((r: any) => r)),
+    );
     expect(results.map((r) => r.status)).toEqual([201, 201]);
     expect(results[0].body.id).toBe(results[1].body.id);
     expense = results[0].body;
- expect(await freshQuery("SELECT count(*)::int AS n FROM labassist_student.project_expenses WHERE project_id=$1 AND request_key=$2",[pid,body.requestKey])).toEqual([{n:1}]);
- expect(await freshQuery("SELECT count(*)::int AS n FROM labassist_student.project_expense_lines WHERE expense_id=$1",[expense.id])).toEqual([{n:1}]);
+    expect(
+      await freshQuery(
+        "SELECT count(*)::int AS n FROM labassist_student.project_expenses WHERE project_id=$1 AND request_key=$2",
+        [pid, body.requestKey],
+      ),
+    ).toEqual([{ n: 1 }]);
+    expect(
+      await freshQuery(
+        "SELECT count(*)::int AS n FROM labassist_student.project_expense_lines WHERE expense_id=$1",
+        [expense.id],
+      ),
+    ).toEqual([{ n: 1 }]);
     const f = (await call("get", "/finance", "b")).body;
     expect(f.expenses).toHaveLength(1);
     expect(f.budget).toMatchObject({ spent: "19.00", remaining: "101.00" });
@@ -372,9 +386,18 @@ describe("Sprint 2B project finance", () => {
     expect(Buffer.from(download.body).equals(pdf)).toBe(true);
     await call("get", "/receipts/" + uploaded.body.id, "c").expect(404);
     await call("get", "/receipts/" + uploaded.body.id, "sup").expect(403);
-    await call('post','/receipts','c',{name:'foreign.pdf',content:pdf.toString('base64')}).expect(404);
-    await call('post','/receipts','sup',{name:'foreign.pdf',content:pdf.toString('base64')}).expect(403);
-    await call('post','/receipts','a',{name:'large.pdf',content:Buffer.alloc(1048577,1).toString('base64')}).expect(400);
+    await call("post", "/receipts", "c", {
+      name: "foreign.pdf",
+      content: pdf.toString("base64"),
+    }).expect(404);
+    await call("post", "/receipts", "sup", {
+      name: "foreign.pdf",
+      content: pdf.toString("base64"),
+    }).expect(403);
+    await call("post", "/receipts", "a", {
+      name: "large.pdf",
+      content: Buffer.alloc(1048577, 1).toString("base64"),
+    }).expect(400);
     await call("post", "/receipts", "a", {
       name: "fake.pdf",
       content: Buffer.from("<html>fake</html>").toString("base64"),

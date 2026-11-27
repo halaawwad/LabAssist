@@ -331,8 +331,15 @@ function FinanceForms({ finance }: { finance: FinanceClient }) {
                   );
                   return;
                 }
-                const content=asset.file ? await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(Error('Read failed'));reader.onload=()=>resolve(String(reader.result).split(',')[1]??'');reader.readAsDataURL(asset.file!);}) : await new File(asset.uri).base64();
-                  await f.attachReceipt(asset.name, content);
+                const content = asset.file
+                  ? await new Promise<string>((resolve, reject) => {
+                      const reader = new FileReader();
+                      reader.onerror = () => reject(Error("Read failed"));
+                      reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+                      reader.readAsDataURL(asset.file!);
+                    })
+                  : await new File(asset.uri).base64();
+                await f.attachReceipt(asset.name, content);
               } catch {
                 setReceiptError(copy("Could not attach receipt.", "تعذّر إرفاق الفاتورة."));
               }
