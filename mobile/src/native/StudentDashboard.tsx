@@ -203,8 +203,8 @@ export default function StudentDashboard() {
     {
       icon: Wallet,
       label: t("Budget remaining", "الميزانية المتبقية"),
-      value: "$66",
-      note: t("$184 of $250 used", "استُخدم $184 من $250"),
+      value: workspace.liveMode ? (workspace.finance.data?.budget ? `${workspace.finance.data.budget.currency} ${workspace.finance.data.budget.remaining}` : "—") : "$66",
+      note: workspace.liveMode ? (workspace.finance.data?.budget ? `${workspace.finance.data.budget.spent} / ${workspace.finance.data.budget.amount}` : t("Set project budget", "حدّد ميزانية المشروع")) : t("$184 of $250 used", "استُخدم $184 من $250"),
       tone: "violet" as const,
       target: "Components",
     },

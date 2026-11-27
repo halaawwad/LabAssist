@@ -1,3 +1,5 @@
+import { NativeSessionProvider } from "@/state/NativeSession";
+import { ProjectWorkspaceProvider } from "@/native/StudentReference";
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
 import { Button } from "@/components";
@@ -48,7 +50,7 @@ export default function MarketScreenFixture() {
   return (
     <LanguageProvider>
       <WorkspaceProvider>
-        <Content />
+        <NativeSessionProvider><ProjectWorkspaceProvider><Content /></ProjectWorkspaceProvider></NativeSessionProvider>
       </WorkspaceProvider>
     </LanguageProvider>
   );

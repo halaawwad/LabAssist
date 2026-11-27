@@ -1,3 +1,4 @@
+import { LiveFinancePanel } from "./ProjectFinance";
 import { StudentSettings } from "@/features/student/StudentSettings";
 import { StudentMeetingsPanel } from "@/features/student/StudentMeetingsPanel";
 import { View } from "react-native";
@@ -45,7 +46,7 @@ export function StudentDestination({ page }: { page: string }) {
     case "issues":
       return demoMode ? <IssuesPanel /> : <LiveProjectIssues />;
     case "budget":
-      return <FinancePanel />;
+      return demoMode ? <FinancePanel /> : <LiveFinancePanel />;
     case "project":
       return <ReferenceProject />;
     case "team":

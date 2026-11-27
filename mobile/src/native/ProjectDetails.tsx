@@ -1,3 +1,4 @@
+import { LiveBudgetSummary, LiveFinancePanel } from "./ProjectFinance";
 import { LiveTaskForm, NativeProjectIssue } from "./ProjectWorkForms";
 import { MobileInput as TextInput } from "@/components/MobileInput";
 import { Disclosure } from "@/components/Disclosure";
@@ -228,7 +229,7 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
               }}
             />
           </Panel>
-          <Panel title={copy("Budget health", "حالة الميزانية")}>
+          {workspace.liveMode ? <LiveBudgetSummary onManage={() => setTab("Components")} /> : (<Panel title={copy("Budget health", "حالة الميزانية")}>
             <AppText variant="title">{money(project.budget - project.spent)}</AppText>
             <AppText>{copy("still available", "ما زال متاحًا")}</AppText>
             <Ring value={Math.round((project.spent / project.budget) * 100)} />
@@ -240,7 +241,7 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
               {copy("Total project budget:", "إجمالي ميزانية المشروع:")} {money(project.budget)}.{" "}
               {copy("Recorded expenses across the project.", "المصروفات المسجلة في المشروع.")}
             </AppText>
-          </Panel>
+          </Panel>)}
         </>
       )}
       {tab === "Team & Tasks" && workspace.liveMode && workspace.project && <LiveTaskForm />}
@@ -349,7 +350,7 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
             </AppText>
           </Panel>
         ))}
-      {tab === "Components" && (
+      {tab === "Components" && (workspace.liveMode ? <LiveFinancePanel /> : (
         <>
           <Panel title={copy("Build readiness", "جاهزية البناء")}>
             <Ring value={40} />
@@ -394,7 +395,7 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
             </AppText>
           </Panel>
         </>
-      )}
+      ))}
       {tab === "Reports" && <ReportsPanel />}
     </View>
   );
