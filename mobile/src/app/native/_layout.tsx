@@ -29,11 +29,11 @@ export default function NativeLayout() {
     <PreferencesProvider>
       <LanguageProvider>
         <WorkspaceProvider>
-          <ProjectWorkspaceProvider>
-            <NativeSessionProvider>
+          <NativeSessionProvider>
+            <ProjectWorkspaceProvider>
               <AuthenticatedStack />
-            </NativeSessionProvider>
-          </ProjectWorkspaceProvider>
+            </ProjectWorkspaceProvider>
+          </NativeSessionProvider>
         </WorkspaceProvider>
       </LanguageProvider>
     </PreferencesProvider>

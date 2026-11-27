@@ -1,6 +1,7 @@
+import { useDepartmentProjectGroups } from "../../../shared/project-work/useDepartmentProjectGroups";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Account as ApiAccount } from "../../../shared/auth/session-client";
-import { apiMode, logoutWeb } from "../../../shared/auth/web-session";
+import { apiMode, logoutWeb, webClient } from "../../../shared/auth/web-session";
 import { AccountAdministration } from "./components/AccountAdministration";
 import {
   Plus,
@@ -70,6 +71,10 @@ export default function Department() {
     [contact, setContact] = useState(demoSupervisor.id),
     [messages, setMessages] = useState<{ id: string; to: string; body: string; at: string }[]>([]),
     [confirm, setConfirm] = useState<Account | null>(null);
+  const projectGroups = useDepartmentProjectGroups(
+    real ? webClient(import.meta.env) : null,
+    real && tab === "groups",
+  );
   const snapshot = useRef<{
     accounts: Account[];
     messages: { id: string; to: string; body: string; at: string }[];
@@ -309,7 +314,7 @@ export default function Department() {
                     (a) => a.role === "Student" && effectiveAccountStatus(a) === "ACTIVE",
                   ).length,
             ],
-            [real ? "Groups · local workspace" : "Groups", groups.length],
+            ["Groups", real ? projectGroups.groups.length : groups.length],
           ].map(([label, n]) => (
             <article key={label}>
               <ShieldCheck size={20} />
@@ -473,30 +478,58 @@ export default function Department() {
             </div>
           </section>
         ) : tab === "groups" ? (
-          <DepartmentGroups
-            key={groupListVersion}
-            accounts={accounts}
-            groups={groups}
-            onCreateAccount={(accountRole) => {
-              setEdit({ role: accountRole });
-              setError("");
-            }}
-            onSave={(group, confirmedTransfer) => {
-              const nextGroups = prepareGroupSave(
-                group,
-                snapshot.current.groups,
-                snapshot.current.accounts,
-                confirmedTransfer,
-              );
-              const ids = nextGroups.flatMap((g) => [...g.studentIds, ...g.supervisorIds]);
-              const ok = commit({
-                groups: nextGroups,
-                accounts: accounts.map((a) => (ids.includes(a.id) ? { ...a, linked: true } : a)),
-              });
-              if (ok) setNotice("Group saved.");
-              return ok;
-            }}
-          />
+          <>
+            {real && (
+              <div className="dept-toolbar">
+                {projectGroups.loadFailed && <p role="alert">Could not load project groups.</p>}
+                {!projectGroups.loadFailed && !projectGroups.openTerms.length && (
+                  <p>No academic term is open for team assignments.</p>
+                )}
+                <button
+                  className="dept-secondary"
+                  disabled={projectGroups.saving}
+                  onClick={() => void projectGroups.reload()}
+                >
+                  Refresh groups
+                </button>
+              </div>
+            )}
+            <DepartmentGroups
+              key={groupListVersion}
+              accounts={real ? projectGroups.accounts : accounts}
+              groups={real ? projectGroups.groups : groups}
+              openTerms={real ? projectGroups.openTerms : undefined}
+              saving={projectGroups.saving}
+              onCreateAccount={(accountRole) => {
+                if (real) {
+                  setTab("accounts");
+                  return;
+                }
+                setEdit({ role: accountRole });
+                setError("");
+              }}
+              onSave={async (group, confirmedTransfer) => {
+                if (real) {
+                  const ok = await projectGroups.save(group, confirmedTransfer);
+                  if (ok) setNotice("Group saved.");
+                  return ok;
+                }
+                const nextGroups = prepareGroupSave(
+                  group,
+                  snapshot.current.groups,
+                  snapshot.current.accounts,
+                  confirmedTransfer,
+                );
+                const ids = nextGroups.flatMap((g) => [...g.studentIds, ...g.supervisorIds]);
+                const ok = commit({
+                  groups: nextGroups,
+                  accounts: accounts.map((a) => (ids.includes(a.id) ? { ...a, linked: true } : a)),
+                });
+                if (ok) setNotice("Group saved.");
+                return ok;
+              }}
+            />
+          </>
         ) : (
           <DepartmentMessages
             accounts={accounts}

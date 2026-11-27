@@ -23,6 +23,7 @@ async function applySharedDataUpdates(client, directory) {
     if (typeof update.apply !== 'function') throw new Error(`Shared update has no apply function: ${file}`);
     await client.query('BEGIN');
     try {
+      if(file==='20261126134500_sprint6_prices.cjs' && fs.existsSync(path.join(directory,'20261127100000_automatic_shop_prices.cjs'))){await client.query('ROLLBACK');console.log('Historical reviewer-gated import superseded by automatic shop ingestion');continue;}
       await update.apply(client);
       await client.query('INSERT INTO public.labassist_shared_updates(version, checksum) VALUES($1,$2)', [file, checksum]);
       await client.query('COMMIT');

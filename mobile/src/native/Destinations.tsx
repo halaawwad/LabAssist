@@ -15,6 +15,8 @@ import { Panel, useCopy } from "@/components/MobileKit";
 import { AppText } from "@/components";
 import { useWorkspace } from "@/state/WorkspaceProvider";
 import { ReferenceProject } from "./ProjectDetails";
+import { LiveProjectIssues } from "./ProjectWorkForms";
+import { demoMode } from "@/features/auth/client";
 import { TasksPanel, IssuesPanel, FinancePanel } from "@/features/shared/ProjectPanels";
 export const studentDestinations: Record<string, string> = {
   "My Project": "project",
@@ -39,9 +41,9 @@ export function StudentDestination({ page }: { page: string }) {
   const t = useCopy();
   switch (page) {
     case "tasks":
-      return <TasksPanel />;
+      return demoMode ? <TasksPanel /> : <ReferenceProject initial="Team & Tasks" />;
     case "issues":
-      return <IssuesPanel />;
+      return demoMode ? <IssuesPanel /> : <LiveProjectIssues />;
     case "budget":
       return <FinancePanel />;
     case "project":

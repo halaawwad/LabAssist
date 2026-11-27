@@ -32,7 +32,6 @@ services:
       PGUSER: ${POSTGRES_USER:-labassist_owner}
       PGPASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in the root .env}
       PGDATABASE: ${POSTGRES_DB:-labassist_auth_dev}
-      SHARED_DATA_REVIEWER_KEY: ${SHARED_DATA_REVIEWER_KEY:-}
     restart: 'no'
   mailpit:
     image: axllent/mailpit:v1.27

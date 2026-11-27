@@ -1,3 +1,4 @@
+import { ProjectWorkspaceStatus } from "@/components/ProjectWorkspaceStatus";
 import { TeamPersonalProgress } from "@/components/TeamPersonalProgress";
 import { TeamConnectionVisual } from "@/components/TeamConnectionVisual";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -27,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { project, teammates, useProjectWorkspace, type TeamTask } from "@/lib/projectWorkspace";
+import { useProjectWorkspace, type TeamTask } from "@/lib/projectWorkspace";
 import { useStudentProfile } from "@/lib/studentProfile";
 import { people, useMessages } from "@/lib/messages";
 export const Route = createFileRoute("/team")({
@@ -55,7 +56,7 @@ function TeamPage() {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
-  const members = teammates.map((p, index) => {
+  const members = workspace.members.map((p, index) => {
     const assigned = workspace.teamTasks.filter((t) => t.owner === index),
       done = assigned.filter((t) => workspace.completed.includes(t.id)).length,
       total = assigned.length,
@@ -65,7 +66,7 @@ function TeamPage() {
     return {
       ...p,
       index,
-      name: index === 0 ? profile.name : p.name,
+      name: index === 0 && !workspace.live ? profile.name : p.name,
       done,
       total,
       inProgress,
@@ -74,7 +75,9 @@ function TeamPage() {
       assigned,
     };
   });
-  const average = Math.round(members.reduce((sum, m) => sum + m.progress, 0) / members.length),
+  const average = Math.round(
+      members.reduce((sum, m) => sum + m.progress, 0) / Math.max(1, members.length),
+    ),
     openCount = members.reduce((sum, m) => sum + m.total - m.done, 0),
     late = workspace.teamTasks.filter(
       (t) => !workspace.completed.includes(t.id) && !!t.due && t.due < today,
@@ -87,13 +90,11 @@ function TeamPage() {
   };
   const status = (t: TeamTask) =>
     workspace.completed.includes(t.id) ? "Completed" : t.inProgress ? "In Progress" : "To Do";
-  const updateStatus = (t: TeamTask, value: string) => {
-    workspace.updateTaskStatus(t.id, value);
+  const updateStatus = async (t: TeamTask, value: string) => {
+    await workspace.updateTaskStatus(t.id, value);
   };
-  const toggleHelp = (t: TeamTask) => {
-    workspace.setTeamTasks((list) =>
-      list.map((item) => (item.id === t.id ? { ...item, help: !item.help } : item)),
-    );
+  const toggleHelp = async (t: TeamTask) => {
+    if (!(await workspace.toggleHelp(t))) return;
     workspace.logTeamActivity(
       t.owner,
       `${t.help ? "Resolved the help request for" : "Asked for a hand with"} “${t.title}”`,
@@ -104,7 +105,11 @@ function TeamPage() {
       navigate({ to: "/messages", search: { chat: "saved" } });
       return;
     }
-    const p = people.find((person) => person.name === teammates[index]!.name)!;
+    const p = people.find((person) => person.name === workspace.members[index]?.name);
+    if (!p) {
+      navigate({ to: "/messages" });
+      return;
+    }
     if (!chats.some((c) => c.id === p.id))
       setChats((list) => [...list, { ...p, unread: 0, messages: [] }]);
     navigate({ to: "/messages", search: { chat: p.id } });
@@ -112,6 +117,7 @@ function TeamPage() {
   return (
     <div className="team-background min-h-screen">
       <div className="insight-shell">
+        <ProjectWorkspaceStatus />
         {menu && (
           <button
             className="fixed inset-0 z-30 bg-foreground/20 lg:hidden"
@@ -228,6 +234,9 @@ function TeamPage() {
           <div className="team-section-label">
             <h2>The people behind the progress</h2>
             <span>Equal teammates. Shared responsibility.</span>
+            {workspace.project?.supervisors.map((person) => (
+              <span key={person.id}>Supervisor · {person.name}</span>
+            ))}
           </div>
           <div className="team-member-grid">
             {members.map((m) => (
@@ -246,13 +255,15 @@ function TeamPage() {
                   <div>
                     <h2>{m.name}</h2>
                     <p>
-                      {m.index === 0
-                        ? profile.major || "Add your major in My Profile"
-                        : m.index === 1
-                          ? "Computer Engineering"
-                          : "Electrical Engineering"}
+                      {workspace.live
+                        ? "Student"
+                        : m.index === 0
+                          ? profile.major || "Add your major in My Profile"
+                          : m.index === 1
+                            ? "Computer Engineering"
+                            : "Electrical Engineering"}
                     </p>
-                    {m.index === 0 && profile.studentNumber && (
+                    {!workspace.live && m.index === 0 && profile.studentNumber && (
                       <small>{profile.studentNumber}</small>
                     )}
                   </div>
@@ -451,22 +462,14 @@ function TeamPage() {
           {modal === "add" && (
             <form
               className="team-task-form"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                if (!title.trim()) return;
+                if (!title.trim() || workspace.saving) return;
                 try {
-                  workspace.setTeamTasks((list) => [
-                    ...list,
-                    {
-                      id: crypto.randomUUID(),
-                      title: title.trim(),
-                      description: description.trim(),
-                      owner,
-                      due,
-                      inProgress: false,
-                      help: false,
-                    },
-                  ]);
+                  if (!(await workspace.createTask({ title, description, owner, due }))) {
+                    setSaveError("Task was not saved. Your input is preserved; please retry.");
+                    return;
+                  }
                   workspace.logTeamActivity(owner, `Added “${title.trim()}”`);
                   setModal(null);
                   setSaveError("");
@@ -525,7 +528,7 @@ function TeamPage() {
                 <Button type="button" variant="secondary" onClick={() => setModal(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={!title.trim()}>
+                <Button type="submit" disabled={workspace.saving || !title.trim()}>
                   Add Task
                 </Button>
               </div>

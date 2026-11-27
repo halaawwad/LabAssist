@@ -72,3 +72,8 @@ PostgreSQL will run locally using Docker during development.
 The 3D workspace focuses on hardware placement, wiring, validation, and safety checks.
 
 It does not simulate circuit behavior.
+
+
+## Shop data ownership
+
+Shop collection, exact component matching, source validation and price/stock persistence belong to the backend ingestion pipeline, independent of Workshop Manager permissions. No human approval or reviewer key is required. The pipeline records automated provenance without impersonating an account. Ambiguous identity remains unresolved; source evidence, currencies, timestamps, ownership and historical prices remain protected. Web and mobile consume the same read APIs.

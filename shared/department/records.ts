@@ -29,6 +29,7 @@ export type DepartmentGroup = ProjectGroup & {
   name?: string;
   groupName?: string;
   termName?: string;
+  updatedAt?: string;
 };
 export type AccountPolicy = "active" | "pending-drafts";
 

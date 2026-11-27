@@ -96,25 +96,24 @@ describe('Sprint 6 catalog, shops, prices and student offers API',()=>{
   for(const name of ['Jenin Parts','Ramallah Robotics'])expect((await call('post','/market/sellers','manager',{name,city:'Nablus'})).status).toBe(201);
   const shops=await walk('/market/sellers?kind=SHOP&limit=2','sara');expect(shops.pages).toBe(2);expect(shops.items.map((s:any)=>s.name)).toEqual(['Jenin Parts','Nablus Electronics','Ramallah Robotics']);
  });
- it('records price sources and lets only managers review each once',async()=>{
+ it('records owner-reported evidence without manager approval and removes review endpoints',async()=>{
   expect((await call('post',`/market/sellers/${shop.id}/sources`,'noor',{kind:'SHOP_PAGE',observedAt:ago(0)})).status).toBe(403);
   expect((await call('post',`/market/sellers/${studentSeller.id}/sources`,'manager',{kind:'MANUAL',observedAt:ago(0)})).status).toBe(403);
   shopSource=(await call('post',`/market/sellers/${shop.id}/sources`,'manager',{kind:'SHOP_PAGE',url:'https://shop.example/p',observedAt:ago(0)})).body;expect(shopSource.status).toBe('PENDING');
-  studentSource=(await call('post',`/market/sellers/${studentSeller.id}/sources`,'noor',{kind:'SPREADSHEET',observedAt:ago(2)})).body;expect(studentSource.status).toBe('PENDING');
+  studentSource=(await call('post',`/market/sellers/${studentSeller.id}/sources`,'noor',{kind:'SPREADSHEET',observedAt:ago(2)})).body;expect(studentSource.status).toBe('APPROVED');
   expect((await call('get','/market/sources','noor')).body.items.map((s:any)=>s.id)).toEqual([studentSource.id]);
-  expect((await call('post',`/market/sources/${shopSource.id}/review`,'noor',{decision:'APPROVED'})).status).toBe(403);
-  const reviews=await Promise.all([1,2].map(()=>call('post',`/market/sources/${shopSource.id}/review`,'manager',{decision:'APPROVED'})));expect(reviews.map(r=>r.status).sort()).toEqual([201,409]);
+  expect((await call('post',`/market/sources/${shopSource.id}/review`,'noor',{decision:'APPROVED'})).status).toBe(404);
+  expect((await call('post',`/market/sources/${shopSource.id}/review`,'manager',{decision:'APPROVED'})).status).toBe(404); await db.$transaction(async tx=>{await tx.$executeRaw`SELECT set_config('labassist.price_pipeline','on',true)`; const rows=await tx.$queryRaw<any[]>`INSERT INTO labassist_student.resale_sources(seller_id,kind,url,observed_at,status,verification_method) VALUES(${shop.id}::uuid,'SHOP_PAGE','https://shop.example/p',now(),'APPROVED','AUTOMATED') RETURNING *`;shopSource={...rows[0],observedAt:rows[0].observed_at.toISOString()};});
  });
  it('changes prices only through dated observations and keeps revisions',async()=>{
   const base={catalogKey:'sprint6_sensor',partName:'Sprint6 Sensor',condition:'USED',unitPrice:'9.5',currency:'ILS',quantity:2};
-  expect((await call('post','/market/offers','noor',{...base,sellerId:studentSeller.id,sourceId:studentSource.id,status:'ACTIVE'})).status).toBe(400);
+  expect((await call('post','/market/offers','sara',{...base,sellerId:studentSeller.id,sourceId:studentSource.id,status:'ACTIVE'})).status).toBe(403);
   expect((await call('post','/market/offers','noor',{...base,sellerId:studentSeller.id,sourceId:studentSource.id,status:'DRAFT',unitPrice:'9.999'})).status).toBe(400);
   expect((await call('post','/market/offers','manager',{...base,sellerId:studentSeller.id,sourceId:studentSource.id,status:'DRAFT'})).status).toBe(403);
   studentOffer=(await call('post','/market/offers','noor',{...base,sellerId:studentSeller.id,sourceId:studentSource.id,status:'DRAFT'})).body;expect(studentOffer).toMatchObject({status:'DRAFT',unitPrice:'9.50',revision:0,variantId:null});
   shopOffer=(await call('post','/market/offers','manager',{...base,condition:'NEW',unitPrice:'12',shippingCost:'3',sellerId:shop.id,sourceId:shopSource.id,status:'ACTIVE'})).body;expect(shopOffer.status).toBe('ACTIVE');
-  expect((await call('patch','/market/offers/'+studentOffer.id,'noor',{expectedRevision:0,quantity:2,status:'ACTIVE'})).status).toBe(400);
+
   expect((await call('patch','/market/offers/'+studentOffer.id,'noor',{expectedRevision:0,quantity:2,status:'DRAFT',unitPrice:'8.75'})).status).toBe(400);
-  await call('post',`/market/sources/${studentSource.id}/review`,'manager',{decision:'APPROVED'}).expect(201);
   priceObservedAt=ago(1);const price={expectedRevision:0,sourceId:studentSource.id,unitPrice:'8.75',currency:'ILS',observedAt:priceObservedAt};
   expect((await call('patch','/market/offers/'+studentOffer.id,'sara',{expectedRevision:0,quantity:2,status:'ACTIVE'})).status).toBe(403);
   expect((await call('patch','/market/offers/'+studentOffer.id,'manager',{expectedRevision:0,quantity:2,status:'ACTIVE'})).status).toBe(403);
@@ -178,15 +177,14 @@ describe('Sprint 6 catalog, shops, prices and student offers API',()=>{
   expect((await call('put','/catalog/parts/sprint6_sensor/identity-fields','manager',{expectedRevision:revision,fields:['MANUFACTURER']})).body).toEqual({key:'sprint6_sensor',revision:revision+1});
   expect((await call('get',`/market/compare/exact?variantId=${partialVariant.id}&currency=ILS`,'sara')).body.items.map((o:any)=>o.id)).toEqual([shopOffer.id]);
  });
- it('revokes a source approval with audit fields and removes affected prices from comparison',async()=>{
+ it('preserves historical source revocation audit while removing its public action',async()=>{
   await call('put',`/market/offers/${shopOffer.id}/bookmark`,'sara').expect(200);
   const pending=(await call('post',`/market/sellers/${shop.id}/sources`,'manager',{kind:'MANUAL',observedAt:ago(0)})).body;
-  expect((await call('post',`/market/sources/${shopSource.id}/revoke`,'noor',{reason:'Changed'})).status).toBe(403);
-  expect((await call('post',`/market/sources/${shopSource.id}/revoke`,'manager',{reason:'   '})).status).toBe(400);
-  expect((await call('post',`/market/sources/${pending.id}/revoke`,'manager',{reason:'Changed'})).status).toBe(409);
-  const revoked=await call('post',`/market/sources/${shopSource.id}/revoke`,'manager',{reason:'Shop page changed after review'});expect(revoked.status).toBe(201);
-  expect(revoked.body).toMatchObject({status:'REVOKED',revocationReason:'Shop page changed after review',reviewedBy:expect.any(String),reviewedAt:expect.any(String),revokedBy:expect.any(String),revokedAt:expect.any(String),url:'https://shop.example/p'});
-  expect((await call('post',`/market/sources/${shopSource.id}/revoke`,'manager',{reason:'Again'})).status).toBe(409);
+  expect((await call('post',`/market/sources/${shopSource.id}/revoke`,'noor',{reason:'Changed'})).status).toBe(404);
+  expect((await call('post',`/market/sources/${shopSource.id}/revoke`,'manager',{reason:'Changed'})).status).toBe(404);
+  await db.$executeRaw`SELECT labassist_student.revoke_resale_source(${accountId.manager}::uuid,${shopSource.id}::uuid,'Historical audit regression')`;
+  const audit=(await db.$queryRaw<any[]>`SELECT status,reviewed_by,revoked_by,revocation_reason FROM labassist_student.resale_sources WHERE id=${shopSource.id}::uuid`)[0];
+  expect(audit).toMatchObject({status:'REVOKED',reviewed_by:null,revoked_by:accountId.manager,revocation_reason:'Historical audit regression'});
   expect((await call('get','/market/compare?catalogKey=sprint6_sensor&currency=ILS','sara')).body.items.map((o:any)=>o.id)).toEqual([exactOffer.id]);
   expect((await call('get','/market/bookmarks','sara')).body.items).toMatchObject([{id:shopOffer.id,status:'ACTIVE',available:false,publicOffer:null}]);
   expect((await call('get',`/market/offers/${shopOffer.id}/observations`,'manager')).body.items.map((o:any)=>[o.unitPrice,o.sourceStatus])).toEqual([['12.00','REVOKED']]);
@@ -198,10 +196,13 @@ describe('Sprint 6 catalog, shops, prices and student offers API',()=>{
   const doc=(await request(app.getHttpServer()).get('/docs-json').expect(200)).body,schemas=doc.components.schemas;
   const ref=(path:string,method:string,status:string)=>doc.paths[path]?.[method]?.responses?.[status]?.content?.['application/json']?.schema?.$ref?.split('/').pop();
   for(const [path,method,status,name] of [['/v1/catalog/parts','get','200','PartPage'],['/v1/catalog/parts/{key}/pins','get','200','PinPage'],['/v1/catalog/parts/{key}/variants','post','201','Variant'],['/v1/market/compare','get','200','PublicOfferPage'],
-   ['/v1/market/compare/exact','get','200','PublicOfferPage'],['/v1/market/offers/{id}/prices','post','201','Offer'],['/v1/market/offers/{id}/observations','get','200','ObservationPage'],['/v1/market/sources/{id}/revoke','post','201','Source'],['/v1/market/bookmarks','get','200','BookmarkPage']])
+   ['/v1/market/compare/exact','get','200','PublicOfferPage'],['/v1/market/offers/{id}/prices','post','201','Offer'],['/v1/market/offers/{id}/observations','get','200','ObservationPage'],['/v1/market/bookmarks','get','200','BookmarkPage']])
    expect([path,ref(path,method,status)]).toEqual([path,name]);
-  for(const [path,method,status] of [['/v1/market/offers/{id}/prices','post','400'],['/v1/market/offers/{id}/prices','post','409'],['/v1/market/sources/{id}/revoke','post','403'],['/v1/market/compare','get','401'],['/v1/catalog/parts','get','429']])
+  for(const [path,method,status] of [['/v1/market/offers/{id}/prices','post','400'],['/v1/market/offers/{id}/prices','post','409'],['/v1/market/compare','get','401'],['/v1/catalog/parts','get','429']])
    expect([path,status,ref(path,method,status)]).toEqual([path,status,'ErrorResponse']);
+  expect(doc.paths['/v1/market/sources/{id}/review']).toBeUndefined();
+  expect(doc.paths['/v1/market/sources/{id}/revoke']).toBeUndefined();
+  expect(doc.paths['/v1/market/prices/mappings/{id}/review']).toBeUndefined();
   // Actual bodies carry exactly the documented keys: all required keys present, nothing undocumented.
   const conforms=(name:string,body:any)=>{const s=schemas[name],keys=Object.keys(body);expect([name,keys.filter(k=>!(k in s.properties))]).toEqual([name,[]]);expect([name,(s.required??[]).filter((k:string)=>!keys.includes(k))]).toEqual([name,[]]);};
   conforms('PartPage',(await call('get','/catalog/parts','noor')).body);conforms('Part',(await call('get','/catalog/parts','noor')).body.items[0]);
@@ -247,8 +248,7 @@ describe('Sprint 6 catalog, shops, prices and student offers API',()=>{
   for(const status of ['ACTIVE','SOLD','WITHDRAWN','DRAFT'])expect([status,(await patchOffer(offer.id,1,status)).status]).toEqual([status,400]);
   const fresh=(await call('post',`/market/sellers/${studentSeller.id}/sources`,'noor',{kind:'MANUAL',observedAt:ago(0.5)})).body,observedAt=ago(0.25),validUntil=new Date(Date.now()+7*86400000).toISOString();
   expect((await call('post',`/market/offers/${offer.id}/prices`,'noor',{expectedRevision:1,sourceId:fresh.id,unitPrice:'18',currency:'ILS',observedAt,validUntil})).body).toMatchObject({status:'EXPIRED',unitPrice:'18.00',revision:2,validUntil});
-  expect((await patchOffer(offer.id,2,'ACTIVE')).status).toBe(400);
-  await call('post',`/market/sources/${fresh.id}/review`,'manager',{decision:'APPROVED'}).expect(201);
+
   expect((await patchOffer(offer.id,1,'ACTIVE')).status).toBe(409);
   const reactivations=await Promise.all([patchOffer(offer.id,2,'ACTIVE'),patchOffer(offer.id,2,'ACTIVE')]);expect(reactivations.map(r=>r.status).sort()).toEqual([200,409]);
   expect((await call('get','/market/offers?search=servo%20horn','sara')).body.items.map((o:any)=>[o.id,o.unitPrice,o.priceObservedAt,o.source.id])).toEqual([[offer.id,'18.00',observedAt,fresh.id]]);
@@ -257,7 +257,6 @@ describe('Sprint 6 catalog, shops, prices and student offers API',()=>{
  it('locks a pre-existing disabled owner record out without letting managers or other students edit the offer',async()=>{
   const linaSeller=(await call('post','/market/sellers','lina',{name:'Lina spare parts',city:'Nablus'})).body;
   const linaSource=(await call('post',`/market/sellers/${linaSeller.id}/sources`,'lina',{kind:'MANUAL',observedAt:ago(1)})).body;
-  await call('post',`/market/sources/${linaSource.id}/review`,'manager',{decision:'APPROVED'}).expect(201);
   const linaOffer=(await call('post','/market/offers','lina',{sellerId:linaSeller.id,sourceId:linaSource.id,partName:'Spare breadboard',condition:'USED',unitPrice:'7',currency:'ILS',quantity:1,status:'ACTIVE'})).body;expect(linaOffer.status).toBe('ACTIVE');
   // LabAssist offers no disable action (404); a disabled account can only be a pre-existing record, simulated here directly.
   expect((await call('patch',`/accounts/${accountId.lina}/status`,'head',{status:'DISABLED'})).status).toBe(404);

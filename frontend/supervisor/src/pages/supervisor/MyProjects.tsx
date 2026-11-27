@@ -1,3 +1,5 @@
+import { apiMode } from "../../../../../shared/auth/web-session"
+import { AssignedProjects } from "./AssignedProjects"
 import { useState } from 'react'
 import { Folder, Plus } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
@@ -13,6 +15,10 @@ import { interactionLabels } from '../../components/supervisor/interactionLabels
 import { useLocalState } from '../../state/useLocalState'
 
 export function MyProjects() {
+  return apiMode(import.meta.env) ? <AssignedProjects /> : <DemoProjects />
+}
+
+function DemoProjects() {
   const { t, language, formatDate } = useI18n()
   const l = interactionLabels[language]
   const [searchParams, setSearchParams] = useSearchParams()

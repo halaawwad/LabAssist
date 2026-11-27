@@ -1,5 +1,6 @@
+import { useDepartmentProjectGroups } from "../../../../shared/project-work/useDepartmentProjectGroups";
 import { MobileInput as TextInput } from "@/components/MobileInput";
-import { demoMode } from "@/features/auth/client";
+import { authClient, demoMode } from "@/features/auth/client";
 import { AccountAdministration } from "./AccountAdministration";
 import { useNativeSession } from "@/state/NativeSession";
 import type { Account as ApiAccount } from "../../../../shared/auth/session-client";
@@ -28,6 +29,7 @@ import {
   useCopy,
   errorText,
   SearchField,
+  SegmentedControl,
   ActionSheet,
   FormSheet,
   Greeting,
@@ -121,7 +123,7 @@ export default function DepartmentScreen() {
     groups: state.projects.map((p) => ({ ...p, status: "DRAFT", termId: p.termId ?? demoTerm.id })),
     messages: [],
   });
-  const { accounts, groups, messages, saving, ready, commit } = store;
+  const { messages, saving, ready, commit } = store;
   const [conversationOpen, setConversationOpen] = useState(false);
   const conversationScroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const departmentHistory = useCallback(
@@ -138,6 +140,13 @@ export default function DepartmentScreen() {
   const conversationInitialScroll = useRef(true);
   const [newConversationMessages, setNewConversationMessages] = useState(false);
   const [page, setPage] = useState(demoMode ? "Overview" : "Accounts");
+  const liveGroups = useDepartmentProjectGroups(
+    demoMode ? null : authClient,
+    !demoMode && page === "Teams",
+  );
+  const groups = demoMode ? store.groups : liveGroups.groups;
+  const accounts =
+    !demoMode && page === "Teams" ? mobileAccounts(liveGroups.accounts) : store.accounts;
   const [notificationReturn, setNotificationReturn] = useState("Overview");
   const subPage = page === "profile" || page === "settings" || page === "notifications";
   const [query, setQuery] = useState(""),
@@ -228,7 +237,7 @@ export default function DepartmentScreen() {
             projectNumber: "",
             title: "",
             status: "DRAFT",
-            termId: demoTerm.id,
+            termId: demoMode ? demoTerm.id : liveGroups.openTerms[0]?.id,
             studentIds: [],
             supervisorIds: [],
           },
@@ -314,10 +323,17 @@ export default function DepartmentScreen() {
     }
   }
   async function saveGroup() {
-    if (!groupDraft || pending.current || !ready || saving) return;
+    if (!groupDraft || pending.current || (demoMode ? !ready || saving : liveGroups.saving)) return;
     setError("");
     pending.current = true;
     try {
+      if (!demoMode) {
+        if (await liveGroups.save(groupDraft, transfers)) {
+          setGroupDraft(null);
+          setNotice(t("Group saved.", "تم حفظ المجموعة."));
+        }
+        return;
+      }
       const previous = store.current.current.groups.find((g) => g.id === groupDraft.id);
       const next = {
         ...previous,
@@ -696,9 +712,34 @@ export default function DepartmentScreen() {
           )}
           {page === "Teams" && (
             <>
+              {!demoMode && (
+                <>
+                  {liveGroups.loadFailed && (
+                    <AppText tone="danger">
+                      {t("Could not load groups.", "تعذّر تحميل المجموعات.")}
+                    </AppText>
+                  )}
+                  {!liveGroups.loadFailed && !liveGroups.openTerms.length && (
+                    <AppText>
+                      {t(
+                        "No term is open for team assignments.",
+                        "لا يوجد فصل مفتوح لتوزيع المجموعات.",
+                      )}
+                    </AppText>
+                  )}
+                  <Button
+                    variant="ghost"
+                    disabled={liveGroups.saving}
+                    title={t("Refresh groups", "تحديث المجموعات")}
+                    onPress={() => void liveGroups.reload()}
+                  />
+                </>
+              )}
               <Button
                 title={t("Add group", "إضافة مجموعة")}
-                disabled={!ready || saving}
+                disabled={
+                  demoMode ? !ready || saving : liveGroups.saving || !liveGroups.openTerms.length
+                }
                 onPress={() => openGroup()}
               />
               <SearchField
@@ -1129,14 +1170,14 @@ export default function DepartmentScreen() {
       <Sheet
         visible={!!groupDraft && !accountDraft}
         title={t("Group details", "تفاصيل المجموعة")}
-        busy={saving}
+        busy={demoMode ? saving : liveGroups.saving}
         onClose={() => setGroupDraft(null)}
         footer={
           groupDraft ? (
             <Button
               title={t("Save group", "حفظ المجموعة")}
-              disabled={!ready}
-              loading={saving}
+              disabled={demoMode ? !ready : !groupDraft.termId}
+              loading={demoMode ? saving : liveGroups.saving}
               onPress={saveGroup}
             />
           ) : undefined
@@ -1144,6 +1185,17 @@ export default function DepartmentScreen() {
       >
         {!!groupDraft && (
           <>
+            {!demoMode && !groupDraft.updatedAt && (
+              <SegmentedControl
+                accessibilityLabel={t("Academic term", "الفصل الدراسي")}
+                value={groupDraft.termId ?? ""}
+                onChange={(termId) => {
+                  setGroupDraft({ ...groupDraft, termId });
+                  setTransfers(false);
+                }}
+                options={liveGroups.openTerms.map(({ id, name }) => ({ id, label: name }))}
+              />
+            )}
             <Field
               label={t("Project number", "رقم المشروع")}
               value={groupDraft.projectNumber ?? readableNumber(groupDraft)}
@@ -1180,7 +1232,13 @@ export default function DepartmentScreen() {
                     title={t("Create missing account", "إنشاء حساب جديد")}
                     variant="soft"
                     size="sm"
-                    onPress={() => openAccount(undefined, role)}
+                    onPress={() => {
+                      if (demoMode) openAccount(undefined, role);
+                      else {
+                        setGroupDraft(null);
+                        setPage("Accounts");
+                      }
+                    }}
                   />
                   {!eligible.length && (
                     <AppText>{t("No matching accounts.", "لا توجد حسابات مطابقة.")}</AppText>

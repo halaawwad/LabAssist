@@ -117,6 +117,7 @@ model accounts {
   report_versions                                                             report_versions[]
   resale_sources                                                              resale_sources[]
   resale_sources_resale_sources_revoked_byToaccounts                          resale_sources[]                @relation("resale_sources_revoked_byToaccounts")
+  resale_sources_resale_sources_submitted_byToaccounts                        resale_sources[]                @relation("resale_sources_submitted_byToaccounts")
   shop_price_feeds                                                            shop_price_feeds[]
   shop_price_mappings                                                         shop_price_mappings[]
   student_enrollments_student_enrollments_extended_byToaccounts               student_enrollments[]           @relation("student_enrollments_extended_byToaccounts")
@@ -772,9 +773,9 @@ model market_offer_history {
   offer_id      String        @db.Uuid
   revision      Int
   snapshot      Json
-  changed_by    String        @db.Uuid
+  changed_by    String?       @db.Uuid
   created_at    DateTime      @default(now()) @db.Timestamptz(6)
-  accounts      accounts      @relation(fields: [changed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts      accounts?     @relation(fields: [changed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   market_offers market_offers @relation(fields: [offer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([offer_id, revision])
@@ -796,7 +797,7 @@ model market_offers {
   shipping_cost             Decimal?                    @db.Decimal(14, 2)
   valid_until               DateTime?                   @db.Timestamptz(6)
   status                    String                      @default("ACTIVE")
-  updated_by                String                      @db.Uuid
+  updated_by                String?                     @db.Uuid
   revision                  Int                         @default(0)
   updated_at                DateTime                    @default(now()) @db.Timestamptz(6)
   variant_id                String?                     @db.Uuid
@@ -808,7 +809,7 @@ model market_offers {
   catalog_parts             catalog_parts?              @relation(fields: [catalog_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
   market_sellers            market_sellers              @relation(fields: [seller_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   resale_sources            resale_sources              @relation(fields: [source_id, seller_id], references: [id, seller_id], onDelete: NoAction, onUpdate: NoAction)
-  accounts                  accounts                    @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts                  accounts?                   @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   market_price_observations market_price_observations[]
   project_expense_lines     project_expense_lines[]
   shop_price_mappings       shop_price_mappings?
@@ -1113,8 +1114,6 @@ model project_students {
   left_at             DateTime?           @db.Timestamptz(6)
   projects            projects            @relation(fields: [project_id, term_id], references: [id, term_id], onDelete: NoAction, onUpdate: NoAction)
   student_enrollments student_enrollments @relation(fields: [student_id, term_id], references: [student_id, term_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@unique([project_id, student_id])
 }
 
 model project_supervisors {
@@ -1186,6 +1185,7 @@ model projects {
   status                     String                      @default("DRAFT")
   created_at                 DateTime                    @default(now()) @db.Timestamptz(6)
   updated_at                 DateTime                    @default(now()) @db.Timestamptz(6)
+  project_number             String?
   ai_conversations           ai_conversations[]
   circuit_documents          circuit_documents[]
   conversations              conversations?
@@ -1207,6 +1207,7 @@ model projects {
   workshop_table_history     workshop_table_history[]
 
   @@unique([id, term_id])
+  @@unique([term_id, project_number], map: "project_number_per_term")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1401,28 +1402,32 @@ model reporting_periods {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model resale_sources {
-  id                                           String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  seed_key                                     String?                     @unique
-  seller_id                                    String                      @db.Uuid
-  kind                                         String
-  url                                          String?
-  file_id                                      String?                     @db.Uuid
-  observed_at                                  DateTime                    @db.Timestamptz(6)
-  content_hash                                 String?                     @db.Char(64)
-  status                                       String                      @default("PENDING")
-  reviewed_by                                  String?                     @db.Uuid
-  reviewed_at                                  DateTime?                   @db.Timestamptz(6)
-  revoked_by                                   String?                     @db.Uuid
-  revoked_at                                   DateTime?                   @db.Timestamptz(6)
-  revocation_reason                            String?
-  market_offers                                market_offers[]
-  market_price_observations                    market_price_observations[]
-  files                                        files?                      @relation(fields: [file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  accounts                                     accounts?                   @relation(fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  accounts_resale_sources_revoked_byToaccounts accounts?                   @relation("resale_sources_revoked_byToaccounts", fields: [revoked_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  market_sellers                               market_sellers              @relation(fields: [seller_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  shop_price_feeds                             shop_price_feeds[]
-  shop_price_outcomes                          shop_price_outcomes[]
+  id                                             String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seed_key                                       String?                     @unique
+  seller_id                                      String                      @db.Uuid
+  kind                                           String
+  url                                            String?
+  file_id                                        String?                     @db.Uuid
+  observed_at                                    DateTime                    @db.Timestamptz(6)
+  content_hash                                   String?                     @db.Char(64)
+  status                                         String                      @default("PENDING")
+  reviewed_by                                    String?                     @db.Uuid
+  reviewed_at                                    DateTime?                   @db.Timestamptz(6)
+  revoked_by                                     String?                     @db.Uuid
+  revoked_at                                     DateTime?                   @db.Timestamptz(6)
+  revocation_reason                              String?
+  verification_method                            String                      @default("HUMAN")
+  verified_at                                    DateTime?                   @db.Timestamptz(6)
+  submitted_by                                   String?                     @db.Uuid
+  market_offers                                  market_offers[]
+  market_price_observations                      market_price_observations[]
+  files                                          files?                      @relation(fields: [file_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts                                       accounts?                   @relation(fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_resale_sources_revoked_byToaccounts   accounts?                   @relation("resale_sources_revoked_byToaccounts", fields: [revoked_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  market_sellers                                 market_sellers              @relation(fields: [seller_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts_resale_sources_submitted_byToaccounts accounts?                   @relation("resale_sources_submitted_byToaccounts", fields: [submitted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  shop_price_feeds                               shop_price_feeds[]
+  shop_price_outcomes                            shop_price_outcomes[]
 
   @@unique([id, seller_id])
 }
@@ -1734,9 +1739,9 @@ model catalog_part_variants {
   model_number            String?
   package_or_revision     String?
   source_url              String?
-  created_by              String                    @db.Uuid
+  created_by              String?                   @db.Uuid
   created_at              DateTime                  @default(now()) @db.Timestamptz(6)
-  accounts                accounts                  @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts                accounts?                 @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   catalog_parts           catalog_parts             @relation(fields: [part_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
   global_price_references global_price_references[]
   market_offers           market_offers[]
@@ -1748,21 +1753,22 @@ model catalog_part_variants {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model market_price_observations {
-  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  offer_id       String         @db.Uuid
-  seller_id      String         @db.Uuid
-  currency       String         @db.Char(3)
-  offer_revision Int
-  source_id      String         @db.Uuid
-  unit_price     Decimal        @db.Decimal(14, 2)
-  shipping_cost  Decimal?       @db.Decimal(14, 2)
-  observed_at    DateTime?      @db.Timestamptz(6)
-  is_legacy      Boolean        @default(false)
-  recorded_by    String?        @db.Uuid
-  recorded_at    DateTime       @default(now()) @db.Timestamptz(6)
-  market_offers  market_offers  @relation(fields: [offer_id, seller_id, currency], references: [id, seller_id, currency], onDelete: NoAction, onUpdate: NoAction)
-  accounts       accounts?      @relation(fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  resale_sources resale_sources @relation(fields: [source_id, seller_id], references: [id, seller_id], onDelete: NoAction, onUpdate: NoAction)
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  offer_id         String         @db.Uuid
+  seller_id        String         @db.Uuid
+  currency         String         @db.Char(3)
+  offer_revision   Int
+  source_id        String         @db.Uuid
+  unit_price       Decimal        @db.Decimal(14, 2)
+  shipping_cost    Decimal?       @db.Decimal(14, 2)
+  observed_at      DateTime?      @db.Timestamptz(6)
+  is_legacy        Boolean        @default(false)
+  recorded_by      String?        @db.Uuid
+  recorded_at      DateTime       @default(now()) @db.Timestamptz(6)
+  recording_method String         @default("HUMAN")
+  market_offers    market_offers  @relation(fields: [offer_id, seller_id, currency], references: [id, seller_id, currency], onDelete: NoAction, onUpdate: NoAction)
+  accounts         accounts?      @relation(fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  resale_sources   resale_sources @relation(fields: [source_id, seller_id], references: [id, seller_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([offer_id, offer_revision])
 }
@@ -1807,9 +1813,9 @@ model shop_price_feeds {
   shop           String         @id
   seller_id      String         @db.Uuid
   source_id      String         @db.Uuid
-  configured_by  String         @db.Uuid
+  configured_by  String?        @db.Uuid
   configured_at  DateTime       @default(now()) @db.Timestamptz(6)
-  accounts       accounts       @relation(fields: [configured_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accounts       accounts?      @relation(fields: [configured_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   market_sellers market_sellers @relation(fields: [seller_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   resale_sources resale_sources @relation(fields: [source_id, seller_id], references: [id, seller_id], onDelete: NoAction, onUpdate: NoAction)
 }
@@ -1830,6 +1836,8 @@ model shop_price_mappings {
   offer_id              String?                @unique @db.Uuid
   created_at            DateTime               @default(now()) @db.Timestamptz(6)
   updated_at            DateTime               @default(now()) @db.Timestamptz(6)
+  matching_method       String                 @default("HUMAN")
+  matched_at            DateTime?              @db.Timestamptz(6)
   market_offers         market_offers?         @relation(fields: [offer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   catalog_parts         catalog_parts?         @relation(fields: [part_key], references: [key], onDelete: NoAction, onUpdate: NoAction)
   accounts              accounts?              @relation(fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)

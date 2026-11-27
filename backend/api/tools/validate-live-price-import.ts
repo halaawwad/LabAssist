@@ -21,7 +21,7 @@ async function main() {
       const live = collected.items.find((item) => item.externalProductId === check.id);
       if (!live || live.price === null) throw new Error(`${check.adapter.shop}:${check.id} has no live price.`);
       const [mapping] = await db.$queryRaw<any[]>`INSERT INTO labassist_student.shop_price_mappings(shop,external_product_id,sku,product_name) VALUES(${live.shop},${live.externalProductId},${live.sku},${live.productName}) ON CONFLICT(shop,external_product_id) DO UPDATE SET sku=excluded.sku RETURNING id,status`;
-      if (mapping.status === 'PENDING') await service.reviewMapping({id: manager.id, role: Role.WORKSHOP_MANAGER}, mapping.id, {decision: 'APPROVED', catalogKey: 'sync_part', variantId: variant.id, saleQuantity: live.minimumOrderQuantity ?? live.packageQuantity ?? 1});
+      if (mapping.status === 'PENDING') throw new Error('Live validation requires an automatically matched catalog identity; no manual review is performed.');
       await service.importCollection(manager.id, {...collected, items: [live], complete: false});
     }
     const comparison = await service.compare({id: manager.id, role: Role.WORKSHOP_MANAGER}, {variantId: variant.id, quantity: 1});

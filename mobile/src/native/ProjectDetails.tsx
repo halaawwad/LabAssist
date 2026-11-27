@@ -1,3 +1,4 @@
+import { LiveTaskForm, NativeProjectIssue } from "./ProjectWorkForms";
 import { MobileInput as TextInput } from "@/components/MobileInput";
 import { Disclosure } from "@/components/Disclosure";
 import { TouchTarget as Pressable } from "@/components/TouchTarget";
@@ -23,23 +24,54 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
     [issue, setIssue] = useState("");
   const [titleDraft, setTitleDraft] = useState(workspace.details.title);
   const [abstractDraft, setAbstractDraft] = useState(workspace.abstract);
+  const [subtitleDraft, setSubtitleDraft] = useState("");
+  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string>();
+  if (workspace.liveMode && !workspace.project) {
+    return <Panel>
+      <AppText accessibilityRole="alert">{workspace.loading
+        ? copy("Loading project…", "جارٍ تحميل المشروع…")
+        : workspace.error || copy("No project assigned for the current term.", "لا يوجد مشروع مخصص للفصل الحالي.")}</AppText>
+      {!workspace.loading && <Button title={copy("Retry loading", "إعادة التحميل")} onPress={workspace.retryLoading} />}
+    </Panel>;
+  }
+
   return (
     <View style={kit.stack}>
+      {workspace.loading && <AppText>{copy("Loading project…", "جارٍ تحميل المشروع…")}</AppText>}
       {!!workspace.error && (
         <Panel>
           <AppText accessibilityRole="alert">{workspace.error}</AppText>
           <Button title={copy("Retry loading", "إعادة التحميل")} onPress={workspace.retryLoading} />
         </Panel>
       )}
-      <Panel>
-        <AppText tone="primary">{statusLabel(project.status)}</AppText>
+      {tab === "Overview" && <Panel>
+        {workspace.liveMode && workspace.project && (
+          <Button
+            variant="ghost"
+            size="sm"
+            title={copy("Refresh project", "تحديث المشروع")}
+            disabled={workspace.saving}
+            onPress={() => void workspace.retryLoading()}
+          />
+        )}
+        <AppText tone="primary">
+          {statusLabel(
+            workspace.liveMode
+              ? (workspace.project?.status.replaceAll("_", " ") ?? "")
+              : project.status,
+          )}
+        </AppText>
         <AppText variant="title">{workspace.details.title}</AppText>
-        <AppText tone="muted">{project.subtitle}</AppText>
+        <AppText tone="muted">
+          {workspace.liveMode ? workspace.project?.subtitle : project.subtitle}
+        </AppText>
         <AppText variant="caption">
-          {Number.isNaN(Date.parse(project.deadline))
-            ? project.deadline
-            : formatLongDate(new Date(project.deadline))}{" "}
-          · 3 {copy("teammates", "زملاء")}
+          {workspace.liveMode
+            ? workspace.project?.term.name
+            : Number.isNaN(Date.parse(project.deadline))
+              ? project.deadline
+              : formatLongDate(new Date(project.deadline))}{" "}
+          · {workspace.members.length} {copy("teammates", "زملاء")}
         </AppText>
         <AppText weight="bold">
           {ltr(`${workspace.progress}%`)} {copy("overall progress", "التقدم الكلي")}
@@ -70,14 +102,18 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
             variant="soft"
             onPress={() => {
               setTab("Overview");
-              setEdit(true);
+              setEdit(false);
             }}
           />
         </View>
         <Disclosure title={copy("Project photo", "صورة المشروع")}>
-          <ProjectPhoto projectId="reference-smart-car" />
+          <ProjectPhoto
+            projectId={
+              workspace.liveMode ? (workspace.project?.id ?? "no-project") : "reference-smart-car"
+            }
+          />
         </Disclosure>
-      </Panel>
+      </Panel>}
       {/* Every project section stays visible (2 × 2 on narrow phones) instead of a clipped scroller. */}
       <SegmentedControl
         accessibilityLabel={copy("Project sections", "أقسام المشروع")}
@@ -104,6 +140,8 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
                 if (!edit) {
                   setTitleDraft(workspace.details.title);
                   setAbstractDraft(workspace.abstract);
+                  setSubtitleDraft(workspace.project?.subtitle ?? "");
+                  setExpectedUpdatedAt(workspace.project?.updatedAt);
                 }
                 setEdit(!edit);
               }}
@@ -112,9 +150,18 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
               <View style={kit.stack}>
                 <TextInput
                   accessibilityLabel={copy("Project title", "عنوان المشروع")}
+                  style={kit.input}
                   value={titleDraft}
                   onChangeText={setTitleDraft}
                 />
+                {workspace.liveMode && (
+                  <TextInput
+                    accessibilityLabel={copy("Subtitle", "عنوان فرعي")}
+                  style={kit.input}
+                    value={subtitleDraft}
+                    onChangeText={setSubtitleDraft}
+                  />
+                )}
                 <TextInput
                   accessibilityLabel={copy("Project abstract", "ملخص المشروع")}
                   multiline
@@ -133,7 +180,15 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
                   title={copy("Save project details", "حفظ تفاصيل المشروع")}
                   disabled={workspace.saving || !titleDraft.trim() || !abstractDraft.trim()}
                   onPress={async () => {
-                    if (await workspace.saveDetails(titleDraft, abstractDraft)) setEdit(false);
+                    if (
+                      await workspace.saveDetails(
+                        titleDraft,
+                        abstractDraft,
+                        subtitleDraft,
+                        expectedUpdatedAt,
+                      )
+                    )
+                      setEdit(false);
                   }}
                 />
               </View>
@@ -142,13 +197,16 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
           <Panel title={copy("Current milestone", "المرحلة الحالية")}>
             <AppText variant="heading">{copy("Prototype testing", "اختبار النموذج")}</AppText>
             <AppText tone="muted">
-              {copy("Milestone", "المرحلة")} {project.milestone} {copy("of", "من")} {project.milestoneCount}
+              {copy("Milestone", "المرحلة")} {project.milestone} {copy("of", "من")}{" "}
+              {project.milestoneCount}
             </AppText>
           </Panel>
           <Panel title={copy("Open issues", "المشكلات المفتوحة")}>
-            {workspace.openIssues.map((x) => (
-              <AppText key={x.id}>{x.title}</AppText>
-            ))}
+            {workspace.liveMode
+              ? workspace.project?.issues.map((item) => (
+                  <NativeProjectIssue key={item.id} issue={item} />
+                ))
+              : workspace.openIssues.map((x) => <AppText key={x.id}>{x.title}</AppText>)}
             <TextInput
               accessibilityLabel={copy("Issue description", "وصف المشكلة")}
               placeholder={copy("Describe the issue", "صف المشكلة")}
@@ -185,7 +243,14 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
           </Panel>
         </>
       )}
-      {tab === "Team & Tasks" && (
+      {tab === "Team & Tasks" && workspace.liveMode && workspace.project && <LiveTaskForm />}
+      {tab === "Team & Tasks" &&
+        workspace.project?.supervisors.map((person) => (
+          <AppText key={person.id}>
+            {copy("Supervisor", "المشرف")} · {person.name}
+          </AppText>
+        ))}
+      {tab === "Team & Tasks" && !workspace.liveMode && (
         <Button
           title={copy("Add task", "إضافة مهمة")}
           variant="soft"
@@ -194,9 +259,11 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
       )}
       {tab === "Team & Tasks" &&
         workspace.members.map((member, index) => (
-          <Panel key={member.name} title={member.name}>
+          <Panel key={member.id} title={member.name}>
             <AppText variant="caption" tone="muted">
-              {copy("Computer Engineering", "هندسة الحاسوب")}
+              {workspace.liveMode
+                ? copy("Student", "طالب")
+                : copy("Computer Engineering", "هندسة الحاسوب")}
             </AppText>
             <Ring
               value={Math.round(
@@ -206,7 +273,7 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
                   Math.max(1, workspace.teamTasks.filter((task) => task.owner === index).length)) *
                   100,
               )}
-              color={["#839b68", "#709ab8", "#bc9368"][index]}
+              color={["#839b68", "#709ab8", "#bc9368"][index % 3]}
             />
             <AppText weight="semibold">{copy("Personal progress", "التقدم الشخصي")}</AppText>
             <AppText variant="caption">
@@ -218,49 +285,61 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
               {copy("of", "من")} {workspace.teamTasks.filter((task) => task.owner === index).length}{" "}
               {copy("tasks complete", "مهام مكتملة")}
             </AppText>
-            <AppText weight="semibold">{copy("Today’s Tasks", "مهام اليوم")}</AppText>
+            <AppText weight="semibold">{workspace.liveMode ? copy("Assigned tasks", "المهام المسندة") : copy("Today’s Tasks", "مهام اليوم")}</AppText>
             {workspace.teamTasks
               .filter((x) => x.owner === index)
               .map((task) => {
                 const done = workspace.completed.includes(task.id);
                 return (
-                  <Pressable
-                    key={task.id}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{
-                      checked: done,
-                      disabled: member.id !== workspace.actorId,
-                    }}
-                    disabled={member.id !== workspace.actorId}
-                    onPress={async () => {
-                      if (!(await workspace.toggleTask(task.id))) return;
-                      workspace.logTeamActivity(
-                        index,
-                        `${done ? "Reopened" : "Completed"} “${task.title}”`,
-                      );
-                    }}
-                    style={{
-                      paddingVertical: 12,
-                      borderBottomWidth: 1,
-                      borderColor: "#e5e9df",
-                      gap: 5,
-                    }}
-                  >
-                    <AppText>
-                      {done ? "✓" : "○"} {task.title}
-                    </AppText>
-                    <AppText variant="caption" tone="muted">
-                      {task.description}
-                    </AppText>
-                    <AppText variant="caption">
-                      {task.due} ·{" "}
-                      {done
-                        ? copy("Completed", "مكتملة")
-                        : task.inProgress
-                          ? copy("In progress", "قيد التنفيذ")
-                          : copy("Remaining", "متبقية")}
-                    </AppText>
-                  </Pressable>
+                  <View key={task.id}>
+                    <Pressable
+                      accessibilityRole="checkbox"
+                      accessibilityState={{
+                        checked: done,
+                        disabled: member.id !== workspace.actorId,
+                      }}
+                      disabled={workspace.saving || member.id !== workspace.actorId}
+                      onPress={async () => {
+                        if (!(await workspace.toggleTask(task.id))) return;
+                        workspace.logTeamActivity(
+                          index,
+                          `${done ? "Reopened" : "Completed"} “${task.title}”`,
+                        );
+                      }}
+                      style={{
+                        paddingVertical: 12,
+                        borderBottomWidth: 1,
+                        borderColor: "#e5e9df",
+                        gap: 5,
+                      }}
+                    >
+                      <AppText>
+                        {done ? "✓" : "○"} {task.title}
+                      </AppText>
+                      <AppText variant="caption" tone="muted">
+                        {task.description}
+                      </AppText>
+                      <AppText variant="caption">
+                        {task.due} ·{" "}
+                        {done
+                          ? copy("Completed", "مكتملة")
+                          : task.inProgress
+                            ? copy("In progress", "قيد التنفيذ")
+                            : copy("Remaining", "متبقية")}
+                      </AppText>
+                    </Pressable>
+                    {workspace.liveMode &&
+                      member.id === workspace.actorId &&
+                      !done &&
+                      !task.inProgress && (
+                        <Button
+                          size="sm"
+                          title={copy("Start task", "ابدأ المهمة")}
+                          disabled={workspace.saving}
+                          onPress={() => void workspace.updateStatus(task.id, "IN_PROGRESS")}
+                        />
+                      )}
+                  </View>
                 );
               })}
             <AppText variant="caption" tone="muted">
