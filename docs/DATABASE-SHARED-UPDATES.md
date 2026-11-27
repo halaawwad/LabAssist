@@ -1,54 +1,11 @@
-# Local Compose database updates
+# Compose database updates
 
-`docker compose up -d --build` starts the loopback-only PostgreSQL service and a one-shot
-`db-update` service. Once PostgreSQL is healthy, the updater verifies the existing baseline,
-applies pending Prisma migrations, then runs the versioned updates in
-`backend/api/shared-data`. It does not reset volumes, run collectors, or create accounts.
-Check `docker compose ps -a` and `docker compose logs db-update`: detached Compose startup
-does not itself report whether the one-shot service later succeeded.
+Run docker compose up -d --build. PostgreSQL starts with a persistent volume and health check. The one-shot db-update service applies pending Prisma migrations, then transactional shared-data updates. Inspect docker compose logs db-update to confirm completion.
 
-The Sprint 6 update contains a historical, manager-reviewed snapshot of 50 published shop
-prices. It verifies the original manager's normalized email and employee number using a
-keyed HMAC, and requires exactly one matching active manager account in the target database.
-The update never creates that account or approves as a different person. On a fresh database,
-migrations complete and the updater reports the data update as **pending** when the reviewer
-or verification key is absent; no price data or applied-version marker is written. Startup
-succeeds, and later updates wait behind the pending one. Provision the same manager through
-the normal account workflow, set `SHARED_DATA_REVIEWER_KEY` privately, then rerun
-`docker compose up -d --build` and inspect the updater logs. Obtain the key and the matching
-identity through an appropriate private channel. The key is stored locally outside the
-repository and must not be committed; account credentials are never included in the snapshot.
-Retain a secure copy of the verification key: it is required to verify the original reviewer
-on another database. The local key file is `D:/LabAssist/local-secrets/sprint6-reviewer-verification.key`.
+Automatic shop ingestion requires no Workshop Manager account, reviewer key or approval. The 20261127100000 successor imports the source-backed catalog and price snapshot and records automated provenance. The old published update stays immutable; an unexecuted reviewer-gated version is superseded, while an already-applied version retains its original checksum and audit data.
 
-The snapshot carries stable shop/product IDs, catalog model and variant identities, prices,
-source URLs, hashes, and original observation and approval dates. It reuses the catalog,
-seller, source, mapping, offer, observation, check and outcome tables. Existing compatible
-records are reused; conflicting identities, pending/rejected mappings, or conflicting feeds
-stop the transaction rather than being overwritten. Existing approved offers are left
-unchanged, including any newer prices. The original stock type was not retained, so imported
-quantity and stock-check time remain null and availability is unknown.
+Updates preserve account passwords, IDs, source evidence, existing newer prices and conflicting records. They do not reset volumes or send email. Unknown stock remains unknown. Conflicts roll back the transaction instead of overwriting identity.
 
-The database's audit triggers record the time of the new insertion in each target database.
-Original price-observation recording time, variant creation time, offer update time and
-initial offer-history time are retained as provenance in the corresponding existing
-`shop_price_outcomes.details`; source observation and manager review timestamps remain in
-their normal columns. No triggers, constraints, or permissions are disabled.
+public.labassist_shared_updates stores version, checksum and application time. Each version and same-named evidence JSON are checksummed. Add a new version for later changes.
 
-`public.labassist_shared_updates` stores only update version, checksum and application time;
-it is a ledger, not a second copy of application data. Each update and its same-named JSON
-evidence file are checksummed and applied in a transaction under a database advisory lock.
-The updater refuses to silently rerun changed versions. Add a new version for later data,
-use stable identifiers and conflict checks, and retain each historical update and evidence
-file unchanged. See `backend/api/shared-data/README.md` for the update-file contract.
-
-Use a separate disposable Compose project and database for tests; never point tests at a
-development volume. The focused `test/shared-data-updates.spec.ts` requires a database name
-containing `_test` and verifies once-only execution, checksums and rollback on failure.
-
-Disposable Compose verification covered fresh initialization with the key missing and with
-the manager missing (both remain pending without blocking startup), conflicting source review
-rollback, reuse of matching sources, preservation of an existing project and accounts,
-repeated execution, and authenticated API retrieval of 50 offers. A read-only source comparison
-matched all 50 transferred prices, source evidence and original timestamps at PostgreSQL
-precision. The actual development database was not changed.
+Use disposable PostgreSQL for tests. The migration and ingestion regressions cover no-manager startup, exact matching, ambiguous identities, price/stock history, idempotency, source ownership and transactional rollback.

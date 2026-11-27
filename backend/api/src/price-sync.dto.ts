@@ -6,7 +6,7 @@ export const SHOPS=['TECHNOLAB','PIC_INDUSTRIAL'] as const;
 export class ShopFeedDto{
  @ApiProperty({enum:SHOPS}) @IsIn(SHOPS) shop!:typeof SHOPS[number];
  @ApiProperty() @IsUUID() sellerId!:string;
- @ApiProperty({description:'Existing APPROVED SHOP_PAGE source. Approval authorizes derived observations from this same shop feed.'}) @IsUUID() sourceId!:string;
+ @ApiProperty({description:'Shop source identity. Sources are validated by the internal collection pipeline.'}) @IsUUID() sourceId!:string;
 }
 export class MappingReviewDto{
  @ApiProperty({enum:['APPROVED','REJECTED']}) @IsIn(['APPROVED','REJECTED']) decision!:'APPROVED'|'REJECTED';

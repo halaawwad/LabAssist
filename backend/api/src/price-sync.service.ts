@@ -1,3 +1,5 @@
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
 import {BadRequestException,ConflictException,ForbiddenException,Injectable,NotFoundException} from '@nestjs/common';
 import {createHash} from 'crypto';
 import {lookup} from 'dns/promises';
@@ -6,7 +8,7 @@ import {Database} from './database/database.service';
 import {Actor,Role} from './common/security/identity';
 import {CollectionResult,NormalizedShopPrice,ShopCode} from './price-collectors';
 import {requestText} from './price-collectors/http';
-import {GlobalReferenceDto,MappingReviewDto,ShopComparisonQuery,ShopFeedDto,SHOPS} from './price-sync.dto';
+import {GlobalReferenceDto,ShopComparisonQuery,SHOPS} from './price-sync.dto';
 import {translate} from './market.service';
 
 type Tx=Prisma.TransactionClient;
@@ -20,16 +22,6 @@ const approvedShopUrl=(shop:ShopCode,value:string|null)=>{try{const url=new URL(
  private manager(actor:Actor){if(actor.role!==Role.WORKSHOP_MANAGER)throw new ForbiddenException('Workshop manager permission required.');}
  private async run<T>(work:()=>Promise<T>){try{return await work();}catch(error){translate(error);}}
 
- configureFeed(actor:Actor,body:ShopFeedDto){return this.run(()=>this.db.$transaction(async tx=>{
-  this.manager(actor);const rows=await tx.$queryRaw<any[]>`SELECT s.kind seller_kind,r.kind source_kind,r.status,r.url FROM labassist_student.market_sellers s JOIN labassist_student.resale_sources r ON r.seller_id=s.id WHERE s.id=${body.sellerId}::uuid AND r.id=${body.sourceId}::uuid`;
-  const row=rows[0];if(!row)throw new BadRequestException('The seller and source do not match.');if(row.seller_kind!=='SHOP'||row.source_kind!=='SHOP_PAGE'||row.status!=='APPROVED'||!approvedShopUrl(body.shop,row.url))throw new BadRequestException('Price sync requires this shop\'s approved public SHOP_PAGE source.');
-  const saved=await tx.$queryRaw<any[]>`INSERT INTO labassist_student.shop_price_feeds(shop,seller_id,source_id,configured_by) VALUES(${body.shop},${body.sellerId}::uuid,${body.sourceId}::uuid,${actor.id}::uuid) ON CONFLICT(shop) DO UPDATE SET seller_id=excluded.seller_id,source_id=excluded.source_id,configured_by=excluded.configured_by,configured_at=now() RETURNING *`;
-  return {shop:saved[0].shop,sellerId:saved[0].seller_id,sourceId:saved[0].source_id,configuredAt:iso(saved[0].configured_at)};}));}
-
- reviewMapping(actor:Actor,id:string,body:MappingReviewDto){return this.run(async()=>{this.manager(actor);
-  if(body.decision==='APPROVED'&&(!body.catalogKey||!body.variantId))throw new BadRequestException('Approved mappings require a catalog key and exact variant.');
-  await this.db.$executeRaw`SELECT labassist_student.review_shop_price_mapping(${actor.id}::uuid,${id}::uuid,${body.decision}::text,${body.catalogKey??null}::text,${body.variantId??null}::uuid,${body.saleQuantity??1}::int,${body.packageQuantity??null}::int)`;
-  return {id,status:body.decision};});}
 
  addGlobalReference(actor:Actor,body:GlobalReferenceDto){return this.run(async()=>{this.manager(actor);if(new Date(body.observedAt)>new Date())throw new BadRequestException('The observation time cannot be in the future.');
   const exact=await this.db.$queryRaw<any[]>`SELECT labassist_student.part_variant_exact(${body.variantId}::uuid) exact`;if(!exact[0]?.exact)throw new BadRequestException('A global reference requires an exact catalog variant.');
@@ -37,19 +29,23 @@ const approvedShopUrl=(shop:ShopCode,value:string|null)=>{try{const url=new URL(
   const rows=await this.db.$queryRaw<any[]>`INSERT INTO labassist_student.global_price_references(variant_id,supplier,url,currency,price,quantity,observed_at,shipping_inclusion,tax_inclusion,created_by) VALUES(${body.variantId}::uuid,${body.supplier.trim()},${body.url},${body.currency},${body.price}::numeric,${body.quantity}::int,${body.observedAt}::timestamptz,${body.shippingInclusion??'UNKNOWN'},${body.taxInclusion??'UNKNOWN'},${actor.id}::uuid) RETURNING *`;
   return this.global(rows[0]);});}
 
- async importCollection(actorId:string,result:CollectionResult){return this.run(()=>this.db.$transaction(async tx=>{
+ async importCollection(_actorId:string|null,result:CollectionResult){return this.run(()=>this.db.$transaction(async tx=>{
+  const actorId=null;
+  await tx.$executeRaw`SELECT set_config('labassist.price_pipeline','on',true)`;
   // Fail closed until the stock migration is installed, before recording any import.
   await tx.$queryRaw`SELECT stock_checked_at FROM labassist_student.market_offers LIMIT 0`;
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`shop-price:${result.shop}`}))`;
   const observedAt=this.collectionTime(result);const prior=await tx.$queryRaw<any[]>`SELECT id,status FROM labassist_student.shop_price_checks WHERE shop=${result.shop} AND observed_at=${observedAt}::timestamptz`;
   if(prior[0])return {checkId:prior[0].id,idempotent:true,status:prior[0].status};
-  const feed=(await tx.$queryRaw<any[]>`SELECT f.*,r.url,r.reviewed_by FROM labassist_student.shop_price_feeds f JOIN labassist_student.resale_sources r ON r.id=f.source_id AND r.seller_id=f.seller_id WHERE f.shop=${result.shop} AND r.status='APPROVED'`)[0];
+  const feed=await this.ensureAutomaticFeed(tx,result.shop);
   const status=result.failures.length?(result.items.length?'PARTIAL':'FETCH_FAILED'):'SUCCESS';
   const check=(await tx.$queryRaw<any[]>`INSERT INTO labassist_student.shop_price_checks(shop,observed_at,status,complete,pages_attempted,failure_count) VALUES(${result.shop},${observedAt}::timestamptz,${status},${result.complete},${result.pagesAttempted},${result.failures.length}) RETURNING id`)[0];
   const mappings=await tx.$queryRaw<any[]>`SELECT * FROM labassist_student.shop_price_mappings WHERE shop=${result.shop}`;const byExternal=new Map(mappings.map(m=>[m.external_product_id,m]));const seen=new Set<string>();
   if(!feed){await this.outcome(tx,check.id,result.shop,null,null,'MATCH_UNRESOLVED',null,observedAt,null);return {checkId:check.id,idempotent:false,status,outcomes:1};}
   for(const item of result.items){seen.add(item.externalProductId);let mapping=byExternal.get(item.externalProductId);
    if(!mapping){mapping=(await tx.$queryRaw<any[]>`INSERT INTO labassist_student.shop_price_mappings(shop,external_product_id,sku,product_name,package_quantity) VALUES(${result.shop},${item.externalProductId},${item.sku},${item.productName},${item.packageQuantity}::int) RETURNING *`)[0];byExternal.set(item.externalProductId,mapping);}
+   if(mapping.sku!==item.sku||mapping.product_name!==item.productName){await this.outcome(tx,check.id,result.shop,item,mapping,'MATCH_UNRESOLVED',null,observedAt,null);continue;}
+   if(mapping.status==='PENDING') mapping=await this.resolveAutomaticMapping(tx,mapping,item);
    if(mapping.status==='PENDING'){await this.outcome(tx,check.id,result.shop,item,mapping,'MATCH_UNRESOLVED',null,observedAt,null);continue;}
    if(mapping.status==='REJECTED'){await this.outcome(tx,check.id,result.shop,item,mapping,'NO_MATCH',null,observedAt,null);continue;}
    if(!approvedShopUrl(result.shop,item.sourceUrl)){await this.outcome(tx,check.id,result.shop,item,mapping,'MATCH_UNRESOLVED',null,observedAt,null);continue;}
@@ -65,10 +61,34 @@ const approvedShopUrl=(shop:ShopCode,value:string|null)=>{try{const url=new URL(
   return {checkId:check.id,idempotent:false,status};
  },{timeout:120_000}));}
 
+
+ private async ensureAutomaticFeed(tx:Tx,shop:ShopCode){
+  const existing=(await tx.$queryRaw<any[]>`SELECT f.*,r.status,r.url FROM labassist_student.shop_price_feeds f JOIN labassist_student.resale_sources r ON r.id=f.source_id WHERE f.shop=${shop}`)[0];
+  if(existing){if(!approvedShopUrl(shop,existing.url)||['REJECTED','REVOKED'].includes(existing.status))throw new BadRequestException('Shop feed evidence is invalid or revoked.');return existing;}
+  const website='https://'+shopHost(shop)+'/';
+  const candidates=await tx.$queryRaw<any[]>`SELECT id FROM labassist_student.market_sellers WHERE kind='SHOP' AND website=${website}`;
+  if(candidates.length>1)throw new BadRequestException('Ambiguous shop website identity.');
+  const seller=candidates[0]??(await tx.$queryRaw<any[]>`INSERT INTO labassist_student.market_sellers(seed_key,kind,name,city,website) VALUES(${'AUTOMATIC_SHOP_'+shop},'SHOP',${shop==='TECHNOLAB'?'Technolab':'PIC Industrial'},'',${website}) ON CONFLICT(seed_key) DO UPDATE SET seed_key=excluded.seed_key RETURNING id`)[0];
+  const source=(await tx.$queryRaw<any[]>`INSERT INTO labassist_student.resale_sources(seller_id,kind,url,observed_at,status,verification_method) VALUES(${seller.id}::uuid,'SHOP_PAGE',${website},now(),'APPROVED','AUTOMATED') RETURNING id`)[0];
+  return (await tx.$queryRaw<any[]>`INSERT INTO labassist_student.shop_price_feeds(shop,seller_id,source_id,configured_by) VALUES(${shop},${seller.id}::uuid,${source.id}::uuid,NULL) RETURNING *`)[0];
+ }
+ private async resolveAutomaticMapping(tx:Tx,mapping:any,item:NormalizedShopPrice){
+  const evidence=JSON.parse(readFileSync(resolve(__dirname,'../shared-data/20261126134500_sprint6_prices.json'),'utf8')).rows;
+  const normalize=(v:unknown)=>String(v??'').normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
+  const matches=evidence.filter((r:any)=>r.shop===item.shop&&String(r.external_product_id)===item.externalProductId&&normalize(r.sku)===normalize(item.sku)&&normalize(r.product_name)===normalize(item.productName)&&r.source_url===item.sourceUrl);
+  if(matches.length!==1)return mapping;
+  const row=matches[0];if(!(await tx.$queryRaw<any[]>`SELECT key FROM labassist_student.catalog_parts WHERE key=${row.part_key} AND active`).length)return mapping;
+  const variant=(await tx.$queryRaw<any[]>`SELECT id FROM labassist_student.catalog_part_variants WHERE part_key=${row.part_key} AND lower(manufacturer) IS NOT DISTINCT FROM lower(${row.manufacturer}::text) AND lower(model_number) IS NOT DISTINCT FROM lower(${row.model_number}::text) AND lower(package_or_revision) IS NOT DISTINCT FROM lower(${row.package_or_revision}::text)`)[0]
+    ??(await tx.$queryRaw<any[]>`SELECT labassist_student.create_part_variant(NULL,${row.part_key},${row.manufacturer},${row.model_number},${row.package_or_revision},${row.variant_source_url}) id`)[0];
+  const exact=(await tx.$queryRaw<any[]>`SELECT labassist_student.part_variant_exact(${variant.id}::uuid) ok`)[0]?.ok;if(!exact)return mapping;
+  await tx.$executeRaw`SELECT labassist_student.review_shop_price_mapping(NULL,${mapping.id}::uuid,'APPROVED',${row.part_key},${variant.id}::uuid,${row.sale_quantity}::int,${row.package_quantity}::int)`;
+  return (await tx.$queryRaw<any[]>`SELECT * FROM labassist_student.shop_price_mappings WHERE id=${mapping.id}::uuid`)[0];
+ }
+
  private collectionTime(result:CollectionResult){const times=result.items.map(item=>item.observedAt).filter(Boolean).sort();return times[0]??new Date().toISOString();}
- private async persistPrice(tx:Tx,actorId:string,feed:any,mapping:any,item:NormalizedShopPrice,observedAt:string){
+ private async persistPrice(tx:Tx,actorId:string|null,feed:any,mapping:any,item:NormalizedShopPrice,observedAt:string){
   const hash=createHash('sha256').update(JSON.stringify({shop:item.shop,id:item.externalProductId,price:item.price,currency:item.currency,observedAt})).digest('hex');
-  const derived=(await tx.$queryRaw<any[]>`INSERT INTO labassist_student.resale_sources(seller_id,kind,url,observed_at,content_hash,status,reviewed_by,reviewed_at) VALUES(${feed.seller_id}::uuid,'SHOP_PAGE',${item.sourceUrl},${observedAt}::timestamptz,${hash},'APPROVED',${feed.reviewed_by}::uuid,now()) RETURNING id`)[0];
+  const derived=(await tx.$queryRaw<any[]>`INSERT INTO labassist_student.resale_sources(seller_id,kind,url,observed_at,content_hash,status,verification_method) VALUES(${feed.seller_id}::uuid,'SHOP_PAGE',${item.sourceUrl},${observedAt}::timestamptz,${hash},'APPROVED','AUTOMATED') RETURNING id`)[0];
   let offer=mapping.offer_id?(await tx.$queryRaw<any[]>`SELECT * FROM labassist_student.market_offers WHERE id=${mapping.offer_id}::uuid FOR UPDATE`)[0]:null;
   const quantity=item.availableQuantity;
   if(!offer){offer=(await tx.$queryRaw<any[]>`INSERT INTO labassist_student.market_offers(seller_id,source_id,catalog_key,variant_id,part_name,variant,condition,unit_price,currency,quantity,stock_availability,stock_checked_at,status,updated_by) VALUES(${feed.seller_id}::uuid,${derived.id}::uuid,${mapping.part_key},${mapping.variant_id}::uuid,${item.productName},'', 'NEW',${item.price}::numeric,${item.currency},${quantity}::int,${item.availability},${observedAt}::timestamptz,'ACTIVE',${actorId}::uuid) RETURNING *`)[0];await tx.$executeRaw`UPDATE labassist_student.shop_price_mappings SET offer_id=${offer.id}::uuid WHERE id=${mapping.id}::uuid`;return {offerId:offer.id,sourceId:derived.id};}

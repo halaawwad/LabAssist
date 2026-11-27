@@ -56,13 +56,14 @@ export class Seller{
  @ApiProperty(NS) phone!:string|null;@ApiProperty(NS) website!:string|null;@ApiProperty() isDemo!:boolean;@ApiProperty() own!:boolean;
 }
 export class Source{
+ @ApiProperty({enum:['HUMAN','AUTOMATED','OWNER_REPORTED']}) verificationMethod!:string;@ApiProperty(NS) verifiedAt!:string|null;@ApiProperty(NS) submittedBy!:string|null;
  @ApiProperty() id!:string;@ApiProperty() sellerId!:string;@ApiProperty() kind!:string;@ApiProperty(NS) url!:string|null;@ApiProperty() observedAt!:string;@ApiProperty(NS) contentHash!:string|null;
  @ApiProperty({enum:['PENDING','APPROVED','REJECTED','REVOKED']}) status!:string;@ApiProperty(NS) reviewedBy!:string|null;@ApiProperty(NS) reviewedAt!:string|null;
  @ApiProperty(NS) revokedBy!:string|null;@ApiProperty(NS) revokedAt!:string|null;@ApiProperty(NS) revocationReason!:string|null;
 }
 export class Offer{
  @ApiProperty() id!:string;@ApiProperty() sellerId!:string;@ApiProperty({description:'Original source evidence; later prices are observations.'}) sourceId!:string;@ApiProperty(NS) catalogKey!:string|null;@ApiProperty(NS) variantId!:string|null;
- @ApiProperty() partName!:string;@ApiProperty() variant!:string;@ApiProperty() condition!:string;@ApiProperty({description:'Latest recorded price, which may still await source approval.'}) unitPrice!:string;@ApiProperty() currency!:string;
+ @ApiProperty() partName!:string;@ApiProperty() variant!:string;@ApiProperty() condition!:string;@ApiProperty({description:'Latest recorded price with source provenance.'}) unitPrice!:string;@ApiProperty() currency!:string;
  @ApiProperty(NN) quantity!:number|null;@ApiProperty(NS) shippingCost!:string|null;@ApiProperty(NS) validUntil!:string|null;@ApiProperty() status!:string;@ApiProperty() revision!:number;@ApiProperty() updatedAt!:string;
 }
 export class Observation{

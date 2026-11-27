@@ -1,3 +1,7 @@
+# Current shop ingestion policy
+
+Shop source validation, exact matching and price/stock ingestion are automatic backend operations. No Workshop Manager approval or reviewer key is required. See SPRINT-6-PRICE-SYNC.md and the 20261127000100 migration. Legacy audit records are retained; the older implementation notes below describe historical behavior and do not define current permissions. Student sources are owner-reported and remain bound to their seller identity.
+
 # Sprint 6 handoff: Catalog, Shops, Prices and Student Offers
 
 Checkpoint date: 2026-11-24. Nothing has been staged or committed.
@@ -221,7 +225,7 @@ The existing module was extended in place. These files changed: [market.dto.ts](
 - Lifecycle:
   - the approved transition table, zero-quantity closing, final SOLD and WITHDRAWN states, and EXPIRED→ACTIVE only after a newer approved observation (all in `market_offer_guard`);
   - revision conflicts return 409;
-  - source approval is required to become ACTIVE;
+  - usable source evidence is required to become ACTIVE; automatic shop validation and owner-reported student evidence do not require manager approval;
   - immutable history.
 - Price changes: only through `POST /offers/:id/prices` (Task 4).
 

@@ -1,12 +1,7 @@
-# Versioned shared development data
+# Shared database updates
 
-Place reviewed updates here as JavaScript files named `YYYYMMDDHHMMSS_description.cjs`.
-Each exports `async function apply(client)` and must use the supplied PostgreSQL transaction.
-Resolve existing records by stable identifiers, preserve provenance, and fail on conflicts.
-Never put credentials or private account data in an update. Applied files are immutable;
-add a new version for subsequent changes.
+Versioned CJS updates are applied transactionally with recorded checksums. Published update files remain immutable. Replaying an applied version validates its checksum and does not duplicate records.
 
-An optional same-named `.json` file is included in the version checksum. A deferred update may
-raise `SHARED_DATA_PENDING`; it is rolled back and later updates wait for the next run. The
-Sprint 6 update requires the original active reviewer and its private verification key; see
-`docs/DATABASE-SHARED-UPDATES.md`.
+20261127100000_automatic_shop_prices.cjs supersedes the unexecuted reviewer-gated Sprint 6 import. It runs without a manager account or private reviewer key. Automated sources and mappings retain source evidence and have no human reviewer. Existing human audit records are preserved.
+
+Docker Compose runs migrations before shared-data updates. These updates do not send email or reset accounts. Conflicting catalog identities fail rather than overwrite records.

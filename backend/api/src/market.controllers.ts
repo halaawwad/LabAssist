@@ -29,13 +29,9 @@ const uuid=new ParseUUIDPipe();
  @Patch('sellers/:id') @ApiOkResponse({type:Seller}) @ApiErrors(400,403,404) updateSeller(@Param('id',uuid) id:string,@Body() body:SellerDto,@Req() req:any){return this.market.updateSeller(req.actor,id,body);}
  @Post('sellers/:id/sources') @ApiCreatedResponse({type:Source}) @ApiErrors(400,403,404) createSource(@Param('id',uuid) id:string,@Body() body:SourceDto,@Req() req:any){return this.market.createSource(req.actor,id,body);}
  @Get('sources') @ApiOkResponse({type:SourcePage}) @ApiErrors(400,403) sources(@Query() q:SourceQuery,@Req() req:any){return this.market.sources(req.actor,q);}
- @Post('sources/:id/review') @ApiCreatedResponse({type:Source}) @ApiErrors(400,403,404,409) review(@Param('id',uuid) id:string,@Body() body:ReviewDto,@Req() req:any){return this.market.review(req.actor,id,body);}
- @Post('sources/:id/revoke') @ApiCreatedResponse({type:Source}) @ApiErrors(400,403,404,409) revoke(@Param('id',uuid) id:string,@Body() body:RevokeDto,@Req() req:any){return this.market.revoke(req.actor,id,body);}
  @Get('compare') @ApiOkResponse({type:PublicOfferPage}) @ApiErrors(400,403) compare(@Query() q:CompareQuery,@Req() req:any){return this.market.compare(req.actor,q);}
  @Get('compare/exact') @ApiOkResponse({type:PublicOfferPage}) @ApiErrors(400,403,404) compareExact(@Query() q:ExactCompareQuery,@Req() req:any){return this.market.compareExact(req.actor,q);}
  @Get('prices/compare') @ApiOkResponse({type:ShopPriceComparison}) @ApiErrors(400,403,404) compareShopPrices(@Query() q:ShopComparisonQuery,@Req() req:any){return this.priceSync.compare(req.actor,q);}
- @Put('prices/feeds') @ApiOkResponse({type:ShopFeedConfiguration}) @ApiErrors(400,403) configurePriceFeed(@Body() b:ShopFeedDto,@Req() req:any){return this.priceSync.configureFeed(req.actor,b);}
- @Post('prices/mappings/:id/review') @ApiCreatedResponse({type:MappingReviewResult}) @ApiErrors(400,403,404,409) reviewPriceMapping(@Param('id',uuid) id:string,@Body() b:MappingReviewDto,@Req() req:any){return this.priceSync.reviewMapping(req.actor,id,b);}
  @Post('prices/global-references') @ApiCreatedResponse({type:GlobalPriceReference}) @ApiErrors(400,403,404,409) addGlobalReference(@Body() b:GlobalReferenceDto,@Req() req:any){return this.priceSync.addGlobalReference(req.actor,b);}
  @Get('offers') @ApiOkResponse({type:PublicOfferPage}) @ApiErrors(400,403) offers(@Query() q:OfferQuery,@Req() req:any){return this.market.offers(req.actor,q);}
  @Get('offers/managed') @ApiOkResponse({type:OfferPage}) @ApiErrors(400,403) managed(@Query() q:ManagedOfferQuery,@Req() req:any){return this.market.managed(req.actor,q);}
