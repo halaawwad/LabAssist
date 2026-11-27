@@ -2,14 +2,9 @@ import { useProjectWorkspace } from "@/lib/projectWorkspace";
 import { Button } from "@/components/ui/button";
 
 export function ProjectWorkspaceStatus() {
-  const { loading, error, reload, project, saving } = useProjectWorkspace();
+  const { loading, error, reload, saving } = useProjectWorkspace();
   if (loading) return <p role="status">Loading project…</p>;
-  if (!error)
-    return project ? (
-      <Button variant="secondary" disabled={saving} onClick={() => void reload()}>
-        Refresh project
-      </Button>
-    ) : null;
+  if (!error) return null;
 
   const message = {
     missing: "You have no project assigned for the current term.",

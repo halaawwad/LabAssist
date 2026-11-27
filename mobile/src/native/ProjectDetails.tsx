@@ -26,6 +26,15 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
   const [abstractDraft, setAbstractDraft] = useState(workspace.abstract);
   const [subtitleDraft, setSubtitleDraft] = useState("");
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string>();
+  if (workspace.liveMode && !workspace.project) {
+    return <Panel>
+      <AppText accessibilityRole="alert">{workspace.loading
+        ? copy("Loading project…", "جارٍ تحميل المشروع…")
+        : workspace.error || copy("No project assigned for the current term.", "لا يوجد مشروع مخصص للفصل الحالي.")}</AppText>
+      {!workspace.loading && <Button title={copy("Retry loading", "إعادة التحميل")} onPress={workspace.retryLoading} />}
+    </Panel>;
+  }
+
   return (
     <View style={kit.stack}>
       {workspace.loading && <AppText>{copy("Loading project…", "جارٍ تحميل المشروع…")}</AppText>}
@@ -35,7 +44,7 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
           <Button title={copy("Retry loading", "إعادة التحميل")} onPress={workspace.retryLoading} />
         </Panel>
       )}
-      <Panel>
+      {tab === "Overview" && <Panel>
         {workspace.liveMode && workspace.project && (
           <Button
             variant="ghost"
@@ -104,7 +113,7 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
             }
           />
         </Disclosure>
-      </Panel>
+      </Panel>}
       {/* Every project section stays visible (2 × 2 on narrow phones) instead of a clipped scroller. */}
       <SegmentedControl
         accessibilityLabel={copy("Project sections", "أقسام المشروع")}
@@ -141,12 +150,14 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
               <View style={kit.stack}>
                 <TextInput
                   accessibilityLabel={copy("Project title", "عنوان المشروع")}
+                  style={kit.input}
                   value={titleDraft}
                   onChangeText={setTitleDraft}
                 />
                 {workspace.liveMode && (
                   <TextInput
                     accessibilityLabel={copy("Subtitle", "عنوان فرعي")}
+                  style={kit.input}
                     value={subtitleDraft}
                     onChangeText={setSubtitleDraft}
                   />
@@ -274,7 +285,7 @@ export function ReferenceProject({ initial = "Overview" }: { initial?: string })
               {copy("of", "من")} {workspace.teamTasks.filter((task) => task.owner === index).length}{" "}
               {copy("tasks complete", "مهام مكتملة")}
             </AppText>
-            <AppText weight="semibold">{copy("Today’s Tasks", "مهام اليوم")}</AppText>
+            <AppText weight="semibold">{workspace.liveMode ? copy("Assigned tasks", "المهام المسندة") : copy("Today’s Tasks", "مهام اليوم")}</AppText>
             {workspace.teamTasks
               .filter((x) => x.owner === index)
               .map((task) => {

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { View } from "react-native";
 import { AppText, Button } from "@/components";
 import { MobileInput } from "@/components/MobileInput";
-import { Disclosure } from "@/components/Disclosure";
 import { kit, Panel, SegmentedControl, useCopy } from "@/components/MobileKit";
 import type { ProjectIssue, ProjectIssueStatus } from "../../../shared/contracts/project-work";
 import { useProjectWorkspace } from "./StudentReference";
@@ -14,23 +13,34 @@ export function LiveTaskForm() {
   const [description, setDescription] = useState("");
   const [assignee, setAssignee] = useState(workspace.actorId);
   const [due, setDue] = useState("");
+  const [notice, setNotice] = useState("");
+  const selectedAssignee = workspace.members.some(({ id }) => id === assignee) ? assignee : workspace.actorId;
   return (
-    <Disclosure title={copy("Add task", "إضافة مهمة")}>
+    <Panel>
+      <AppText variant="heading">{copy("Add task", "إضافة مهمة")}</AppText>
       <View style={kit.stack}>
+        <AppText>{copy("Task title", "عنوان المهمة")}</AppText>
         <MobileInput
+          style={kit.input}
+          placeholder={copy("What needs to be done?", "ما المهمة المطلوبة؟")}
           accessibilityLabel={copy("Task title", "عنوان المهمة")}
           value={title}
           onChangeText={setTitle}
           maxLength={240}
         />
+        <AppText>{copy("Description (optional)", "الوصف (اختياري)")}</AppText>
         <MobileInput
+          style={kit.input}
+          placeholder={copy("Add task details", "أضف تفاصيل المهمة")}
           accessibilityLabel={copy("Description", "الوصف")}
           value={description}
           onChangeText={setDescription}
           maxLength={10000}
           multiline
         />
+        <AppText>{copy("Due date (optional)", "تاريخ التسليم (اختياري)")}</AppText>
         <MobileInput
+          style={kit.input}
           accessibilityLabel={copy("Due date", "تاريخ التسليم")}
           placeholder="YYYY-MM-DD"
           value={due}
@@ -39,25 +49,31 @@ export function LiveTaskForm() {
         />
         <SegmentedControl
           accessibilityLabel={copy("Assignee", "المكلّف بالمهمة")}
-          value={assignee}
+          value={selectedAssignee}
           onChange={setAssignee}
           options={workspace.members.map(({ id, name }) => ({ id, label: name }))}
         />
         <Button
-          title={copy("Add task", "إضافة مهمة")}
+          title={copy("Save task", "حفظ المهمة")}
+          loading={workspace.saving}
           disabled={
-            workspace.saving || !title.trim() || (due !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(due))
+            workspace.saving || !workspace.project || !selectedAssignee || !title.trim() || (due !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(due))
           }
           onPress={async () => {
-            if (await workspace.createTask(title, assignee, description, due)) {
+            setNotice("");
+            if (await workspace.createTask(title.trim(), selectedAssignee, description.trim(), due)) {
+              setNotice(copy("Task added.", "تمت إضافة المهمة."));
               setTitle("");
               setDescription("");
               setDue("");
+            } else {
+              setNotice(copy("Could not add the task. Your input is saved here; retry.", "تعذّرت إضافة المهمة. بياناتك موجودة، حاول مجدداً."));
             }
           }}
         />
+        {!!notice && <AppText accessibilityRole="alert">{notice}</AppText>}
       </View>
-    </Disclosure>
+    </Panel>
   );
 }
 
@@ -79,12 +95,14 @@ export function NativeProjectIssue({ issue }: { issue: ProjectIssue }) {
       {draft ? (
         <>
           <MobileInput
+            style={kit.input}
             accessibilityLabel={copy("Issue title", "عنوان المشكلة")}
             value={draft.title}
             onChangeText={(title) => setDraft({ ...draft, title })}
             maxLength={240}
           />
           <MobileInput
+            style={kit.input}
             accessibilityLabel={copy("Description", "الوصف")}
             value={draft.description}
             onChangeText={(description) => setDraft({ ...draft, description })}
@@ -99,6 +117,7 @@ export function NativeProjectIssue({ issue }: { issue: ProjectIssue }) {
           />
           {draft.status === "RESOLVED" && (
             <MobileInput
+            style={kit.input}
               accessibilityLabel={copy("Resolution", "الحل")}
               value={draft.resolution}
               onChangeText={(resolution) => setDraft({ ...draft, resolution })}
@@ -159,6 +178,7 @@ export function LiveProjectIssues() {
       {project && (
         <>
           <MobileInput
+            style={kit.input}
             accessibilityLabel={copy("Issue title", "عنوان المشكلة")}
             value={title}
             onChangeText={setTitle}
