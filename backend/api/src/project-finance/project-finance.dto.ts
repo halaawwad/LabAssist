@@ -68,3 +68,12 @@ export class VoidExpenseDto {
   @ApiProperty() @IsInt() @Min(0) expectedRevision!: number;
   @ApiProperty() @Matches(/\S/u) @MaxLength(2000) reason!: string;
 }
+
+export class ReceiptDto {
+  @ApiProperty() @IsString() @MaxLength(200) @Matches(/\S/) name!: string;
+  @ApiProperty({ description: "Base64 PDF, PNG or JPEG, maximum 1 MiB decoded" })
+  @IsString()
+  @MaxLength(1398104)
+  @Matches(/^[A-Za-z0-9+/]+={0,2}$/)
+  content!: string;
+}

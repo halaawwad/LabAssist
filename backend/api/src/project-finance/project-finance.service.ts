@@ -1,3 +1,7 @@
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
+import { resolve, join } from "node:path";
+import { ReceiptDto } from "./project-finance.dto";
 import {
   BadRequestException,
   ConflictException,
@@ -63,6 +67,58 @@ export class ProjectFinanceService {
         FinanceExpense[]
       >`SELECT e.id,e.purchased_on::text AS "purchasedOn",e.seller_name AS "sellerName",e.status,t.amount::numeric(24,2)::text AS amount,e.revision,e.created_by AS "createdBy",e.void_reason AS "voidReason",e.receipt_file_id AS "receiptFileId",COALESCE((SELECT jsonb_agg(jsonb_build_object('id',l.id,'bomItemId',l.bom_item_id,'label',l.label,'quantity',l.quantity,'unitPrice',l.unit_price::text,'total',l.total::text) ORDER BY l.id) FROM labassist_student.project_expense_lines l WHERE l.expense_id=e.id),'[]'::jsonb) AS lines FROM labassist_student.project_expenses e JOIN labassist_student.project_expense_totals t ON t.id=e.id WHERE e.project_id=${id}::uuid AND e.status<>'DRAFT' ORDER BY e.created_at DESC,e.id`;
       return { projectId: id, readOnly, budget: budget ?? null, bom, expenses };
+    });
+  }
+  private receiptDirectory() {
+    return resolve(process.env.RECEIPT_STORAGE_DIR || ".local/project-receipts");
+  }
+  async uploadReceipt(actor: Actor, id: string, input: ReceiptDto) {
+    const bytes = Buffer.from(input.content, "base64");
+    if (!bytes.length || bytes.length > 1048576 || bytes.toString("base64") !== input.content)
+      throw new BadRequestException("Receipt must be at most 1 MiB.");
+    const mime = bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+      ? "image/png"
+      : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
+        ? "image/jpeg"
+        : bytes.subarray(0, 5).toString() === "%PDF-" &&
+            bytes.subarray(-32).includes(Buffer.from("%%EOF"))
+          ? "application/pdf"
+          : null;
+    if (!mime) throw new BadRequestException("Choose a PDF, PNG or JPEG receipt.");
+    const key = randomUUID();
+    const path = join(this.receiptDirectory(), key);
+    let written = false;
+    try {
+      return await this.member(actor, id, true, async (tx) => {
+        await mkdir(this.receiptDirectory(), { recursive: true });
+        await writeFile(path, bytes, { flag: "wx", mode: 0o600 });
+        written = true;
+        const [file] = await tx.$queryRaw<
+          { id: string }[]
+        >`INSERT INTO labassist_student.files(uploaded_by,storage_key,original_name,mime_type,byte_size,sha256,status) VALUES(${actor.id}::uuid,${"receipts/" + key},${input.name.replace(/[\/\\\x00-\x1f]/g, "_")},${mime},${bytes.length},${createHash("sha256").update(bytes).digest("hex")},'READY') RETURNING id`;
+        return { id: file.id, name: input.name, mimeType: mime };
+      });
+    } catch (error) {
+      if (written) await unlink(path).catch(() => {});
+      throw error;
+    }
+  }
+  receipt(actor: Actor, id: string, fileId: string) {
+    return this.member(actor, id, false, async (tx) => {
+      const [file] = await tx.$queryRaw<
+        { storage_key: string; mime_type: string; sha256: string }[]
+      >`SELECT f.storage_key,f.mime_type,f.sha256 FROM labassist_student.files f WHERE f.id=${fileId}::uuid AND f.status='READY' AND EXISTS(SELECT 1 FROM labassist_student.project_expenses e WHERE e.project_id=${id}::uuid AND e.receipt_file_id=f.id)`;
+      if (!file || !/^receipts\/[0-9a-f-]{36}$/.test(file.storage_key))
+        throw new NotFoundException("Receipt not found.");
+      let bytes: Buffer;
+      try {
+        bytes = await readFile(join(this.receiptDirectory(), file.storage_key.slice(9)));
+      } catch {
+        throw new NotFoundException("Receipt file unavailable.");
+      }
+      if (createHash("sha256").update(bytes).digest("hex") !== file.sha256)
+        throw new NotFoundException("Receipt file unavailable.");
+      return { bytes, mimeType: file.mime_type };
     });
   }
   budget(actor: Actor, id: string, b: BudgetDto) {

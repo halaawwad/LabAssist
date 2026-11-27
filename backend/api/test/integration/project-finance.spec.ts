@@ -1,3 +1,4 @@
+import { overlap, freshQuery } from "../helpers/concurrent";
 import "reflect-metadata";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
@@ -183,13 +184,12 @@ describe("Sprint 2B project finance", () => {
       sellerName: "Parts shop",
       lines: [{ bomItemId: bom.id, label: "Light sensor", quantity: 2, unitPrice: "9.50" }],
     };
-    const results = await Promise.all([
-      call("post", "/expenses", "a", body),
-      call("post", "/expenses", "a", body),
-    ]);
+    const results = await overlap<any>("SELECT pg_advisory_xact_lock(hashtext($1))",['finance:'+pid],()=>[1,2].map(()=>call('post','/expenses','a',body).then((r:any)=>r)));
     expect(results.map((r) => r.status)).toEqual([201, 201]);
     expect(results[0].body.id).toBe(results[1].body.id);
     expense = results[0].body;
+ expect(await freshQuery("SELECT count(*)::int AS n FROM labassist_student.project_expenses WHERE project_id=$1 AND request_key=$2",[pid,body.requestKey])).toEqual([{n:1}]);
+ expect(await freshQuery("SELECT count(*)::int AS n FROM labassist_student.project_expense_lines WHERE expense_id=$1",[expense.id])).toEqual([{n:1}]);
     const f = (await call("get", "/finance", "b")).body;
     expect(f.expenses).toHaveLength(1);
     expect(f.budget).toMatchObject({ spent: "19.00", remaining: "101.00" });
@@ -280,6 +280,105 @@ describe("Sprint 2B project finance", () => {
       spent: "1.00",
       remaining: "-1.00",
     });
+  });
+  it("overlaps conflicting purchase payloads and observes exactly one persisted spend and audit transition", async () => {
+    const requestKey = randomUUID();
+    const body = {
+      requestKey,
+      purchasedOn: "2026-11-01",
+      sellerName: "A",
+      lines: [{ label: "Race purchase", quantity: 1, unitPrice: "3.00" }],
+    };
+    const results = await overlap<any>(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      ["finance:" + pid],
+      () =>
+        ["A", "B"].map((sellerName) =>
+          call("post", "/expenses", "a", { ...body, sellerName }).then((r: any) => r),
+        ),
+    );
+    expect(results.map((r: any) => r.status).sort()).toEqual([201, 409]);
+    const id = results.find((r: any) => r.status === 201)!.body.id;
+    const rows = await freshQuery(
+      "SELECT e.seller_name,e.status,t.amount::text,(SELECT count(*)::int FROM labassist_student.project_expense_lines l WHERE l.expense_id=e.id) AS lines,(SELECT count(*)::int FROM labassist_student.audit_events a WHERE a.payload->'after'->>'id'=e.id::text AND a.event_key='project_expenses_INSERT') AS inserted,(SELECT count(*)::int FROM labassist_student.audit_events a WHERE a.payload->'after'->>'id'=e.id::text AND a.event_key='project_expenses_UPDATE') AS posted FROM labassist_student.project_expenses e JOIN labassist_student.project_expense_totals t ON t.id=e.id WHERE e.project_id=$1 AND request_key=$2",
+      [pid, requestKey],
+    );
+    expect(rows).toEqual([
+      {
+        seller_name: results[0].status === 201 ? "A" : "B",
+        status: "POSTED",
+        amount: "3.00",
+        lines: 1,
+        inserted: 1,
+        posted: 1,
+      },
+    ]);
+    const voids = await overlap<any>(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      ["finance:" + pid],
+      () =>
+        ["a", "b"].map((who) =>
+          call("post", "/expenses/" + id + "/void", who, {
+            expectedRevision: 1,
+            reason: "Race return",
+          }).then((r: any) => r),
+        ),
+    );
+    expect(voids.map((r: any) => r.status).sort()).toEqual([200, 409]);
+    expect(
+      await freshQuery(
+        "SELECT status,revision FROM labassist_student.project_expenses WHERE id=$1",
+        [id],
+      ),
+    ).toEqual([{ status: "VOIDED", revision: 2 }]);
+    expect(
+      (
+        await freshQuery(
+          "SELECT count(*)::int AS n FROM labassist_student.audit_events WHERE payload->'after'->>'id'=$1 AND payload->'after'->>'status'='VOIDED'",
+          [id],
+        )
+      )[0].n,
+    ).toBe(1);
+    expect(
+      (
+        await freshQuery(
+          "SELECT spent::text FROM labassist_student.project_finance_summary WHERE project_id=$1",
+          [pid],
+        )
+      )[0].spent,
+    ).toBe("1.00");
+  });
+  it("uploads real PDF bytes, links an owned receipt and restricts downloading", async () => {
+    const pdf = Buffer.from(
+      "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF",
+    );
+    const uploaded = await call("post", "/receipts", "a", {
+      name: "receipt.pdf",
+      content: pdf.toString("base64"),
+    }).expect(201);
+    const purchase = await call("post", "/expenses", "a", {
+      requestKey: randomUUID(),
+      purchasedOn: "2026-11-01",
+      sellerName: "Receipt shop",
+      receiptFileId: uploaded.body.id,
+      lines: [{ label: "Receipt purchase", quantity: 1, unitPrice: "2.00" }],
+    }).expect(201);
+    expect(
+      (await call("get", "/finance", "b")).body.expenses.find((e: any) => e.id === purchase.body.id)
+        .receiptFileId,
+    ).toBe(uploaded.body.id);
+    const download = await call("get", "/receipts/" + uploaded.body.id, "b").expect(200);
+    expect(download.headers["content-type"]).toContain("application/pdf");
+    expect(Buffer.from(download.body).equals(pdf)).toBe(true);
+    await call("get", "/receipts/" + uploaded.body.id, "c").expect(404);
+    await call("get", "/receipts/" + uploaded.body.id, "sup").expect(403);
+    await call('post','/receipts','c',{name:'foreign.pdf',content:pdf.toString('base64')}).expect(404);
+    await call('post','/receipts','sup',{name:'foreign.pdf',content:pdf.toString('base64')}).expect(403);
+    await call('post','/receipts','a',{name:'large.pdf',content:Buffer.alloc(1048577,1).toString('base64')}).expect(400);
+    await call("post", "/receipts", "a", {
+      name: "fake.pdf",
+      content: Buffer.from("<html>fake</html>").toString("base64"),
+    }).expect(400);
   });
   it("documents finance contracts and makes archived projects read-only", async () => {
     const docs = (await request(app.getHttpServer()).get("/docs-json").expect(200)).body;

@@ -1,3 +1,6 @@
+import { Res } from "@nestjs/common";
+import type { ServerResponse } from "node:http";
+import { ReceiptDto } from "./project-finance.dto";
 import {
   ProjectFinanceResponse,
   FinanceMutationResponse,
@@ -78,5 +81,27 @@ export class ProjectFinanceController {
     @Body() b: VoidExpenseDto,
   ) {
     return this.finance.voidExpense(r.actor, p, id, b);
+  }
+  @Post("receipts")
+  @ApiCreatedResponse({ description: "Validated receipt stored; returns its file ID" })
+  upload(
+    @Req() r: { actor: Actor },
+    @Param("projectId", ParseUUIDPipe) id: string,
+    @Body() body: ReceiptDto,
+  ) {
+    return this.finance.uploadReceipt(r.actor, id, body);
+  }
+  @Get("receipts/:fileId")
+  @ApiOkResponse({ description: "Private receipt bytes for current project members" })
+  async receipt(
+    @Req() r: { actor: Actor },
+    @Param("projectId", ParseUUIDPipe) id: string,
+    @Param("fileId", ParseUUIDPipe) fileId: string,
+    @Res() res: ServerResponse,
+  ) {
+    const file = await this.finance.receipt(r.actor, id, fileId);
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader("Content-Disposition", 'attachment; filename="receipt"');
+    res.end(file.bytes);
   }
 }
